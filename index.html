@@ -170,6 +170,23 @@
         .inner-tab-btn.active { color:#0d9488; border-bottom-color:#0d9488; background:#f0fdfa; }
         .inner-tab-btn.v-beban:hover { color:#7c3aed; background:#faf5ff; }
         .inner-tab-btn.v-beban.active { color:#7c3aed; border-bottom-color:#7c3aed; background:#faf5ff; }
+
+        /* ── Forecast Fullview Modal ── */
+        #fc-fullview-modal { background: rgba(15,23,42,0.85); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+        .fv-ds-btn { padding:4px 11px; border-radius:6px; font-size:10px; font-weight:800; cursor:pointer; transition:all 0.15s; border:1.5px solid #e2e8f0; background:white; color:#94a3b8; }
+        .fv-ds-btn.active-temp { background:#ef4444; border-color:#ef4444; color:white; }
+        .fv-ds-btn.active-load { background:#7c3aed; border-color:#7c3aed; color:white; }
+        .fv-tool-btn { display:flex; align-items:center; gap:4px; padding:6px 10px; border-radius:8px; font-size:11px; font-weight:800; cursor:pointer; transition:all 0.15s; border:1.5px solid #e2e8f0; background:white; color:#475569; }
+        .fv-tool-btn:hover { border-color:#0d9488; color:#0d9488; background:#f0fdfa; }
+        .fv-tool-btn.active { background:#0d9488; border-color:#0d9488; color:white; box-shadow:0 0 0 3px rgba(13,148,136,0.2); }
+        .fv-save-btn { display:flex; align-items:center; gap:4px; padding:6px 10px; border-radius:8px; font-size:11px; font-weight:800; cursor:pointer; transition:all 0.15s; border:1.5px solid #bfdbfe; background:#eff6ff; color:#2563eb; }
+        .fv-save-btn:hover { background:#2563eb; color:white; border-color:#2563eb; }
+        .fv-share-btn { display:flex; align-items:center; gap:4px; padding:6px 10px; border-radius:8px; font-size:11px; font-weight:800; cursor:pointer; transition:all 0.15s; border:1.5px solid #bbf7d0; background:#f0fdf4; color:#16a34a; }
+        .fv-share-btn:hover { background:#16a34a; color:white; border-color:#16a34a; }
+        .fv-close-btn { display:flex; align-items:center; justify-content:center; width:34px; height:34px; border-radius:8px; cursor:pointer; transition:all 0.15s; border:1.5px solid #fecaca; background:#fff5f5; color:#dc2626; }
+        .fv-close-btn:hover { background:#dc2626; color:white; border-color:#dc2626; }
+        .fc-expand-btn { display:flex; align-items:center; gap:4px; padding:4px 9px; border-radius:7px; font-size:10px; font-weight:800; cursor:pointer; transition:all 0.15s; border:1.5px solid #e2e8f0; background:white; color:#64748b; }
+        .fc-expand-btn:hover { border-color:#0d9488; color:#0d9488; background:#f0fdfa; }
     </style>
 </head>
 <body class="flex min-h-screen">
@@ -1074,7 +1091,12 @@
                     <div class="glass-card p-5">
                       <div class="flex items-center justify-between mb-3">
                         <h5 class="text-xs font-extrabold text-rose-700 uppercase tracking-widest">Forecast Suhu — Holt-Winters DES</h5>
-                        <span class="text-[9px] font-bold bg-rose-50 text-rose-600 px-2 py-0.5 rounded border border-rose-100">IEC 61000-4-30 · Box-Jenkins</span>
+                        <div class="flex items-center gap-2">
+                          <span class="text-[9px] font-bold bg-rose-50 text-rose-600 px-2 py-0.5 rounded border border-rose-100">IEC 61000-4-30 · Box-Jenkins</span>
+                          <button onclick="openForecastFullview('temp')" class="fc-expand-btn" title="Tampilkan grafik penuh">
+                            <i data-lucide="maximize-2" class="w-3 h-3"></i><span>Layar Penuh</span>
+                          </button>
+                        </div>
                       </div>
                       <div class="h-52"><canvas id="chart-fc-temp"></canvas></div>
                       <div id="fc-temp-interp" class="mt-3 p-3 bg-rose-50 rounded-xl text-[10px] text-rose-700 font-bold">—</div>
@@ -1082,7 +1104,12 @@
                     <div class="glass-card p-5">
                       <div class="flex items-center justify-between mb-3">
                         <h5 class="text-xs font-extrabold text-violet-700 uppercase tracking-widest">Forecast Beban — Holt-Winters DES</h5>
-                        <span class="text-[9px] font-bold bg-violet-50 text-violet-600 px-2 py-0.5 rounded border border-violet-100">IEEE 1459 · Holt (1957)</span>
+                        <div class="flex items-center gap-2">
+                          <span class="text-[9px] font-bold bg-violet-50 text-violet-600 px-2 py-0.5 rounded border border-violet-100">IEEE 1459 · Holt (1957)</span>
+                          <button onclick="openForecastFullview('load')" class="fc-expand-btn" title="Tampilkan grafik penuh">
+                            <i data-lucide="maximize-2" class="w-3 h-3"></i><span>Layar Penuh</span>
+                          </button>
+                        </div>
                       </div>
                       <div class="h-52"><canvas id="chart-fc-load"></canvas></div>
                       <div id="fc-load-interp" class="mt-3 p-3 bg-violet-50 rounded-xl text-[10px] text-violet-700 font-bold">—</div>
@@ -5575,6 +5602,315 @@
             }
         }
 
+        // ═══════════════════════════════════════════════════════════
+        // FORECAST FULLVIEW MODAL
+        // ═══════════════════════════════════════════════════════════
+        let _fcFvChart    = null;
+        let _fcFvType     = null;   // 'temp' | 'load'
+        let _fcFvDragZoom = false;
+
+        function openForecastFullview(type) {
+            _fcFvType     = type;
+            _fcFvDragZoom = false;
+
+            const srcKey   = type === 'temp' ? 'fc-temp' : 'fc-load';
+            const srcChart = mlCharts[srcKey];
+            if (!srcChart) {
+                alert('Jalankan ML Analysis terlebih dahulu untuk melihat grafik forecast.');
+                return;
+            }
+
+            const modal = document.getElementById('fc-fullview-modal');
+            modal.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+
+            const isTemp = type === 'temp';
+            document.getElementById('fc-fv-title').textContent    = isTemp
+                ? 'Forecast Suhu — Holt-Winters DES'
+                : 'Forecast Beban — Holt-Winters DES';
+            document.getElementById('fc-fv-subtitle').textContent = isTemp
+                ? 'IEC 61000-4-30 · Box-Jenkins · Sensor Acrel ATP007'
+                : 'IEEE 1459 · Holt (1957) · ION8650 PM Meter';
+            const iconEl = document.getElementById('fc-fv-icon');
+            iconEl.textContent = isTemp ? '🌡️' : '⚡';
+            iconEl.style.background = isTemp
+                ? 'linear-gradient(135deg,#fca5a5,#ef4444)'
+                : 'linear-gradient(135deg,#c4b5fd,#7c3aed)';
+
+            const interpSrc = document.getElementById(isTemp ? 'fc-temp-interp' : 'fc-load-interp');
+            document.getElementById('fc-fv-interp').textContent =
+                interpSrc ? interpSrc.textContent : '—';
+
+            const ac = isTemp ? 'active-temp' : 'active-load';
+            ['fv-toggle-hist','fv-toggle-fitted','fv-toggle-forecast','fv-toggle-ci'].forEach(id => {
+                const b = document.getElementById(id);
+                b.className = 'fv-ds-btn ' + ac;
+                b.dataset.visible = '1';
+            });
+
+            document.getElementById('fv-drag-btn').classList.remove('active');
+
+            if (_fcFvChart) { _fcFvChart.destroy(); _fcFvChart = null; }
+
+            const srcData  = srcChart.data;
+            const datasets = srcData.datasets.map(ds => ({
+                ...ds,
+                data:        [...ds.data],
+                pointRadius: ds.pointRadius !== undefined ? ds.pointRadius : 0,
+            }));
+
+            const color   = isTemp ? '#ef4444' : '#7c3aed';
+            const ciColor = isTemp ? 'rgba(239,68,68,0.10)' : 'rgba(124,58,237,0.10)';
+            const yUnit   = isTemp ? '°C' : 'A';
+
+            _fcFvChart = new Chart(document.getElementById('fc-fv-canvas'), {
+                type: 'line',
+                data: { labels: [...srcData.labels], datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: { duration: 350 },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                font: { size: 11, weight: 'bold' },
+                                usePointStyle: true,
+                                filter: l => l.text !== 'CI 95% Lower'
+                            }
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            bodyFont:  { size: 11 },
+                            titleFont: { size: 11, weight: 'bold' },
+                            callbacks: {
+                                label: ctx => {
+                                    if (ctx.parsed.y === null) return null;
+                                    return ` ${ctx.dataset.label}: ${ctx.parsed.y.toFixed(2)} ${yUnit}`;
+                                }
+                            }
+                        },
+                        zoom: {
+                            zoom: {
+                                wheel:  { enabled: true },
+                                pinch:  { enabled: true },
+                                mode:   'x',
+                                drag:   {
+                                    enabled:         false,
+                                    borderColor:     color,
+                                    borderWidth:     1.5,
+                                    backgroundColor: ciColor
+                                }
+                            },
+                            pan:    { enabled: true, mode: 'x' },
+                            limits: { x: { min: 'original', max: 'original' } }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: { font: { size: 10 }, maxTicksLimit: 18, maxRotation: 0 },
+                            grid:  { color: '#f1f5f9' }
+                        },
+                        y: {
+                            ticks: { font: { size: 10 }, callback: v => v.toFixed(1) + yUnit },
+                            grid:  { color: '#f1f5f9' }
+                        }
+                    },
+                    interaction: { mode: 'nearest', axis: 'x', intersect: false }
+                }
+            });
+
+            lucide.createIcons();
+        }
+
+        function closeForecastFullview() {
+            document.getElementById('fc-fullview-modal').classList.add('hidden');
+            document.body.style.overflow = '';
+            if (_fcFvChart) { _fcFvChart.destroy(); _fcFvChart = null; }
+            _fcFvType     = null;
+            _fcFvDragZoom = false;
+        }
+
+        function toggleFcFvDataset(idx) {
+            if (!_fcFvChart) return;
+            const indices = idx === 3 ? [3, 4] : [idx];
+            indices.forEach(i => {
+                const meta = _fcFvChart.getDatasetMeta(i);
+                meta.hidden = !meta.hidden;
+            });
+            _fcFvChart.update();
+
+            const btnIds = ['fv-toggle-hist','fv-toggle-fitted','fv-toggle-forecast','fv-toggle-ci'];
+            const btn    = document.getElementById(btnIds[idx]);
+            const isHidden = _fcFvChart.getDatasetMeta(indices[0]).hidden;
+            const ac = _fcFvType === 'temp' ? 'active-temp' : 'active-load';
+            btn.className = 'fv-ds-btn' + (isHidden ? '' : ' ' + ac);
+            btn.dataset.visible = isHidden ? '0' : '1';
+        }
+
+        function fcFvZoom(action) {
+            if (!_fcFvChart) return;
+            if (action === 'in')         _fcFvChart.zoom(1.3);
+            else if (action === 'out')   _fcFvChart.zoom(0.77);
+            else if (action === 'reset') _fcFvChart.resetZoom();
+        }
+
+        function toggleFcFvDragZoom() {
+            if (!_fcFvChart) return;
+            _fcFvDragZoom = !_fcFvDragZoom;
+            _fcFvChart.options.plugins.zoom.zoom.drag.enabled = _fcFvDragZoom;
+            _fcFvChart.options.plugins.zoom.pan.enabled       = !_fcFvDragZoom;
+            _fcFvChart.update('none');
+
+            document.getElementById('fc-fv-canvas').classList.toggle('drag-zoom-canvas', _fcFvDragZoom);
+            document.getElementById('fv-drag-btn').classList.toggle('active', _fcFvDragZoom);
+            document.getElementById('fc-fv-zoom-hint').textContent = _fcFvDragZoom
+                ? 'Klik & seret untuk pilih area zoom · ESC = Batal mode pilih area'
+                : 'Scroll = Zoom · Drag = Geser · ESC = Tutup';
+        }
+
+        function _buildFvExportCanvas() {
+            const canvas = document.getElementById('fc-fv-canvas');
+            const tmp    = document.createElement('canvas');
+            tmp.width    = canvas.width;
+            tmp.height   = canvas.height;
+            const ctx2   = tmp.getContext('2d');
+            ctx2.fillStyle = '#ffffff';
+            ctx2.fillRect(0, 0, tmp.width, tmp.height);
+            ctx2.drawImage(canvas, 0, 0);
+            return tmp;
+        }
+
+        function saveFcFvImage() {
+            if (!_fcFvChart) return;
+            const tmp  = _buildFvExportCanvas();
+            const url  = tmp.toDataURL('image/png');
+            const ts   = new Date().toLocaleDateString('id-ID').replace(/\//g,'-');
+            const lbl  = _fcFvType === 'temp' ? 'Forecast_Suhu' : 'Forecast_Beban';
+            const a    = document.createElement('a');
+            a.download = `SHIELD_${lbl}_Trafo${window.selectedTrafo||''}_${ts}.png`;
+            a.href     = url;
+            a.click();
+        }
+
+        async function shareFcFvImage() {
+            if (!_fcFvChart) return;
+            const tmp  = _buildFvExportCanvas();
+            const ts   = new Date().toLocaleDateString('id-ID').replace(/\//g,'-');
+            const lbl  = _fcFvType === 'temp' ? 'Forecast_Suhu' : 'Forecast_Beban';
+            const name = `SHIELD_${lbl}_Trafo${window.selectedTrafo||''}_${ts}.png`;
+
+            tmp.toBlob(async (blob) => {
+                try {
+                    const file = new File([blob], name, { type: 'image/png' });
+                    if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+                        await navigator.share({
+                            title: `SHIELD — ${lbl.replace('_',' ')}`,
+                            text:  `Grafik ${lbl.replace('_',' ')} dari SHIELD Monitoring System · Trafo ${window.selectedTrafo||''}`,
+                            files: [file]
+                        });
+                        return;
+                    }
+                } catch(e) {
+                    if (e.name === 'AbortError') return;
+                }
+                const url = URL.createObjectURL(blob);
+                const a   = document.createElement('a');
+                a.href     = url;
+                a.download = name;
+                a.click();
+                setTimeout(() => URL.revokeObjectURL(url), 1500);
+            }, 'image/png');
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                const modal = document.getElementById('fc-fullview-modal');
+                if (modal && !modal.classList.contains('hidden')) {
+                    if (_fcFvDragZoom) {
+                        toggleFcFvDragZoom();
+                    } else {
+                        closeForecastFullview();
+                    }
+                }
+            }
+        });
+
     </script>
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- FORECAST FULLVIEW MODAL                                     -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <div id="fc-fullview-modal" class="hidden fixed inset-0 z-[9999] flex flex-col p-3 gap-2.5">
+
+      <!-- ── Top Bar ── -->
+      <div class="flex items-center gap-3 bg-white rounded-2xl px-4 py-2.5 shadow-xl flex-wrap">
+
+        <!-- Title & Icon -->
+        <div class="flex items-center gap-2.5 mr-2">
+          <div id="fc-fv-icon" class="w-8 h-8 rounded-xl flex items-center justify-center text-base shadow-md">🌡️</div>
+          <div>
+            <div id="fc-fv-title" class="text-xs font-extrabold text-slate-800 uppercase tracking-wider leading-tight">Forecast Chart</div>
+            <div id="fc-fv-subtitle" class="text-[9px] text-slate-400 font-mono leading-tight">Holt-Winters DES</div>
+          </div>
+        </div>
+
+        <div class="w-px h-7 bg-slate-200 hidden md:block"></div>
+
+        <!-- Dataset Filter -->
+        <div class="flex items-center gap-1.5 flex-wrap">
+          <span class="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mr-0.5">Dataset:</span>
+          <button id="fv-toggle-hist"     onclick="toggleFcFvDataset(0)" class="fv-ds-btn" title="Tampil/sembunyikan data historis">Historis</button>
+          <button id="fv-toggle-fitted"   onclick="toggleFcFvDataset(1)" class="fv-ds-btn" title="Tampil/sembunyikan kurva fitted">Fitted</button>
+          <button id="fv-toggle-forecast" onclick="toggleFcFvDataset(2)" class="fv-ds-btn" title="Tampil/sembunyikan garis forecast">Forecast</button>
+          <button id="fv-toggle-ci"       onclick="toggleFcFvDataset(3)" class="fv-ds-btn" title="Tampil/sembunyikan pita CI 95%">CI 95%</button>
+        </div>
+
+        <div class="w-px h-7 bg-slate-200 hidden md:block"></div>
+
+        <!-- Zoom Controls -->
+        <div class="flex items-center gap-1">
+          <button onclick="fcFvZoom('in')"    class="fv-tool-btn" title="Zoom In"><i data-lucide="zoom-in" class="w-3.5 h-3.5"></i></button>
+          <button onclick="fcFvZoom('out')"   class="fv-tool-btn" title="Zoom Out"><i data-lucide="zoom-out" class="w-3.5 h-3.5"></i></button>
+          <button onclick="fcFvZoom('reset')" class="fv-tool-btn" title="Reset Zoom"><i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i><span class="text-[10px]">Reset</span></button>
+          <button id="fv-drag-btn" onclick="toggleFcFvDragZoom()" class="fv-tool-btn" title="Pilih area untuk zoom — klik dan seret">
+            <i data-lucide="crosshair" class="w-3.5 h-3.5"></i><span class="text-[10px] font-bold">Pilih Area</span>
+          </button>
+        </div>
+
+        <div class="w-px h-7 bg-slate-200 hidden md:block ml-auto"></div>
+
+        <!-- Action Buttons -->
+        <div class="flex items-center gap-1.5 ml-auto">
+          <button onclick="saveFcFvImage()" class="fv-save-btn" title="Unduh chart sebagai gambar PNG">
+            <i data-lucide="download" class="w-3.5 h-3.5"></i><span>Simpan</span>
+          </button>
+          <button onclick="shareFcFvImage()" class="fv-share-btn" title="Kirim / bagikan gambar chart">
+            <i data-lucide="share-2" class="w-3.5 h-3.5"></i><span>Kirim</span>
+          </button>
+          <button onclick="closeForecastFullview()" class="fv-close-btn" title="Tutup (ESC)">
+            <i data-lucide="x" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- ── Chart Area ── -->
+      <div class="flex-1 bg-white rounded-2xl p-4 shadow-xl relative overflow-hidden min-h-0">
+        <canvas id="fc-fv-canvas" class="w-full h-full"></canvas>
+        <div id="fc-fv-zoom-hint" class="absolute bottom-3 right-3 text-[9px] text-slate-400 font-mono bg-white/90 px-2.5 py-1 rounded-lg border border-slate-100 shadow-sm pointer-events-none">
+          Scroll = Zoom · Drag = Geser · ESC = Tutup
+        </div>
+      </div>
+
+      <!-- ── Footer ── -->
+      <div class="bg-white/10 rounded-xl px-4 py-2 flex items-center justify-between gap-3">
+        <span id="fc-fv-interp" class="text-[10px] text-white/80 font-bold leading-relaxed">—</span>
+        <span class="text-[9px] text-white/40 font-mono whitespace-nowrap shrink-0">SHIELD ML Engine · Holt-Winters DES</span>
+      </div>
+
+    </div>
+    <!-- /FORECAST FULLVIEW MODAL -->
+
 </body>
 </html>
