@@ -4286,15 +4286,10 @@
 
             // ── Overlay "Prediksi Sebelumnya" untuk perbandingan margin error ──
             const snap = isTemp ? _prevFcTempSnap : _prevFcLoadSnap;
-            if (snap && snap.pts && snap.pts.length) {
-                const tol = snap.stepMs * 0.65;  // toleransi 65% dari interval data
-                // Semua timestamp pada chart (histori + area forecast)
-                const allTs = [
-                    ...histTs,
-                    ...fc.allFc.map((_,h) => lastTs + (h+1)*fc.avgStepMs)
-                ];
-                const prevAllData = allTs.map(t => {
-                    // Cari titik forecast sebelumnya yang paling dekat
+            if (snap && snap.values && snap.values.length) {
+                // AREA HISTORIS: timestamp matching toleransi lebar (1.5× stepMs)
+                const tol = snap.stepMs * 1.5;
+                const prevHistPart = histTs.map(t => {
                     let best = null, bestDiff = tol;
                     for (const p of snap.pts) {
                         const d = Math.abs(p.ts - t);
@@ -4303,23 +4298,31 @@
                     return best;
                 });
 
-                if (prevAllData.some(v => v !== null)) {
-                    datasets.push({
-                        label:               'Prediksi Sebelumnya',
-                        data:                prevAllData,
-                        borderColor:         cPrev,
-                        borderWidth:         2,
-                        borderDash:          [6, 3],
-                        fill:                false,
-                        pointRadius:         3,
-                        pointStyle:          'circle',
-                        pointBackgroundColor: cPrev,
-                        pointBorderColor:    cPrev,
-                        tension:             0.2,
-                        spanGaps:            true,   // tampil terus meski ada celah null
-                        order:               1
-                    });
-                }
+                // AREA FORECAST: index-based langsung — snap.values[h] = prediksi step ke-h
+                // Dijamin selalu muncul mulai run ke-2, tanpa perlu timestamp match
+                const fcLen = Math.min(fc.allFc.length, snap.values.length);
+                const prevFcPart = fc.allFc.map((_, h) => h < fcLen ? snap.values[h] : null);
+
+                const prevAllData = [...prevHistPart, ...prevFcPart];
+
+                // Selalu tambahkan dataset jika ada nilai (fc area pasti ada nilai mulai run ke-2)
+                datasets.push({
+                    label:                'Prediksi Sebelumnya',
+                    data:                 prevAllData,
+                    borderColor:          cPrev,
+                    backgroundColor:      cPrev,
+                    borderWidth:          2.5,
+                    borderDash:           [6, 3],
+                    fill:                 false,
+                    pointRadius:          3.5,
+                    pointStyle:           'rectRot',   // bentuk berlian agar beda dari yang lain
+                    pointBackgroundColor: cPrev,
+                    pointBorderColor:     '#fff',
+                    pointBorderWidth:     1,
+                    tension:              0.2,
+                    spanGaps:             true,
+                    order:                0
+                });
             }
 
             return { n, allLbls, datasets };
@@ -4533,21 +4536,25 @@
                 }).join('');
             }
 
-            // ─ Simpan snapshot forecast lama (explicit timestamps) sebelum ditimpa
+            // ─ Simpan snapshot forecast lama sebelum ditimpa
             if (_lastFcTempData && _lastFcTempData.fc && _lastFcTempData.ts.length) {
                 const { fc: pfc, ts: pts } = _lastFcTempData;
                 const base = pts[pts.length-1];
                 _prevFcTempSnap = {
-                    pts: pfc.allFc.map((v, h) => ({ ts: base + (h+1)*pfc.avgStepMs, v })),
-                    stepMs: pfc.avgStepMs
+                    values:  [...pfc.allFc],          // flat array untuk index-based access
+                    pts:     pfc.allFc.map((v,h) => ({ ts: base + (h+1)*pfc.avgStepMs, v })),
+                    stepMs:  pfc.avgStepMs,
+                    lastTs:  base
                 };
             }
             if (_lastFcLoadData && _lastFcLoadData.fc && _lastFcLoadData.ts.length) {
                 const { fc: pfc, ts: pts } = _lastFcLoadData;
                 const base = pts[pts.length-1];
                 _prevFcLoadSnap = {
-                    pts: pfc.allFc.map((v, h) => ({ ts: base + (h+1)*pfc.avgStepMs, v })),
-                    stepMs: pfc.avgStepMs
+                    values:  [...pfc.allFc],
+                    pts:     pfc.allFc.map((v,h) => ({ ts: base + (h+1)*pfc.avgStepMs, v })),
+                    stepMs:  pfc.avgStepMs,
+                    lastTs:  base
                 };
             }
 
