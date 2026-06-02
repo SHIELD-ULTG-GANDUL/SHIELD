@@ -4266,7 +4266,8 @@
             const c3 = isTemp ? '#dc2626' : '#6d28d9';
             const c4 = isTemp ? 'rgba(239,68,68,0.18)' : 'rgba(124,58,237,0.18)';
             const c5 = isTemp ? 'rgba(239,68,68,0.06)' : 'rgba(124,58,237,0.06)';
-            const c6 = isTemp ? 'rgba(239,68,68,0.55)' : 'rgba(124,58,237,0.55)';
+            // Warna kontras mencolok untuk "Prediksi Sebelumnya"
+            const cPrev = isTemp ? '#f97316' : '#06b6d4';  // orange | cyan
 
             const datasets = [
                 { label:isTemp?'Historis Suhu':'Historis Beban', data:[...series.slice(-n),...nullPadH],
@@ -4283,34 +4284,40 @@
                   borderColor:c4, borderWidth:1, fill:false, pointRadius:0, tension:0.2, spanGaps:false }
             ];
 
-            // Overlay forecast run sebelumnya untuk perbandingan margin error
+            // ── Overlay "Prediksi Sebelumnya" untuk perbandingan margin error ──
             const snap = isTemp ? _prevFcTempSnap : _prevFcLoadSnap;
-            if (snap && snap.values.length) {
-                // Map setiap timestamp historis ke nilai forecast sebelumnya (nearest-step match)
-                const prevHistData = histTs.map(t => {
-                    const h = Math.round((t - snap.lastTs) / snap.stepMs) - 1;
-                    return (h >= 0 && h < snap.values.length) ? snap.values[h] : null;
+            if (snap && snap.pts && snap.pts.length) {
+                const tol = snap.stepMs * 0.65;  // toleransi 65% dari interval data
+                // Semua timestamp pada chart (histori + area forecast)
+                const allTs = [
+                    ...histTs,
+                    ...fc.allFc.map((_,h) => lastTs + (h+1)*fc.avgStepMs)
+                ];
+                const prevAllData = allTs.map(t => {
+                    // Cari titik forecast sebelumnya yang paling dekat
+                    let best = null, bestDiff = tol;
+                    for (const p of snap.pts) {
+                        const d = Math.abs(p.ts - t);
+                        if (d <= bestDiff) { best = p.v; bestDiff = d; }
+                    }
+                    return best;
                 });
-                // Map timestamp forecast baru ke nilai forecast sebelumnya juga
-                const prevFcData = fc.allFc.map((_,h2) => {
-                    const t2 = lastTs + (h2+1)*fc.avgStepMs;
-                    const h  = Math.round((t2 - snap.lastTs) / snap.stepMs) - 1;
-                    return (h >= 0 && h < snap.values.length) ? snap.values[h] : null;
-                });
-                const prevAllData = [...prevHistData, ...prevFcData];
+
                 if (prevAllData.some(v => v !== null)) {
                     datasets.push({
-                        label: 'Prediksi Sebelumnya',
-                        data:  prevAllData,
-                        borderColor: c6,
-                        borderWidth: 1.5,
-                        borderDash:  [4, 4],
-                        fill:        false,
-                        pointRadius: prevHistData.map(v => v !== null ? 2.5 : 0),
-                        pointBackgroundColor: c6,
-                        tension:     0.2,
-                        spanGaps:    false,
-                        order:       2
+                        label:               'Prediksi Sebelumnya',
+                        data:                prevAllData,
+                        borderColor:         cPrev,
+                        borderWidth:         2,
+                        borderDash:          [6, 3],
+                        fill:                false,
+                        pointRadius:         3,
+                        pointStyle:          'circle',
+                        pointBackgroundColor: cPrev,
+                        pointBorderColor:    cPrev,
+                        tension:             0.2,
+                        spanGaps:            true,   // tampil terus meski ada celah null
+                        order:               1
                     });
                 }
             }
@@ -4526,14 +4533,22 @@
                 }).join('');
             }
 
-            // ─ Simpan snapshot forecast lama sebelum ditimpa (untuk overlay margin error)
+            // ─ Simpan snapshot forecast lama (explicit timestamps) sebelum ditimpa
             if (_lastFcTempData && _lastFcTempData.fc && _lastFcTempData.ts.length) {
                 const { fc: pfc, ts: pts } = _lastFcTempData;
-                _prevFcTempSnap = { lastTs: pts[pts.length-1], stepMs: pfc.avgStepMs, values: [...pfc.allFc] };
+                const base = pts[pts.length-1];
+                _prevFcTempSnap = {
+                    pts: pfc.allFc.map((v, h) => ({ ts: base + (h+1)*pfc.avgStepMs, v })),
+                    stepMs: pfc.avgStepMs
+                };
             }
             if (_lastFcLoadData && _lastFcLoadData.fc && _lastFcLoadData.ts.length) {
                 const { fc: pfc, ts: pts } = _lastFcLoadData;
-                _prevFcLoadSnap = { lastTs: pts[pts.length-1], stepMs: pfc.avgStepMs, values: [...pfc.allFc] };
+                const base = pts[pts.length-1];
+                _prevFcLoadSnap = {
+                    pts: pfc.allFc.map((v, h) => ({ ts: base + (h+1)*pfc.avgStepMs, v })),
+                    stepMs: pfc.avgStepMs
+                };
             }
 
             // ─ Store data for time-filter re-render
