@@ -64,6 +64,10 @@
                     if (typeof window.subscribeBebanData === 'function') {
                         window.subscribeBebanData();
                     }
+                    // Subscribe data dulfur (R_contact) dari Firestore — auto update ML
+                    if (typeof window.subscribeDulfurData === 'function') {
+                        window.subscribeDulfurData();
+                    }
                 } else {
                     window.isAuthReady = false;
                     loginOverlay.classList.remove('hidden');
@@ -1070,24 +1074,28 @@
                       <div id="fc-temp-1h" class="font-mono font-black text-2xl text-slate-700">-</div>
                       <div class="text-[9px] text-slate-400 mt-0.5">±CI 95%: <span id="fc-temp-1h-ci" class="font-mono font-bold text-slate-500">—</span></div>
                       <div id="fc-temp-trend-badge" class="mt-2 text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 inline-block">—</div>
+                      <p id="kpi-desc-temp-1h" class="text-[9px] text-slate-400 mt-2 pt-2 border-t border-slate-100 leading-relaxed">Prediksi suhu trafo 1 jam ke depan (Holt-Winters DES). Nilai >75°C memerlukan perhatian operasional.</p>
                     </div>
                     <div class="glass-card p-4 border-l-4 border-violet-500">
                       <div class="text-[9px] font-extrabold text-violet-600 uppercase tracking-widest mb-1">Beban Forecast +1 jam</div>
                       <div id="fc-load-1h" class="font-mono font-black text-2xl text-slate-700">-</div>
                       <div class="text-[9px] text-slate-400 mt-0.5">±CI 95%: <span id="fc-load-1h-ci" class="font-mono font-bold text-slate-500">—</span></div>
                       <div id="fc-load-trend-badge" class="mt-2 text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 inline-block">—</div>
+                      <p id="kpi-desc-load-1h" class="text-[9px] text-slate-400 mt-2 pt-2 border-t border-slate-100 leading-relaxed">Prediksi arus beban 1 jam ke depan. Berguna untuk antisipasi beban puncak dan pengelolaan kapasitas trafo.</p>
                     </div>
                     <div class="glass-card p-4 border-l-4 border-emerald-500">
                       <div class="text-[9px] font-extrabold text-emerald-600 uppercase tracking-widest mb-1">Akurasi Suhu (100−MAPE)</div>
                       <div id="fc-acc-temp" class="font-mono font-black text-2xl text-emerald-700">-</div>
                       <div class="text-[9px] text-slate-400 mt-0.5">RMSE: <span id="fc-rmse-temp" class="font-mono font-bold text-slate-500">—</span></div>
                       <div id="fc-acc-temp-badge" class="mt-2 text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 inline-block">—</div>
+                      <p id="kpi-desc-acc-temp" class="text-[9px] text-slate-400 mt-2 pt-2 border-t border-slate-100 leading-relaxed">Keakuratan model prediksi suhu. ≥90% = sangat andal, 75–89% = cukup, &lt;75% = butuh lebih banyak data historis.</p>
                     </div>
                     <div class="glass-card p-4 border-l-4 border-cyan-500">
                       <div class="text-[9px] font-extrabold text-cyan-600 uppercase tracking-widest mb-1">Akurasi Beban (100−MAPE)</div>
                       <div id="fc-acc-load" class="font-mono font-black text-2xl text-cyan-700">-</div>
                       <div class="text-[9px] text-slate-400 mt-0.5">RMSE: <span id="fc-rmse-load" class="font-mono font-bold text-slate-500">—</span></div>
                       <div id="fc-acc-load-badge" class="mt-2 text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 inline-block">—</div>
+                      <p id="kpi-desc-acc-load" class="text-[9px] text-slate-400 mt-2 pt-2 border-t border-slate-100 leading-relaxed">Keakuratan model prediksi arus beban. Semakin tinggi, semakin andal forecast untuk perencanaan operasi.</p>
                     </div>
                   </div>
 
@@ -1561,24 +1569,28 @@
                       <div id="a7-dtkor-kpi" class="font-mono font-black text-2xl text-slate-700">-</div>
                       <div class="text-[9px] text-slate-400 mt-0.5">K · PLN SKDIR 0520</div>
                       <div id="a7-skdir-badge" class="mt-2 text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 inline-block">—</div>
+                      <p id="kpi-desc-dtkor" class="text-[9px] text-slate-400 mt-2 pt-2 border-t border-slate-100 leading-relaxed">Kenaikan suhu di atas referensi 20°C (IEC). Setiap +10K mempercepat penuaan isolasi ~2× (hukum Arrhenius).</p>
                     </div>
                     <div class="glass-card p-4 border-l-4 border-rose-500">
                       <div class="text-[9px] font-extrabold text-rose-600 uppercase tracking-widest mb-1">F_AA Arrhenius</div>
                       <div id="a7-faa-kpi" class="font-mono font-black text-2xl text-slate-700">-</div>
                       <div class="text-[9px] text-slate-400 mt-0.5">Faktor percepatan (IEC 60216-1)</div>
                       <div id="a7-thermal-alarm-badge" class="mt-2 text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 inline-block">—</div>
+                      <p id="kpi-desc-faa" class="text-[9px] text-slate-400 mt-2 pt-2 border-t border-slate-100 leading-relaxed">F_AA=1.0 = penuaan normal. F_AA&gt;1 = penuaan dipercepat. F_AA&gt;2 = kondisi termal darurat, isolasi rusak lebih cepat.</p>
                     </div>
                     <div class="glass-card p-4 border-l-4 border-violet-600">
                       <div class="text-[9px] font-extrabold text-violet-700 uppercase tracking-widest mb-1">P_Total Kegagalan</div>
                       <div id="a7-ptotal-kpi" class="font-mono font-black text-2xl text-violet-700">-</div>
                       <div class="text-[9px] text-slate-400 mt-0.5">Gabungan Weibull+Markov+Cox</div>
                       <div id="a7-ptotal-badge" class="mt-2 text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 inline-block">—</div>
+                      <p id="kpi-desc-ptotal" class="text-[9px] text-slate-400 mt-2 pt-2 border-t border-slate-100 leading-relaxed">Probabilitas kegagalan PMT gabungan tiga model. &lt;5% = aman, 5–15% = perhatian, &gt;15% = tindakan segera.</p>
                     </div>
                     <div class="glass-card p-4 border-l-4 border-amber-500">
                       <div class="text-[9px] font-extrabold text-amber-600 uppercase tracking-widest mb-1">Risiko Terukur</div>
                       <div id="a7-risk-kpi" class="font-mono font-black text-xl text-amber-700">-</div>
                       <div class="text-[9px] text-slate-400 mt-0.5">P_total × Konsekuensi (ALARP)</div>
                       <div id="a7-action-badge" class="mt-2 text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 inline-block">—</div>
+                      <p id="kpi-desc-risk" class="text-[9px] text-slate-400 mt-2 pt-2 border-t border-slate-100 leading-relaxed">Skor risiko operasional berbobot (ALARP). Panduan tindakan: RENDAH=monitor, SEDANG=jadwal PM, TINGGI=segera inspeksi.</p>
                     </div>
                   </div>
 
@@ -1974,11 +1986,15 @@
 
         function _scheduleMLRealtimeUpdate(reason = 'data baru') {
             if (mlRealtimeUpdateTimer) clearTimeout(mlRealtimeUpdateTimer);
+            // Selalu set flag — ML akan run saat user membuka halaman ML
+            _mlPendingUpdate = true;
             mlRealtimeUpdateTimer = setTimeout(() => {
                 if (activePage === 'ml' && typeof runMLAnalysis === 'function') {
                     console.log('[SHIELD ML] Auto-update model karena ' + reason);
+                    _mlPendingUpdate = false;
                     runMLAnalysis();
                 }
+                // Jika tidak di halaman ML, flag tetap aktif — akan trigger saat switchPage('ml')
             }, 1200);
         }
 
@@ -2130,6 +2146,7 @@
                 setBebanTimeFilter(activeBebanTimeFilter);
             } else if (page === 'ml') {
                 titleEl.textContent = 'Machine Learning Analysis';
+                _mlPendingUpdate = false; // reset — initMLPage akan run fresh
                 initMLPage();
             }
         }
@@ -4030,7 +4047,66 @@
         //            CIGRE TB 761:2019, IEEE 493-2007, IEEE 90-2006
         // =============================================================
 
-        const ML_R_CONTACT = [
+        // ── Auto-generate flag: set saat data baru tiba di halaman lain ──
+        let _mlPendingUpdate = false;
+
+        // ─────────────────────────────────────────────────────────────────
+        // DULFUR FIRESTORE LISTENER
+        // Collection: ml_dulfur
+        // Setiap dokumen: { date:"YYYY-MM-DD", trafo:2, R:[R_R,R_S,R_T], I:100 }
+        // Tambahkan data pengujian baru ke collection ini dari Firebase Console
+        // atau aplikasi lain — ML akan otomatis re-run dan update semua analisis.
+        // ─────────────────────────────────────────────────────────────────
+        window.subscribeDulfurData = function() {
+            try {
+                const col = window.fs.collection(window.db, 'ml_dulfur');
+                window.fs.onSnapshot(col, (snap) => {
+                    if (snap.empty) return;
+                    const firestoreEntries = [];
+                    snap.forEach(doc => {
+                        const d = doc.data();
+                        if (d.date && d.trafo && Array.isArray(d.R) && d.R.length === 3) {
+                            firestoreEntries.push({
+                                date:  d.date,
+                                trafo: parseInt(d.trafo),
+                                R:     d.R.map(Number),
+                                I:     d.I || 100
+                            });
+                        }
+                    });
+                    if (!firestoreEntries.length) return;
+
+                    // Merge ke ML_R_CONTACT (hindari duplikat berdasarkan date+trafo)
+                    let changed = false;
+                    firestoreEntries.forEach(entry => {
+                        const exists = ML_R_CONTACT.some(
+                            e => e.date === entry.date && e.trafo === entry.trafo
+                        );
+                        if (!exists) {
+                            ML_R_CONTACT.push(entry);
+                            changed = true;
+                        }
+                    });
+
+                    if (changed) {
+                        // Sort by date then trafo
+                        ML_R_CONTACT.sort((a,b) => a.date.localeCompare(b.date) || a.trafo - b.trafo);
+                        console.log(`[SHIELD Dulfur] ${firestoreEntries.length} entri Firestore dimuat. Total: ${ML_R_CONTACT.length}`);
+                        // Update badge info jika ada
+                        const dulfurEl = document.getElementById('fc-dulfur-status');
+                        if (dulfurEl) dulfurEl.textContent = `${ML_R_CONTACT.length} pengukuran · FS+lokal · Terakhir: ${ML_R_CONTACT[ML_R_CONTACT.length-1].date}`;
+                        // Trigger re-analysis
+                        _scheduleMLRealtimeUpdate('data dulfur baru dari Firestore');
+                    }
+                }, (err) => {
+                    console.warn('[SHIELD Dulfur] Collection ml_dulfur tidak tersedia atau error:', err.code);
+                });
+            } catch(e) {
+                console.warn('[SHIELD Dulfur] subscribeDulfurData error:', e.message);
+            }
+        };
+
+        let ML_R_CONTACT = [
             {date:'2022-01-18',trafo:1,R:[293.9,226.3,150.6],I:100},
             {date:'2022-04-07',trafo:1,R:[293.9,226.3,150.6],I:100},
             {date:'2022-06-08',trafo:3,R:[166.1,100.0,92.4], I:100},
@@ -4436,6 +4512,29 @@
                 // Interpretation
                 setText_id('fc-temp-interp', `Holt-Winters DES: L=${fcTemp.L.toFixed(2)}°C, T=${fcTemp.T.toFixed(4)}°C/step (α=0.30, β=0.10). Forecast +1hr=${f1h.f.toFixed(1)}°C ±${f1h.se.toFixed(2)}°C (95%CI). Akurasi: ${fcTemp.accuracy.toFixed(1)}% (MAPE=${fcTemp.MAPE.toFixed(2)}%, RMSE=${fcTemp.RMSE.toFixed(2)}°C, R²=${fcTemp.R2.toFixed(3)}). N=${fcTemp.n} titik data.`);
 
+                // KPI Description — Suhu Forecast
+                const _dTemp = document.getElementById('kpi-desc-temp-1h');
+                if (_dTemp) {
+                    const _v = f1h.f;
+                    _dTemp.textContent = _v > 80
+                        ? `⚠ Kritis: diprediksi ${_v.toFixed(1)}°C — melewati batas IEC 60076-2 (80°C). Aktifkan pendingin tambahan dan kurangi beban segera.`
+                        : _v > 70
+                        ? `Perhatian: menuju ${_v.toFixed(1)}°C. Periksa sistem pendingin dan pantau tren beban. Ambang batas perhatian 70°C.`
+                        : `Aman: diprediksi ${_v.toFixed(1)}°C — dalam batas normal operasi (<70°C). Tidak diperlukan tindakan khusus.`;
+                    _dTemp.className = `text-[9px] mt-2 pt-2 border-t leading-relaxed ${_v > 80 ? 'text-red-600 border-red-100' : _v > 70 ? 'text-amber-600 border-amber-100' : 'text-emerald-600 border-emerald-100'}`;
+                }
+                // KPI Description — Akurasi Suhu
+                const _dAccT = document.getElementById('kpi-desc-acc-temp');
+                if (_dAccT) {
+                    const _a = fcTemp.accuracy;
+                    _dAccT.textContent = _a >= 90
+                        ? `Model sangat akurat (${_a.toFixed(1)}%). Forecast dapat dijadikan acuan penuh untuk keputusan operasional harian.`
+                        : _a >= 75
+                        ? `Akurasi cukup (${_a.toFixed(1)}%). Tambahkan lebih banyak data historis agar model semakin andal.`
+                        : `Akurasi rendah (${_a.toFixed(1)}%). Jangan andalkan forecast untuk keputusan kritis — periksa kualitas data sensor.`;
+                    _dAccT.className = `text-[9px] mt-2 pt-2 border-t leading-relaxed ${_a >= 90 ? 'text-emerald-600 border-emerald-100' : _a >= 75 ? 'text-amber-600 border-amber-100' : 'text-red-600 border-red-100'}`;
+                }
+
                 updateOverviewCard('a0', fcTemp.accuracy.toFixed(1), fcTemp.accuracy>=90?'NORMAL':fcTemp.accuracy>=75?'PERHATIAN':'KRITIS');
             }
 
@@ -4481,6 +4580,30 @@
                 }
 
                 setText_id('fc-load-interp', `Holt-Winters DES: L=${fcLoad.L.toFixed(1)}A, T=${fcLoad.T.toFixed(3)}A/step. Forecast +1hr=${f1h.f.toFixed(0)}A ±${f1h.se.toFixed(0)}A (95%CI). Akurasi: ${fcLoad.accuracy.toFixed(1)}% (MAPE=${fcLoad.MAPE.toFixed(2)}%, RMSE=${fcLoad.RMSE.toFixed(2)}A, R²=${fcLoad.R2.toFixed(3)}). N=${fcLoad.n} titik data.`);
+
+                // KPI Description — Beban Forecast
+                const _dLoad = document.getElementById('kpi-desc-load-1h');
+                if (_dLoad) {
+                    const _lv = f1h.f;
+                    const _lpct = ((_lv / (window.I_NOMINAL_TRAFO || 2000)) * 100).toFixed(0);
+                    _dLoad.textContent = _lv > 1800
+                        ? `⚠ Kritis: beban diprediksi ${_lv.toFixed(0)}A (~${_lpct}% kapasitas). Risiko overload — pertimbangkan manuver ke trafo lain.`
+                        : _lv > 1400
+                        ? `Perhatian: beban ${_lv.toFixed(0)}A (~${_lpct}% kapasitas). Antisipasi beban puncak, siapkan tindakan pengurangan beban.`
+                        : `Normal: beban diprediksi ${_lv.toFixed(0)}A (~${_lpct}% kapasitas). Operasi aman — tidak diperlukan tindakan.`;
+                    _dLoad.className = `text-[9px] mt-2 pt-2 border-t leading-relaxed ${_lv > 1800 ? 'text-red-600 border-red-100' : _lv > 1400 ? 'text-amber-600 border-amber-100' : 'text-emerald-600 border-emerald-100'}`;
+                }
+                // KPI Description — Akurasi Beban
+                const _dAccL = document.getElementById('kpi-desc-acc-load');
+                if (_dAccL) {
+                    const _la = fcLoad.accuracy;
+                    _dAccL.textContent = _la >= 90
+                        ? `Model sangat akurat (${_la.toFixed(1)}%). Forecast arus beban dapat diandalkan untuk perencanaan operasional.`
+                        : _la >= 75
+                        ? `Akurasi cukup (${_la.toFixed(1)}%). Tingkatkan dengan lebih banyak data log beban dari ION8650.`
+                        : `Akurasi rendah (${_la.toFixed(1)}%). Periksa kelengkapan data ION8650 — mungkin ada gap atau outlier pada log beban.`;
+                    _dAccL.className = `text-[9px] mt-2 pt-2 border-t leading-relaxed ${_la >= 90 ? 'text-emerald-600 border-emerald-100' : _la >= 75 ? 'text-amber-600 border-amber-100' : 'text-red-600 border-red-100'}`;
+                }
             }
 
             // ─ Insight A0 (berdasarkan fcTemp dan fcLoad jika tersedia)
@@ -5247,6 +5370,50 @@
                 setText_id('a7-ptotal-kpi', (st.P_total * 100).toFixed(1) + '%');
                 setText_id('a7-risk-kpi',   'Rp ' + (st.risk_IDR / 1e6).toFixed(0) + ' jt');
 
+                // KPI Descriptions — Alg.7
+                const _dDtkor = document.getElementById('kpi-desc-dtkor');
+                if (_dDtkor) {
+                    const _dT = st.dT_kor;
+                    _dDtkor.textContent = _dT > 55
+                        ? `⚠ ΔT=${_dT.toFixed(1)}K — sangat tinggi. Isolasi mengalami penuaan sangat cepat. Segera periksa sistem pendingin dan kurangi beban.`
+                        : _dT > 35
+                        ? `ΔT=${_dT.toFixed(1)}K — di atas normal. Penuaan isolasi dipercepat. Monitor beban dan efisiensi pendingin secara ketat.`
+                        : `ΔT=${_dT.toFixed(1)}K — dalam batas aman. Laju penuaan isolasi normal sesuai desain IEEE C57.91.`;
+                    _dDtkor.className = `text-[9px] mt-2 pt-2 border-t leading-relaxed ${_dT > 55 ? 'text-red-600 border-red-100' : _dT > 35 ? 'text-amber-600 border-amber-100' : 'text-emerald-600 border-emerald-100'}`;
+                }
+                const _dFaa = document.getElementById('kpi-desc-faa');
+                if (_dFaa) {
+                    const _faa = st.F_AA_exact;
+                    _dFaa.textContent = _faa > 2
+                        ? `⚠ F_AA=${_faa.toFixed(2)}× — darurat termal! Isolasi rusak ${_faa.toFixed(1)}× lebih cepat. Kurangi beban segera dan jadwalkan inspeksi.`
+                        : _faa > 1.2
+                        ? `F_AA=${_faa.toFixed(2)}× — penuaan dipercepat ${((_faa-1)*100).toFixed(0)}% di atas normal. Pertimbangkan derating beban.`
+                        : `F_AA=${_faa.toFixed(2)}× — penuaan normal. Kondisi termal baik, umur isolasi sesuai desain.`;
+                    _dFaa.className = `text-[9px] mt-2 pt-2 border-t leading-relaxed ${_faa > 2 ? 'text-red-600 border-red-100' : _faa > 1.2 ? 'text-amber-600 border-amber-100' : 'text-emerald-600 border-emerald-100'}`;
+                }
+                const _dPtot = document.getElementById('kpi-desc-ptotal');
+                if (_dPtot) {
+                    const _pp = st.P_total * 100;
+                    _dPtot.textContent = _pp > 15
+                        ? `⚠ Risiko tinggi (${_pp.toFixed(1)}%). Probabilitas kegagalan PMT signifikan. Jadwalkan inspeksi dan pemeliharaan segera.`
+                        : _pp > 5
+                        ? `Risiko sedang (${_pp.toFixed(1)}%). Rencanakan pemeliharaan preventif dalam 3–6 bulan ke depan.`
+                        : `Risiko rendah (${_pp.toFixed(1)}%). PMT dalam kondisi baik. Lanjutkan monitoring rutin berkala.`;
+                    _dPtot.className = `text-[9px] mt-2 pt-2 border-t leading-relaxed ${_pp > 15 ? 'text-red-600 border-red-100' : _pp > 5 ? 'text-amber-600 border-amber-100' : 'text-emerald-600 border-emerald-100'}`;
+                }
+                const _dRisk = document.getElementById('kpi-desc-risk');
+                if (_dRisk) {
+                    const _al = st.act_lvl;
+                    _dRisk.textContent = _al === 'Immediate'
+                        ? `⚠ TINDAKAN SEGERA — risiko tertinggi ALARP. Lakukan inspeksi langsung dan siapkan rencana penggantian komponen.`
+                        : _al === 'Plan'
+                        ? `Rencanakan pemeliharaan dalam jadwal terdekat. Monitor lebih intensif hingga PM dilaksanakan.`
+                        : _al === 'Enhanced'
+                        ? `Tingkatkan frekuensi monitoring. Siapkan sumber daya PM jika kondisi memburuk.`
+                        : `ALARP terpenuhi. Risiko dalam batas yang dapat diterima — lanjutkan program monitoring standar.`;
+                    _dRisk.className = `text-[9px] mt-2 pt-2 border-t leading-relaxed ${_al === 'Immediate' ? 'text-red-600 border-red-100' : _al === 'Plan' ? 'text-orange-600 border-orange-100' : _al === 'Enhanced' ? 'text-amber-600 border-amber-100' : 'text-emerald-600 border-emerald-100'}`;
+                }
+
                 // SKDIR badge
                 const skdirBadge = document.getElementById('a7-skdir-badge');
                 if (skdirBadge) {
@@ -5401,6 +5568,9 @@
             // Render spec table
             renderMLSpec(T);
 
+            // Isi semua insight yang masih kosong/default dengan pesan informatif
+            _fillInsightDefaults();
+
             lucide.createIcons();
         }
 
@@ -5417,6 +5587,26 @@
                 :'bg-red-100 text-red-700';
             badge.textContent=status;
             badge.className=`mt-1.5 text-[9px] font-extrabold px-2 py-0.5 rounded-full inline-block ${cls}`;
+        }
+
+        // Isi insight yang masih kosong setelah runMLAnalysis selesai
+        function _fillInsightDefaults() {
+            const defaults = {
+                'a0-insight': { st:'NORMAL',  k:'Menunggu data suhu dan beban dari sensor. Pastikan MQTT terhubung dan ION8650 mengirimkan data.', r:'Periksa koneksi MQTT di menu sidebar, atau tunggu auto-refresh 60 detik berikutnya untuk mengambil data terbaru.' },
+                'a1-insight': { st:'NORMAL',  k:'Data suhu real-time belum tersedia untuk analisis fisika termal. Model membutuhkan pembacaan sensor Acrel ATP007.', r:'Pastikan sensor ATP007 terhubung dan mengirimkan data suhu melalui MQTT. Periksa topik MQTT di konfigurasi.' },
+                'a2-insight': { st:'NORMAL',  k:'Analisis Bayesian berjalan menggunakan data referensi historis yang tersedia.', r:'Tambahkan data uji dulfur (R_contact) terbaru ke collection ml_dulfur di Firestore untuk meningkatkan akurasi prediksi.' },
+                'a3-insight': { st:'NORMAL',  k:'Analisis Degradasi Linear berjalan menggunakan data referensi.', r:'Lakukan pengujian R_contact berkala (minimal 2 tahun) dan masukkan hasilnya ke Firestore collection ml_dulfur.' },
+                'a4-insight': { st:'NORMAL',  k:'Analisis Multi-Faktor membutuhkan data suhu dan beban real-time.', r:'Pastikan sensor suhu dan meter ION8650 terhubung dan mengirimkan data secara berkala.' },
+                'a5-insight': { st:'NORMAL',  k:'CUSUM membutuhkan minimal 10 titik data suhu historis dari Firestore. Data sedang dikumpulkan.', r:'Tunggu akumulasi data minimal 10 pembacaan suhu berkala. CUSUM akan aktif secara otomatis setelah threshold terpenuhi.' },
+                'a6-insight': { st:'NORMAL',  k:'Analisis OLS Regresi Linear berjalan menggunakan data referensi yang tersedia.', r:'Data historis sudah cukup. Tambahkan uji dulfur terbaru via Firestore (ml_dulfur) untuk meningkatkan akurasi proyeksi.' },
+                'a7-insight': { st:'NORMAL',  k:'Pipeline analisis degradasi PMT membutuhkan data suhu dan beban. Menunggu data real-time.', r:'Pastikan semua sensor dan meter terhubung. Kunjungi halaman ML setelah data mengalir agar analisis lengkap dapat dilakukan.' }
+            };
+            Object.entries(defaults).forEach(([id, def]) => {
+                const el = document.getElementById(id);
+                if (el && (el.classList.contains('text-slate-400') || el.textContent.includes('Menghitung'))) {
+                    setInsight(id, def.st, def.k, def.r);
+                }
+            });
         }
 
         function setInsight(id, status, kesimpulan, rekomendasi) {
