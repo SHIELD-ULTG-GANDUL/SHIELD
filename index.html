@@ -187,6 +187,11 @@
         .fv-close-btn:hover { background:#dc2626; color:white; border-color:#dc2626; }
         .fc-expand-btn { display:flex; align-items:center; gap:4px; padding:4px 9px; border-radius:7px; font-size:10px; font-weight:800; cursor:pointer; transition:all 0.15s; border:1.5px solid #e2e8f0; background:white; color:#64748b; }
         .fc-expand-btn:hover { border-color:#0d9488; color:#0d9488; background:#f0fdfa; }
+        .fc-time-btn { padding:3px 8px; border-radius:5px; font-size:9px; font-weight:800; cursor:pointer; transition:all 0.15s; border:1.5px solid #e2e8f0; background:white; color:#94a3b8; letter-spacing:0.02em; }
+        .fc-time-btn:hover { border-color:#94a3b8; color:#475569; }
+        .f-active-temp { background:#ef4444 !important; border-color:#ef4444 !important; color:white !important; }
+        .f-active-load { background:#7c3aed !important; border-color:#7c3aed !important; color:white !important; }
+        .f-active-fv   { background:#0d9488 !important; border-color:#0d9488 !important; color:white !important; }
     </style>
 </head>
 <body class="flex min-h-screen">
@@ -1098,7 +1103,17 @@
                           </button>
                         </div>
                       </div>
-                      <div class="h-52"><canvas id="chart-fc-temp"></canvas></div>
+                      <div class="flex items-center gap-1 mb-2 flex-wrap">
+                        <span class="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mr-0.5">Tampil:</span>
+                        <button onclick="applyFcFilter('temp','1h')"  id="fc-f-temp-1h"  class="fc-time-btn">1J</button>
+                        <button onclick="applyFcFilter('temp','6h')"  id="fc-f-temp-6h"  class="fc-time-btn f-active-temp">6J</button>
+                        <button onclick="applyFcFilter('temp','12h')" id="fc-f-temp-12h" class="fc-time-btn">12J</button>
+                        <button onclick="applyFcFilter('temp','1d')"  id="fc-f-temp-1d"  class="fc-time-btn">1H</button>
+                        <button onclick="applyFcFilter('temp','7d')"  id="fc-f-temp-7d"  class="fc-time-btn">7H</button>
+                        <button onclick="applyFcFilter('temp','30d')" id="fc-f-temp-30d" class="fc-time-btn">30H</button>
+                        <button onclick="applyFcFilter('temp','all')" id="fc-f-temp-all" class="fc-time-btn">Semua</button>
+                      </div>
+                      <div class="h-48"><canvas id="chart-fc-temp"></canvas></div>
                       <div id="fc-temp-interp" class="mt-3 p-3 bg-rose-50 rounded-xl text-[10px] text-rose-700 font-bold">—</div>
                     </div>
                     <div class="glass-card p-5">
@@ -1111,7 +1126,17 @@
                           </button>
                         </div>
                       </div>
-                      <div class="h-52"><canvas id="chart-fc-load"></canvas></div>
+                      <div class="flex items-center gap-1 mb-2 flex-wrap">
+                        <span class="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mr-0.5">Tampil:</span>
+                        <button onclick="applyFcFilter('load','1h')"  id="fc-f-load-1h"  class="fc-time-btn">1J</button>
+                        <button onclick="applyFcFilter('load','6h')"  id="fc-f-load-6h"  class="fc-time-btn f-active-load">6J</button>
+                        <button onclick="applyFcFilter('load','12h')" id="fc-f-load-12h" class="fc-time-btn">12J</button>
+                        <button onclick="applyFcFilter('load','1d')"  id="fc-f-load-1d"  class="fc-time-btn">1H</button>
+                        <button onclick="applyFcFilter('load','7d')"  id="fc-f-load-7d"  class="fc-time-btn">7H</button>
+                        <button onclick="applyFcFilter('load','30d')" id="fc-f-load-30d" class="fc-time-btn">30H</button>
+                        <button onclick="applyFcFilter('load','all')" id="fc-f-load-all" class="fc-time-btn">Semua</button>
+                      </div>
+                      <div class="h-48"><canvas id="chart-fc-load"></canvas></div>
                       <div id="fc-load-interp" class="mt-3 p-3 bg-violet-50 rounded-xl text-[10px] text-violet-700 font-bold">—</div>
                     </div>
                   </div>
@@ -4163,14 +4188,105 @@
                      MAE, RMSE, MAPE, R2, accuracy, n, avgStepMs, hSteps, horizonMs };
         }
 
+        // ── FORECAST TIME FILTER ──────────────────────────────────────
+        let _lastFcTempData = null;  // { fc, series, ts }
+        let _lastFcLoadData = null;
+        let _fcFilterPeriod = { temp: '6h', load: '6h', fv: '6h' };
+
+        function _calcFcN(ts, period) {
+            if (!ts || !ts.length) return 80;
+            if (period === 'all') return ts.length;
+            const msMap = { '1h':3600000, '6h':21600000, '12h':43200000, '1d':86400000, '7d':604800000, '30d':2592000000 };
+            const ms = msMap[period]; if (!ms) return ts.length;
+            const cutoff = ts[ts.length - 1] - ms;
+            let n = 0;
+            for (let i = ts.length - 1; i >= 0; i--) {
+                if (ts[i] >= cutoff) n++;
+                else break;
+            }
+            return Math.max(4, n);
+        }
+
+        function _fcLabelFmt(t, period) {
+            const d = new Date(t);
+            if (period === '7d' || period === '30d' || period === 'all')
+                return d.toLocaleDateString('id-ID',{day:'2-digit',month:'short'}) + ' ' +
+                       d.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'});
+            return d.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'});
+        }
+
+        function _fcTickConfig(period) {
+            if (period === '30d' || period === 'all') return { maxTicksLimit:8,  maxRotation:35 };
+            if (period === '7d')                      return { maxTicksLimit:10, maxRotation:20 };
+            return                                           { maxTicksLimit:14, maxRotation:0  };
+        }
+
+        function applyFcFilter(type, period) {
+            const data = type === 'temp' ? _lastFcTempData : _lastFcLoadData;
+            if (!data) return;
+            _fcFilterPeriod[type] = period;
+            const pfx = 'fc-f-' + type + '-';
+            const ac  = type === 'temp' ? 'f-active-temp' : 'f-active-load';
+            ['1h','6h','12h','1d','7d','30d','all'].forEach(p => {
+                const b = document.getElementById(pfx + p);
+                if (b) b.className = 'fc-time-btn' + (p === period ? ' ' + ac : '');
+            });
+            if (type === 'temp') renderForecastTempChart(data.fc, data.series, data.ts);
+            else                  renderForecastLoadChart(data.fc, data.series, data.ts);
+        }
+
+        function applyFcFvFilter(period) {
+            _fcFilterPeriod.fv = period;
+            ['1h','6h','12h','1d','7d','30d','all'].forEach(p => {
+                const b = document.getElementById('fv-f-' + p);
+                if (b) b.className = 'fc-time-btn' + (p === period ? ' f-active-fv' : '');
+            });
+            const data = _fcFvType === 'temp' ? _lastFcTempData : _lastFcLoadData;
+            if (!data) return;
+            if (_fcFvChart) { _fcFvChart.destroy(); _fcFvChart = null; }
+            _buildFvChart(data.fc, data.series, data.ts, period);
+        }
+
+        function _buildFcDatasets(fc, series, ts, period, isTemp) {
+            const n       = Math.min(series.length, _calcFcN(ts, period));
+            const lastTs  = ts.length ? ts[ts.length-1] : Date.now();
+            const fmt     = t => _fcLabelFmt(t, period);
+            const allLbls = [
+                ...ts.slice(-n).map(fmt),
+                ...fc.allFc.map((_,h) => fmt(lastTs + (h+1)*fc.avgStepMs))
+            ];
+            const nullPad   = Array(n).fill(null);
+            const nullPadH  = Array(fc.allFc.length).fill(null);
+            const varF      = h => Array.from({length:h+1},(_,j)=>Math.pow(1+j*0.10,2)).reduce((a,b)=>a+b,0);
+            const c1 = isTemp ? '#ef4444' : '#7c3aed';
+            const c2 = isTemp ? 'rgba(239,68,68,0.4)'  : 'rgba(124,58,237,0.4)';
+            const c3 = isTemp ? '#dc2626' : '#6d28d9';
+            const c4 = isTemp ? 'rgba(239,68,68,0.18)' : 'rgba(124,58,237,0.18)';
+            const c5 = isTemp ? 'rgba(239,68,68,0.06)' : 'rgba(124,58,237,0.06)';
+            return { n, allLbls, datasets: [
+                { label:isTemp?'Historis Suhu':'Historis Beban', data:[...series.slice(-n),...nullPadH],
+                  borderColor:c1, borderWidth:2, fill:false, pointRadius:0, tension:0.3, spanGaps:false },
+                { label:'Fitted', data:[...fc.fitted.slice(-n),...nullPadH],
+                  borderColor:c2, borderWidth:1.5, borderDash:[3,3], fill:false, pointRadius:0, tension:0.3, spanGaps:false },
+                { label:'Forecast', data:[...nullPad,...fc.allFc],
+                  borderColor:c3, borderWidth:2.5, borderDash:[7,3], fill:false, pointRadius:0, tension:0.2, spanGaps:false },
+                { label:'CI 95% Upper',
+                  data:[...nullPad,...fc.allFc.map((f,h)=>f+1.96*fc.sigma*Math.sqrt(varF(h)))],
+                  borderColor:c4, borderWidth:1, fill:'+1', backgroundColor:c5, pointRadius:0, tension:0.2, spanGaps:false },
+                { label:'CI 95% Lower',
+                  data:[...nullPad,...fc.allFc.map((f,h)=>f-1.96*fc.sigma*Math.sqrt(varF(h)))],
+                  borderColor:c4, borderWidth:1, fill:false, pointRadius:0, tension:0.2, spanGaps:false }
+            ]};
+        }
+
         // ── ALG.0: Main run function (called inside runMLAnalysis) ────
         function runForecastAlg(hasTempData, hasBebanData, td, bd) {
-            // ─ Gather temperature series
+            // ─ Gather temperature series (max 500 samples for long-term accuracy)
             let tempSeries=[], tempTs=[], tempSrc='';
             if (firestoreLogs.length >= 5) {
                 const sorted = [...firestoreLogs].sort((a,b)=>a.docSortTime-b.docSortTime);
-                const step = sorted.length > 300 ? Math.ceil(sorted.length/300) : 1;
-                const samp = sorted.filter((_,i)=>i%step===0).slice(-150);
+                const step = sorted.length > 500 ? Math.ceil(sorted.length/500) : 1;
+                const samp = sorted.filter((_,i)=>i%step===0).slice(-500);
                 tempSeries = samp.map(log => Math.max(log.R_Atas||0,log.S_Atas||0,log.T_Atas||0,log.R_Bawah||0,log.S_Bawah||0,log.T_Bawah||0));
                 tempTs     = samp.map(log => log.docSortTime);
                 tempSrc    = 'Firestore (' + samp.length + ' log)';
@@ -4184,17 +4300,17 @@
                 tempSrc    = 'sesaat (data terbatas)';
             }
 
-            // ─ Gather load/beban series
+            // ─ Gather load/beban series (max 300 samples)
             let loadSeries=[], loadTs=[], loadSrc='';
             if (firestoreBebanLogs.length >= 5) {
                 const sorted = [...firestoreBebanLogs].sort((a,b)=>a.docSortTime-b.docSortTime);
-                const step = sorted.length > 150 ? Math.ceil(sorted.length/150) : 1;
-                const samp = sorted.filter((_,i)=>i%step===0).slice(-100);
+                const step = sorted.length > 300 ? Math.ceil(sorted.length/300) : 1;
+                const samp = sorted.filter((_,i)=>i%step===0).slice(-300);
                 loadSeries = samp.map(log => Math.max(log.I_R||0, log.I_S||0, log.I_T||0));
                 loadTs     = samp.map(log => log.docSortTime);
                 loadSrc    = 'Firestore Beban (' + samp.length + ' log)';
             } else if ((bebanLiveChartBuffer[selectedTrafo] || []).length >= 5) {
-                const live = bebanLiveChartBuffer[selectedTrafo].slice(-100);
+                const live = bebanLiveChartBuffer[selectedTrafo].slice(-300);
                 loadSeries = live.map(log => Math.max(log.I_R||0, log.I_S||0, log.I_T||0));
                 loadTs     = live.map(log => log._time || _parseAnyTimestamp(log.timestamp));
                 loadSrc    = 'Firestore Beban LIVE (' + live.length + ' log)';
@@ -4371,7 +4487,11 @@
                 }).join('');
             }
 
-            // ─ Render charts
+            // ─ Store data for time-filter re-render
+            if (fcTemp) _lastFcTempData = { fc: fcTemp, series: tempSeries, ts: tempTs };
+            if (fcLoad) _lastFcLoadData = { fc: fcLoad, series: loadSeries, ts: loadTs };
+
+            // ─ Render charts (respects current filter period)
             renderForecastTempChart(fcTemp, tempSeries, tempTs);
             renderForecastLoadChart(fcLoad, loadSeries, loadTs);
 
@@ -4383,93 +4503,42 @@
         function renderForecastTempChart(fc, series, ts) {
             destroyChart('fc-temp');
             const ctx = document.getElementById('chart-fc-temp'); if (!ctx) return;
-            if (!fc || !series.length) { return; }
-
-            const n = Math.min(series.length, 80);
-            const hist = series.slice(-n);
-            const histLabels = ts.slice(-n).map(t => new Date(t).toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'}));
-
-            // Build forecast x-labels from last timestamp + step
-            const lastTs = ts.length ? ts[ts.length-1] : Date.now();
-            const fcLabels = fc.allFc.map((_,h) => {
-                const d = new Date(lastTs + (h+1)*fc.avgStepMs);
-                return d.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'});
+            if (!fc || !series.length) return;
+            const period = _fcFilterPeriod.temp || '6h';
+            const tk = _fcTickConfig(period);
+            // Sync active filter button
+            ['1h','6h','12h','1d','7d','30d','all'].forEach(p => {
+                const b = document.getElementById('fc-f-temp-' + p);
+                if (b) b.className = 'fc-time-btn' + (p === period ? ' f-active-temp' : '');
             });
-
-            const allLabels = [...histLabels, ...fcLabels];
-            const nullPad = Array(n).fill(null);
-            const nullPadHist = Array(fc.allFc.length).fill(null);
-            const histData   = [...hist, ...nullPadHist];
-            const fittedData = [...fc.fitted.slice(-n), ...nullPadHist];
-            const fcData     = [...nullPad, ...fc.allFc];
-            // CI upper/lower (build full CI for each forecast step)
-            const ciUp = [...nullPad, ...fc.allFc.map((f,h)=>{
-                const varFac = Array.from({length:h+1},(_,j)=>Math.pow(1+j*0.10,2)).reduce((a,b)=>a+b,0);
-                return f + 1.96*fc.sigma*Math.sqrt(varFac);
-            })];
-            const ciLo = [...nullPad, ...fc.allFc.map((f,h)=>{
-                const varFac = Array.from({length:h+1},(_,j)=>Math.pow(1+j*0.10,2)).reduce((a,b)=>a+b,0);
-                return f - 1.96*fc.sigma*Math.sqrt(varFac);
-            })];
-
+            const { n, allLbls, datasets } = _buildFcDatasets(fc, series, ts, period, true);
             mlCharts['fc-temp'] = new Chart(ctx, {
-                type:'line',
-                data:{labels:allLabels, datasets:[
-                    {label:'Historis Suhu',data:histData,borderColor:'#ef4444',borderWidth:2,fill:false,pointRadius:0,tension:0.3,spanGaps:false},
-                    {label:'Fitted',data:fittedData,borderColor:'rgba(239,68,68,0.4)',borderWidth:1.5,borderDash:[3,3],fill:false,pointRadius:0,tension:0.3,spanGaps:false},
-                    {label:'Forecast',data:fcData,borderColor:'#dc2626',borderWidth:2.5,borderDash:[7,3],fill:false,pointRadius:0,tension:0.2,spanGaps:false},
-                    {label:'CI 95% Upper',data:ciUp,borderColor:'rgba(239,68,68,0.18)',borderWidth:1,fill:'+1',backgroundColor:'rgba(239,68,68,0.06)',pointRadius:0,tension:0.2,spanGaps:false},
-                    {label:'CI 95% Lower',data:ciLo,borderColor:'rgba(239,68,68,0.18)',borderWidth:1,fill:false,pointRadius:0,tension:0.2,spanGaps:false}
-                ]},
-                options:{responsive:true,maintainAspectRatio:false,
-                    plugins:{legend:{position:'top',labels:{font:{size:9,weight:'bold'},usePointStyle:true,filter:l=>l.text!=='CI 95% Lower'}}},
-                    scales:{x:{ticks:{font:{size:8},maxTicksLimit:10,maxRotation:0}},
-                            y:{ticks:{font:{size:9},callback:v=>v.toFixed(0)+'°C'},grid:{color:'#f1f5f9'}}}}
+                type:'line', data:{ labels:allLbls, datasets },
+                options:{ responsive:true, maintainAspectRatio:false,
+                    plugins:{ legend:{ position:'top', labels:{ font:{size:9,weight:'bold'}, usePointStyle:true, filter:l=>l.text!=='CI 95% Lower' }}},
+                    scales:{ x:{ ticks:{ font:{size:8}, maxTicksLimit:tk.maxTicksLimit, maxRotation:tk.maxRotation }},
+                             y:{ ticks:{ font:{size:9}, callback:v=>v.toFixed(0)+'°C' }, grid:{ color:'#f1f5f9' }}}}
             });
         }
 
         function renderForecastLoadChart(fc, series, ts) {
             destroyChart('fc-load');
             const ctx = document.getElementById('chart-fc-load'); if (!ctx) return;
-            if (!fc || !series.length) { return; }
-
-            const n = Math.min(series.length, 80);
-            const hist = series.slice(-n);
-            const histLabels = ts.slice(-n).map(t => new Date(t).toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'}));
-            const lastTs = ts.length ? ts[ts.length-1] : Date.now();
-            const fcLabels = fc.allFc.map((_,h)=>{
-                const d = new Date(lastTs+(h+1)*fc.avgStepMs);
-                return d.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'});
+            if (!fc || !series.length) return;
+            const period = _fcFilterPeriod.load || '6h';
+            const tk = _fcTickConfig(period);
+            // Sync active filter button
+            ['1h','6h','12h','1d','7d','30d','all'].forEach(p => {
+                const b = document.getElementById('fc-f-load-' + p);
+                if (b) b.className = 'fc-time-btn' + (p === period ? ' f-active-load' : '');
             });
-
-            const allLabels = [...histLabels, ...fcLabels];
-            const nullPad   = Array(n).fill(null);
-            const nullPadH  = Array(fc.allFc.length).fill(null);
-            const histData  = [...hist, ...nullPadH];
-            const fittedD   = [...fc.fitted.slice(-n), ...nullPadH];
-            const fcData    = [...nullPad, ...fc.allFc];
-            const ciUp = [...nullPad, ...fc.allFc.map((f,h)=>{
-                const vf=Array.from({length:h+1},(_,j)=>Math.pow(1+j*0.10,2)).reduce((a,b)=>a+b,0);
-                return f+1.96*fc.sigma*Math.sqrt(vf);
-            })];
-            const ciLo = [...nullPad, ...fc.allFc.map((f,h)=>{
-                const vf=Array.from({length:h+1},(_,j)=>Math.pow(1+j*0.10,2)).reduce((a,b)=>a+b,0);
-                return f-1.96*fc.sigma*Math.sqrt(vf);
-            })];
-
+            const { n, allLbls, datasets } = _buildFcDatasets(fc, series, ts, period, false);
             mlCharts['fc-load'] = new Chart(ctx, {
-                type:'line',
-                data:{labels:allLabels, datasets:[
-                    {label:'Historis Beban',data:histData,borderColor:'#7c3aed',borderWidth:2,fill:false,pointRadius:0,tension:0.3,spanGaps:false},
-                    {label:'Fitted',data:fittedD,borderColor:'rgba(124,58,237,0.4)',borderWidth:1.5,borderDash:[3,3],fill:false,pointRadius:0,tension:0.3,spanGaps:false},
-                    {label:'Forecast',data:fcData,borderColor:'#6d28d9',borderWidth:2.5,borderDash:[7,3],fill:false,pointRadius:0,tension:0.2,spanGaps:false},
-                    {label:'CI 95% Upper',data:ciUp,borderColor:'rgba(124,58,237,0.18)',borderWidth:1,fill:'+1',backgroundColor:'rgba(124,58,237,0.06)',pointRadius:0,tension:0.2,spanGaps:false},
-                    {label:'CI 95% Lower',data:ciLo,borderColor:'rgba(124,58,237,0.18)',borderWidth:1,fill:false,pointRadius:0,tension:0.2,spanGaps:false}
-                ]},
-                options:{responsive:true,maintainAspectRatio:false,
-                    plugins:{legend:{position:'top',labels:{font:{size:9,weight:'bold'},usePointStyle:true,filter:l=>l.text!=='CI 95% Lower'}}},
-                    scales:{x:{ticks:{font:{size:8},maxTicksLimit:10,maxRotation:0}},
-                            y:{ticks:{font:{size:9},callback:v=>v.toFixed(0)+'A'},grid:{color:'#f1f5f9'}}}}
+                type:'line', data:{ labels:allLbls, datasets },
+                options:{ responsive:true, maintainAspectRatio:false,
+                    plugins:{ legend:{ position:'top', labels:{ font:{size:9,weight:'bold'}, usePointStyle:true, filter:l=>l.text!=='CI 95% Lower' }}},
+                    scales:{ x:{ ticks:{ font:{size:8}, maxTicksLimit:tk.maxTicksLimit, maxRotation:tk.maxRotation }},
+                             y:{ ticks:{ font:{size:9}, callback:v=>v.toFixed(0)+'A' }, grid:{ color:'#f1f5f9' }}}}
             });
         }
 
@@ -5613,9 +5682,8 @@
             _fcFvType     = type;
             _fcFvDragZoom = false;
 
-            const srcKey   = type === 'temp' ? 'fc-temp' : 'fc-load';
-            const srcChart = mlCharts[srcKey];
-            if (!srcChart) {
+            const data = type === 'temp' ? _lastFcTempData : _lastFcLoadData;
+            if (!data) {
                 alert('Jalankan ML Analysis terlebih dahulu untuk melihat grafik forecast.');
                 return;
             }
@@ -5638,8 +5706,7 @@
                 : 'linear-gradient(135deg,#c4b5fd,#7c3aed)';
 
             const interpSrc = document.getElementById(isTemp ? 'fc-temp-interp' : 'fc-load-interp');
-            document.getElementById('fc-fv-interp').textContent =
-                interpSrc ? interpSrc.textContent : '—';
+            document.getElementById('fc-fv-interp').textContent = interpSrc ? interpSrc.textContent : '—';
 
             const ac = isTemp ? 'active-temp' : 'active-load';
             ['fv-toggle-hist','fv-toggle-fitted','fv-toggle-forecast','fv-toggle-ci'].forEach(id => {
@@ -5647,81 +5714,59 @@
                 b.className = 'fv-ds-btn ' + ac;
                 b.dataset.visible = '1';
             });
-
             document.getElementById('fv-drag-btn').classList.remove('active');
 
+            // Sync time filter from card filter
+            const initPeriod = (type === 'temp' ? _fcFilterPeriod.temp : _fcFilterPeriod.load) || '6h';
+            _fcFilterPeriod.fv = initPeriod;
+            ['1h','6h','12h','1d','7d','30d','all'].forEach(p => {
+                const b = document.getElementById('fv-f-' + p);
+                if (b) b.className = 'fc-time-btn' + (p === initPeriod ? ' f-active-fv' : '');
+            });
+
             if (_fcFvChart) { _fcFvChart.destroy(); _fcFvChart = null; }
+            _buildFvChart(data.fc, data.series, data.ts, initPeriod);
+            lucide.createIcons();
+        }
 
-            const srcData  = srcChart.data;
-            const datasets = srcData.datasets.map(ds => ({
-                ...ds,
-                data:        [...ds.data],
-                pointRadius: ds.pointRadius !== undefined ? ds.pointRadius : 0,
-            }));
-
+        function _buildFvChart(fc, series, ts, period) {
+            if (!fc || !series.length) return;
+            const isTemp  = _fcFvType === 'temp';
             const color   = isTemp ? '#ef4444' : '#7c3aed';
             const ciColor = isTemp ? 'rgba(239,68,68,0.10)' : 'rgba(124,58,237,0.10)';
             const yUnit   = isTemp ? '°C' : 'A';
+            const tk      = _fcTickConfig(period);
+
+            const { n, allLbls, datasets } = _buildFcDatasets(fc, series, ts, period, isTemp);
+
+            // Update data info badge
+            const infoEl = document.getElementById('fv-data-info');
+            if (infoEl) infoEl.textContent = n + ' titik historis · ' + fc.allFc.length + ' titik forecast';
 
             _fcFvChart = new Chart(document.getElementById('fc-fv-canvas'), {
                 type: 'line',
-                data: { labels: [...srcData.labels], datasets },
+                data: { labels: allLbls, datasets },
                 options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    animation: { duration: 350 },
+                    responsive: true, maintainAspectRatio: false, animation: { duration: 350 },
                     plugins: {
-                        legend: {
-                            position: 'top',
-                            labels: {
-                                font: { size: 11, weight: 'bold' },
-                                usePointStyle: true,
-                                filter: l => l.text !== 'CI 95% Lower'
-                            }
-                        },
-                        tooltip: {
-                            mode: 'index',
-                            intersect: false,
-                            bodyFont:  { size: 11 },
-                            titleFont: { size: 11, weight: 'bold' },
-                            callbacks: {
-                                label: ctx => {
-                                    if (ctx.parsed.y === null) return null;
-                                    return ` ${ctx.dataset.label}: ${ctx.parsed.y.toFixed(2)} ${yUnit}`;
-                                }
-                            }
+                        legend: { position:'top', labels:{ font:{size:11,weight:'bold'}, usePointStyle:true, filter:l=>l.text!=='CI 95% Lower' }},
+                        tooltip: { mode:'index', intersect:false, bodyFont:{size:11}, titleFont:{size:11,weight:'bold'},
+                            callbacks:{ label: ctx => ctx.parsed.y===null ? null : ` ${ctx.dataset.label}: ${ctx.parsed.y.toFixed(2)} ${yUnit}` }
                         },
                         zoom: {
-                            zoom: {
-                                wheel:  { enabled: true },
-                                pinch:  { enabled: true },
-                                mode:   'x',
-                                drag:   {
-                                    enabled:         false,
-                                    borderColor:     color,
-                                    borderWidth:     1.5,
-                                    backgroundColor: ciColor
-                                }
-                            },
-                            pan:    { enabled: true, mode: 'x' },
-                            limits: { x: { min: 'original', max: 'original' } }
+                            zoom:   { wheel:{enabled:true}, pinch:{enabled:true}, mode:'x',
+                                      drag:{enabled:false, borderColor:color, borderWidth:1.5, backgroundColor:ciColor} },
+                            pan:    { enabled:true, mode:'x' },
+                            limits: { x:{ min:'original', max:'original' } }
                         }
                     },
                     scales: {
-                        x: {
-                            ticks: { font: { size: 10 }, maxTicksLimit: 18, maxRotation: 0 },
-                            grid:  { color: '#f1f5f9' }
-                        },
-                        y: {
-                            ticks: { font: { size: 10 }, callback: v => v.toFixed(1) + yUnit },
-                            grid:  { color: '#f1f5f9' }
-                        }
+                        x: { ticks:{ font:{size:10}, maxTicksLimit:tk.maxTicksLimit, maxRotation:tk.maxRotation }, grid:{color:'#f1f5f9'} },
+                        y: { ticks:{ font:{size:10}, callback:v=>v.toFixed(1)+yUnit }, grid:{color:'#f1f5f9'} }
                     },
-                    interaction: { mode: 'nearest', axis: 'x', intersect: false }
+                    interaction: { mode:'nearest', axis:'x', intersect:false }
                 }
             });
-
-            lucide.createIcons();
         }
 
         function closeForecastFullview() {
@@ -5893,6 +5938,19 @@
             <i data-lucide="x" class="w-4 h-4"></i>
           </button>
         </div>
+      </div>
+
+      <!-- ── Time Filter Strip ── -->
+      <div class="bg-white/10 rounded-xl px-3 py-1.5 flex items-center gap-1.5 flex-wrap">
+        <span class="text-[9px] font-extrabold text-white/60 uppercase tracking-widest mr-1">Rentang Waktu:</span>
+        <button onclick="applyFcFvFilter('1h')"  id="fv-f-1h"  class="fc-time-btn">1J</button>
+        <button onclick="applyFcFvFilter('6h')"  id="fv-f-6h"  class="fc-time-btn f-active-fv">6J</button>
+        <button onclick="applyFcFvFilter('12h')" id="fv-f-12h" class="fc-time-btn">12J</button>
+        <button onclick="applyFcFvFilter('1d')"  id="fv-f-1d"  class="fc-time-btn">1H</button>
+        <button onclick="applyFcFvFilter('7d')"  id="fv-f-7d"  class="fc-time-btn">7H</button>
+        <button onclick="applyFcFvFilter('30d')" id="fv-f-30d" class="fc-time-btn">30H</button>
+        <button onclick="applyFcFvFilter('all')" id="fv-f-all" class="fc-time-btn">Semua</button>
+        <span id="fv-data-info" class="text-[9px] text-white/40 font-mono ml-auto"></span>
       </div>
 
       <!-- ── Chart Area ── -->
