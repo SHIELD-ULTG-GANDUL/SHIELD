@@ -4192,6 +4192,8 @@
         let _lastFcTempData = null;  // { fc, series, ts }
         let _lastFcLoadData = null;
         let _fcFilterPeriod = { temp: '6h', load: '6h', fv: '6h' };
+        let _prevFcTempSnap = null;  // { lastTs, stepMs, values[] } — forecast run sebelumnya
+        let _prevFcLoadSnap = null;
 
         function _calcFcN(ts, period) {
             if (!ts || !ts.length) return 80;
@@ -4251,8 +4253,9 @@
             const n       = Math.min(series.length, _calcFcN(ts, period));
             const lastTs  = ts.length ? ts[ts.length-1] : Date.now();
             const fmt     = t => _fcLabelFmt(t, period);
+            const histTs  = ts.slice(-n);
             const allLbls = [
-                ...ts.slice(-n).map(fmt),
+                ...histTs.map(fmt),
                 ...fc.allFc.map((_,h) => fmt(lastTs + (h+1)*fc.avgStepMs))
             ];
             const nullPad   = Array(n).fill(null);
@@ -4263,7 +4266,9 @@
             const c3 = isTemp ? '#dc2626' : '#6d28d9';
             const c4 = isTemp ? 'rgba(239,68,68,0.18)' : 'rgba(124,58,237,0.18)';
             const c5 = isTemp ? 'rgba(239,68,68,0.06)' : 'rgba(124,58,237,0.06)';
-            return { n, allLbls, datasets: [
+            const c6 = isTemp ? 'rgba(239,68,68,0.55)' : 'rgba(124,58,237,0.55)';
+
+            const datasets = [
                 { label:isTemp?'Historis Suhu':'Historis Beban', data:[...series.slice(-n),...nullPadH],
                   borderColor:c1, borderWidth:2, fill:false, pointRadius:0, tension:0.3, spanGaps:false },
                 { label:'Fitted', data:[...fc.fitted.slice(-n),...nullPadH],
@@ -4276,7 +4281,41 @@
                 { label:'CI 95% Lower',
                   data:[...nullPad,...fc.allFc.map((f,h)=>f-1.96*fc.sigma*Math.sqrt(varF(h)))],
                   borderColor:c4, borderWidth:1, fill:false, pointRadius:0, tension:0.2, spanGaps:false }
-            ]};
+            ];
+
+            // Overlay forecast run sebelumnya untuk perbandingan margin error
+            const snap = isTemp ? _prevFcTempSnap : _prevFcLoadSnap;
+            if (snap && snap.values.length) {
+                // Map setiap timestamp historis ke nilai forecast sebelumnya (nearest-step match)
+                const prevHistData = histTs.map(t => {
+                    const h = Math.round((t - snap.lastTs) / snap.stepMs) - 1;
+                    return (h >= 0 && h < snap.values.length) ? snap.values[h] : null;
+                });
+                // Map timestamp forecast baru ke nilai forecast sebelumnya juga
+                const prevFcData = fc.allFc.map((_,h2) => {
+                    const t2 = lastTs + (h2+1)*fc.avgStepMs;
+                    const h  = Math.round((t2 - snap.lastTs) / snap.stepMs) - 1;
+                    return (h >= 0 && h < snap.values.length) ? snap.values[h] : null;
+                });
+                const prevAllData = [...prevHistData, ...prevFcData];
+                if (prevAllData.some(v => v !== null)) {
+                    datasets.push({
+                        label: 'Prediksi Sebelumnya',
+                        data:  prevAllData,
+                        borderColor: c6,
+                        borderWidth: 1.5,
+                        borderDash:  [4, 4],
+                        fill:        false,
+                        pointRadius: prevHistData.map(v => v !== null ? 2.5 : 0),
+                        pointBackgroundColor: c6,
+                        tension:     0.2,
+                        spanGaps:    false,
+                        order:       2
+                    });
+                }
+            }
+
+            return { n, allLbls, datasets };
         }
 
         // ── ALG.0: Main run function (called inside runMLAnalysis) ────
@@ -4485,6 +4524,16 @@
                         <span class="font-mono font-bold w-12 text-right ${delta>0?'text-red-500':delta<0?'text-emerald-500':'text-slate-400'}">${i>0?(delta>0?'+':'')+delta.toFixed(0):'—'}</span>
                     </div>`;
                 }).join('');
+            }
+
+            // ─ Simpan snapshot forecast lama sebelum ditimpa (untuk overlay margin error)
+            if (_lastFcTempData && _lastFcTempData.fc && _lastFcTempData.ts.length) {
+                const { fc: pfc, ts: pts } = _lastFcTempData;
+                _prevFcTempSnap = { lastTs: pts[pts.length-1], stepMs: pfc.avgStepMs, values: [...pfc.allFc] };
+            }
+            if (_lastFcLoadData && _lastFcLoadData.fc && _lastFcLoadData.ts.length) {
+                const { fc: pfc, ts: pts } = _lastFcLoadData;
+                _prevFcLoadSnap = { lastTs: pts[pts.length-1], stepMs: pfc.avgStepMs, values: [...pfc.allFc] };
             }
 
             // ─ Store data for time-filter re-render
@@ -5709,11 +5758,14 @@
             document.getElementById('fc-fv-interp').textContent = interpSrc ? interpSrc.textContent : '—';
 
             const ac = isTemp ? 'active-temp' : 'active-load';
+            const snap = isTemp ? _prevFcTempSnap : _prevFcLoadSnap;
             ['fv-toggle-hist','fv-toggle-fitted','fv-toggle-forecast','fv-toggle-ci'].forEach(id => {
                 const b = document.getElementById(id);
-                b.className = 'fv-ds-btn ' + ac;
-                b.dataset.visible = '1';
+                if (b) { b.className = 'fv-ds-btn ' + ac; b.dataset.visible = '1'; }
             });
+            // "Prediksi Sebelumnya" hanya aktif jika snapshot ada
+            const prevBtn = document.getElementById('fv-toggle-prev');
+            if (prevBtn) prevBtn.className = 'fv-ds-btn' + (snap ? ' ' + ac : '');
             document.getElementById('fv-drag-btn').classList.remove('active');
 
             // Sync time filter from card filter
@@ -5779,19 +5831,26 @@
 
         function toggleFcFvDataset(idx) {
             if (!_fcFvChart) return;
+            // idx 3 = CI Upper+Lower (3,4), idx 5 = Prediksi Sebelumnya
             const indices = idx === 3 ? [3, 4] : [idx];
+            const totalDs = _fcFvChart.data.datasets.length;
             indices.forEach(i => {
-                const meta = _fcFvChart.getDatasetMeta(i);
-                meta.hidden = !meta.hidden;
+                if (i < totalDs) {
+                    const meta = _fcFvChart.getDatasetMeta(i);
+                    meta.hidden = !meta.hidden;
+                }
             });
             _fcFvChart.update();
 
-            const btnIds = ['fv-toggle-hist','fv-toggle-fitted','fv-toggle-forecast','fv-toggle-ci'];
-            const btn    = document.getElementById(btnIds[idx]);
-            const isHidden = _fcFvChart.getDatasetMeta(indices[0]).hidden;
+            const btnIds = ['fv-toggle-hist','fv-toggle-fitted','fv-toggle-forecast','fv-toggle-ci', null, 'fv-toggle-prev'];
+            const btnId  = btnIds[idx];
+            if (!btnId) return;
+            const btn = document.getElementById(btnId);
+            if (!btn) return;
+            const checkIdx = indices[0] < totalDs ? indices[0] : null;
+            const isHidden = checkIdx !== null ? _fcFvChart.getDatasetMeta(checkIdx).hidden : false;
             const ac = _fcFvType === 'temp' ? 'active-temp' : 'active-load';
             btn.className = 'fv-ds-btn' + (isHidden ? '' : ' ' + ac);
-            btn.dataset.visible = isHidden ? '0' : '1';
         }
 
         function fcFvZoom(action) {
@@ -5907,9 +5966,10 @@
         <div class="flex items-center gap-1.5 flex-wrap">
           <span class="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mr-0.5">Dataset:</span>
           <button id="fv-toggle-hist"     onclick="toggleFcFvDataset(0)" class="fv-ds-btn" title="Tampil/sembunyikan data historis">Historis</button>
-          <button id="fv-toggle-fitted"   onclick="toggleFcFvDataset(1)" class="fv-ds-btn" title="Tampil/sembunyikan kurva fitted">Fitted</button>
+          <button id="fv-toggle-fitted"   onclick="toggleFcFvDataset(1)" class="fv-ds-btn" title="Kurva Fitted = rekonstruksi model terhadap data historis (bukan forecast)">Fitted</button>
           <button id="fv-toggle-forecast" onclick="toggleFcFvDataset(2)" class="fv-ds-btn" title="Tampil/sembunyikan garis forecast">Forecast</button>
           <button id="fv-toggle-ci"       onclick="toggleFcFvDataset(3)" class="fv-ds-btn" title="Tampil/sembunyikan pita CI 95%">CI 95%</button>
+          <button id="fv-toggle-prev"     onclick="toggleFcFvDataset(5)" class="fv-ds-btn" title="Prediksi run sebelumnya — bandingkan dengan data aktual untuk melihat margin error">Prediksi Sblm</button>
         </div>
 
         <div class="w-px h-7 bg-slate-200 hidden md:block"></div>
