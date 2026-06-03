@@ -1035,7 +1035,8 @@
               <!-- Inner Tabs untuk Detail Algoritma -->
               <div>
                 <div class="inner-tab-nav">
-                  <button onclick="switchInnerTab('ml','a0')" id="itab-ml-a0" class="inner-tab-btn active" style="color:#0891b2;">⚡ Forecast Realtime</button>
+                  <button onclick="switchInnerTab('ml','aex')" id="itab-ml-aex" class="inner-tab-btn active" style="color:#4f46e5;font-weight:900;">🎯 Executive Summary</button>
+                  <button onclick="switchInnerTab('ml','a0')" id="itab-ml-a0" class="inner-tab-btn" style="color:#0891b2;">⚡ Forecast Realtime</button>
                   <button onclick="switchInnerTab('ml','a1')" id="itab-ml-a1" class="inner-tab-btn text-teal-600">Alg.1 Physics Model</button>
                   <button onclick="switchInnerTab('ml','a2')" id="itab-ml-a2" class="inner-tab-btn">Alg.2 Bayesian RUL</button>
                   <button onclick="switchInnerTab('ml','a3')" id="itab-ml-a3" class="inner-tab-btn">Alg.3 GPR</button>
@@ -1043,6 +1044,23 @@
                   <button onclick="switchInnerTab('ml','a5')" id="itab-ml-a5" class="inner-tab-btn">Alg.5 CUSUM</button>
                   <button onclick="switchInnerTab('ml','a6')" id="itab-ml-a6" class="inner-tab-btn">Alg.6 OLS Baseline</button>
                   <button onclick="switchInnerTab('ml','a7')" id="itab-ml-a7" class="inner-tab-btn" style="color:#7c3aed;">Alg.7 Stokastik</button>
+                </div>
+
+                <!-- ════════════════════════════════════════════════════════
+                     Tab AEX: EXECUTIVE SUMMARY — Sintesis Semua Algoritma
+                     Standar: PLN SKDIR 0520-2 · IEC 62271-100:2021
+                             CIGRE TB 165/761/083 · IEEE Std 493/C37.10
+                             ISO 31000:2018 · ISO 55000:2014
+                     ════════════════════════════════════════════════════════ -->
+                <div id="itab-content-ml-aex" class="space-y-4">
+                  <div id="exec-summary-root" class="space-y-4">
+                    <div class="glass-card p-8 flex items-center justify-center">
+                      <div class="text-center text-slate-400">
+                        <div class="text-3xl mb-2">🎯</div>
+                        <div class="text-[11px] font-bold">Jalankan analisis ML untuk melihat Executive Summary.</div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 <!-- ════════════════════════════════════════════════════════
@@ -4882,6 +4900,17 @@
             // ─ Store data for time-filter re-render
             if (fcTemp) _lastFcTempData = { fc: fcTemp, series: tempSeries, ts: tempTs };
             if (fcLoad) _lastFcLoadData = { fc: fcLoad, series: loadSeries, ts: loadTs };
+            // Capture ALG.0 summary data for Executive Summary
+            if (_exSumData) {
+                if (fcTemp && fcTemp.forecasts && fcTemp.forecasts.length) {
+                    _exSumData.fc_temp_1h = fcTemp.forecasts[0].f;
+                    _exSumData.fc_alarm = fcTemp.forecasts[0].f > 75;
+                }
+                if (fcLoad && fcLoad.forecasts && fcLoad.forecasts.length) {
+                    _exSumData.fc_load_1h = fcLoad.forecasts[0].f;
+                }
+                _exSumData.fc_trend_ok = !(fcTemp && fcTemp.forecasts && fcTemp.forecasts.length && fcTemp.forecasts[0].f > 75);
+            }
 
             // ─ Render charts (respects current filter period)
             renderForecastTempChart(fcTemp, tempSeries, tempTs);
@@ -5314,6 +5343,8 @@
 	            const bd = latestBebanData[selectedTrafo];
 	            const hasTempData_pre = hasValidTemperaturePacket(td);
 	            const hasBebanData_pre = hasValidBebanPacket(bd);
+            // Inisialisasi objek data untuk Executive Summary
+            _exSumData = { trafo: T };
             // ── ALG.0 Realtime Forecasting (always runs first — realtime data) ──
             runForecastAlg(hasTempData_pre, hasBebanData_pre, td, bd);
             const spec = ML_INC_SPEC[T] || ML_INC_SPEC[2];
@@ -5357,6 +5388,7 @@
                 setText_id('a6-interp',interp6);
                 const a6status = rateYr<20?'NORMAL':rateYr<50?'PERHATIAN':'KRITIS';
                 updateOverviewCard('a6',`${rateYr.toFixed(1)}`,a6status);
+                if (_exSumData) { _exSumData.ols_rate_yr = rateYr; _exSumData.ols_R2 = ols.R2; _exSumData.ols_status = a6status; }
                 renderA6Chart(xDays,yR_mean,ols,t0);
                 {
                     const R_lim_ols = 2 * yR_mean[0];
@@ -5470,6 +5502,7 @@
                 const ratio = phys.R_est / R_ref_avg;
                 setText_id('a1-interp', `R_contact estimasi: ${phys.R_est.toFixed(1)} ±${phys.errAbs.toFixed(1)} µΩ (±${phys.errPct.toFixed(1)}%) · Ref: ${R_ref_avg.toFixed(1)} µΩ pada ${lastRC.date} · Kenaikan: ${((ratio-1)*100).toFixed(1)}% dari R₀ · Limit IEC: ${(2*R_ref_avg).toFixed(1)} µΩ (2×R₀) · P_Joule: ${phys.P_joule.toFixed(1)} W · Status: ${phys.status}`);
                 updateOverviewCard('a1', phys.R_est.toFixed(1), phys.status);
+                if (_exSumData) { _exSumData.R_est = phys.R_est; _exSumData.errPct = phys.errPct; _exSumData.phys_status = phys.status; }
                 renderA1Chart(rcFiltered, phys, lastRC.date);
                 {
                     const pctToLimit = ((phys.R_est/(2*R_ref_avg))*100).toFixed(1);
@@ -5522,6 +5555,7 @@
                 const _a2confBadge = document.getElementById('a2-conf-badge');
                 if (_a2confBadge) { _a2confBadge.textContent = 'CI: ' + _a2conf; _a2confBadge.className = `text-[9px] font-extrabold px-2 py-0.5 rounded-full ${bayes.rul_years > 15 ? 'bg-emerald-100 text-emerald-700' : bayes.rul_years > 5 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`; }
                 updateOverviewCard('a2',bayes.rul_years>0&&bayes.rul_years<100?bayes.rul_years.toFixed(1):'> 50',rul_badge);
+                if (_exSumData) { _exSumData.rul_years = bayes.rul_years; _exSumData.rate_per_day = bayes.rate_per_day; _exSumData.rul_status = rul_badge; }
                 renderA2Chart(xDays,yR_mean,bayes,t0);
                 {
                     const rateYrB = bayes.rate_per_day * 365;
@@ -5562,6 +5596,7 @@
                 setText_id('a3-1y',`${gpr.mu[yr1Idx].toFixed(1)} µΩ`);
                 setText_id('a3-3y',`${gpr.mu[yr3Idx].toFixed(1)} µΩ`);
                 updateOverviewCard('a3',gpr.mu[nowIdx].toFixed(1),'OK');
+                if (_exSumData) { _exSumData.gpr_mu_last = gpr.mu[nowIdx]; _exSumData.gpr_std_last = gpr.std[nowIdx]; _exSumData.gpr_status = 'OK'; }
                 setText_id('a3-interp',`GPR interpolasi: μ*(sekarang)=${gpr.mu[nowIdx].toFixed(1)} µΩ ± 2σ=${(2*gpr.std[nowIdx]).toFixed(1)} µΩ. Proyeksi +1th: ${gpr.mu[yr1Idx].toFixed(1)} µΩ, +3th: ${gpr.mu[yr3Idx].toFixed(1)} µΩ. Kernel RBF, l=730hr, σ_f=50 µΩ.`);
                 // A3 uncertainty panel
                 const _gprSigmaNow = gpr.std[nowIdx] || 0;
@@ -5633,6 +5668,7 @@
             setText_id('a4-remain-life', `~${af.remain_life.toFixed(1)} tahun`);
             setText_id('a4-action', af.action);
             updateOverviewCard('a4', afScore.toFixed(2), af.status);
+            if (_exSumData) { _exSumData.AF_total = afScore; _exSumData.remain_life = af.remain_life; _exSumData.aging_status = af.status; }
             renderA4Table(af);
             renderA4Chart(af);
             {
@@ -5804,6 +5840,14 @@
                 // Overview card
                 updateOverviewCard('a7', (st.P_total*100).toFixed(1),
                     st.act_lvl==='Normal'?'NORMAL':st.act_lvl==='Enhanced'?'PERHATIAN':'KRITIS');
+                if (_exSumData) {
+                    _exSumData.P_total = st.P_total; _exSumData.F_W = st.F_W;
+                    _exSumData.P_Markov = st.P_Markov; _exSumData.P_Cox = st.P_Cox;
+                    _exSumData.R_ratio = st.R_ratio; _exSumData.act_lvl = st.act_lvl;
+                    _exSumData.risk_IDR = st.risk_IDR; _exSumData.dT_kor = st.dT_kor;
+                    _exSumData.F_AA_exact = st.F_AA_exact; _exSumData.skdir_label = st.skdir_label;
+                    _exSumData.FM1 = st.FM1; _exSumData.FM2 = st.FM2; _exSumData.FM3 = st.FM3;
+                }
 
                 // Interpretation texts
                 setText_id('a7-weibull-interp',
@@ -5849,6 +5893,9 @@
 	            renderMLSpec(T);
 
             _fillInsightDefaults();
+
+            // Render Executive Summary (terakhir, setelah semua data terkumpul)
+            if (_exSumData) renderExecutiveSummary(_exSumData);
 
             lucide.createIcons();
         }
@@ -6232,10 +6279,265 @@
             `;
         }
 
+        // ══════════════════════════════════════════════════════════════════
+        // EXECUTIVE SUMMARY — Sintesis Lintas Algoritma
+        // Standar: PLN SKDIR 0520-2.K/DIR/2014 · IEC 62271-100:2021
+        //          CIGRE TB 165 · CIGRE TB 761 · IEEE Std 493-2007
+        //          ISO 31000:2018 · ISO 55000:2014 · ISO 13849-1
+        // ══════════════════════════════════════════════════════════════════
+
+        let _exSumData = null; // diisi oleh runMLAnalysis()
+
+        function renderExecutiveSummary(d) {
+            const root = document.getElementById('exec-summary-root');
+            if (!root) return;
+
+            // ── Composite Health Index (CHI) ─────────────────────────────
+            // CHI = indeks kesehatan aset gabungan 0–100 (100 = prima)
+            // Metodologi: pembobotan berdasarkan CIGRE TB 165 §5.2,
+            //             ISO 55000:2014 §6.2, IEEE Std 493-2007 §10
+            const hi_failure  = d.P_total  != null ? Math.max(0, 1 - d.P_total)  : null; // w=0.35
+            const hi_aging    = d.AF_total != null ? Math.max(0, 1 - d.AF_total) : null; // w=0.30
+            const hi_contact  = d.R_ratio  != null ? Math.max(0, 1 - Math.min(1, d.R_ratio - 1.0)) : null; // w=0.20
+            const hi_cusum    = d.cusum_alarm != null ? (d.cusum_alarm ? 0.3 : 1.0) : null; // w=0.10
+            const hi_forecast = d.fc_trend_ok != null ? (d.fc_trend_ok ? 1.0 : 0.6) : null; // w=0.05
+
+            let chiNum = null, chiDenom = 0;
+            const add = (v, w) => { if (v != null) { chiNum = (chiNum||0) + v*w; chiDenom += w; } };
+            add(hi_failure,  0.35); add(hi_aging, 0.30);
+            add(hi_contact, 0.20); add(hi_cusum, 0.10); add(hi_forecast, 0.05);
+            const CHI = chiNum != null && chiDenom > 0 ? Math.round((chiNum / chiDenom) * 100) : null;
+
+            // ── Verdict berdasarkan CHI ──────────────────────────────────
+            const verdict = CHI == null ? { label:'DATA BELUM LENGKAP', color:'slate', icon:'ℹ️', border:'border-slate-300', bg:'bg-slate-50', ring:'border-slate-300', txt:'text-slate-700' }
+                          : CHI >= 80   ? { label:'KONDISI BAIK',       color:'emerald', icon:'✅', border:'border-emerald-400', bg:'bg-emerald-50', ring:'ring-emerald-400', txt:'text-emerald-700' }
+                          : CHI >= 60   ? { label:'PERLU PERHATIAN',    color:'amber',   icon:'⚠️', border:'border-amber-400',   bg:'bg-amber-50',   ring:'ring-amber-400',   txt:'text-amber-700'  }
+                          : CHI >= 40   ? { label:'WASPADA',            color:'orange',  icon:'🔶', border:'border-orange-500',  bg:'bg-orange-50',  ring:'ring-orange-500',  txt:'text-orange-700' }
+                          :               { label:'KRITIS',             color:'red',     icon:'🔴', border:'border-red-500',     bg:'bg-red-50',     ring:'ring-red-500',     txt:'text-red-700'    };
+
+            // ── Tabel ringkasan per-algoritma ────────────────────────────
+            const algoRows = [
+                { alg:'Alg.0', nama:'Holt-Winters DES',     nilai: d.fc_temp_1h != null ? `${d.fc_temp_1h.toFixed(1)}°C / ${d.fc_load_1h != null ? d.fc_load_1h.toFixed(0) : '—'} A (forecast +1 jam)` : '—', status: d.fc_alarm ? 'WASPADA' : 'NORMAL', standar:'IEC 61000-4-30 · Box-Jenkins (1976)', color:'cyan' },
+                { alg:'Alg.1', nama:'Physics Model (GUM)',   nilai: d.R_est != null ? `R_est=${d.R_est.toFixed(1)} µΩ · ε=${d.errPct != null ? d.errPct.toFixed(1) : '—'}%` : '—', status: d.phys_status || '—', standar:'IEC 62271-1:2017 · GUM JCGM 100:2008', color:'teal' },
+                { alg:'Alg.2', nama:'Bayesian RUL',          nilai: d.rul_years != null ? `RUL=${isFinite(d.rul_years) ? d.rul_years.toFixed(1) : '>30'} thn · laju=${d.rate_per_day != null ? (d.rate_per_day*365).toFixed(1) : '—'} µΩ/thn` : '—', status: d.rul_years == null ? '—' : d.rul_years > 10 ? 'NORMAL' : d.rul_years > 5 ? 'PERHATIAN' : 'KRITIS', standar:'IEC 62271-100 §6.4.1 · CIGRE TB 761', color:'blue' },
+                { alg:'Alg.3', nama:'Gaussian Process (GPR)',nilai: d.gpr_mu_last != null ? `R_smooth=${d.gpr_mu_last.toFixed(1)} µΩ · σ=±${d.gpr_std_last != null ? d.gpr_std_last.toFixed(1) : '—'} µΩ` : '—', status: d.gpr_status || '—', standar:'Rasmussen & Williams (2006) · CIGRE TB 165', color:'purple' },
+                { alg:'Alg.4', nama:'Aging Factor CB',       nilai: d.AF_total != null ? `AF=${d.AF_total.toFixed(3)} · Sisa umur ≈${d.remain_life != null ? d.remain_life.toFixed(1) : '—'} thn` : '—', status: d.aging_status || '—', standar:'IEC 62271-100:2021 · IEC 60216 · CIGRE TB 165', color:'orange' },
+                { alg:'Alg.5', nama:'CUSUM (Page 1954)',     nilai: d.cusum_sigma != null ? `σ=${d.cusum_sigma.toFixed(2)}°C · k=${d.cusum_k != null ? d.cusum_k.toFixed(2) : '—'} · h=${d.cusum_h != null ? d.cusum_h.toFixed(2) : '—'}` : '—', status: d.cusum_alarm == null ? '—' : d.cusum_alarm ? 'ALARM' : 'NORMAL', standar:'Page (1954) Biometrika · ISO 7966', color:'red' },
+                { alg:'Alg.6', nama:'OLS Regression',        nilai: d.ols_rate_yr != null ? `${d.ols_rate_yr.toFixed(1)} µΩ/thn · R²=${d.ols_R2 != null ? (d.ols_R2*100).toFixed(1) : '—'}%` : '—', status: d.ols_status || '—', standar:'IEEE 90-2006 · ISO 5725-2', color:'slate' },
+                { alg:'Alg.7', nama:'Stokastik (W+M+Cox)',   nilai: d.P_total != null ? `P_fail=${(d.P_total*100).toFixed(1)}% · Risk=Rp ${d.risk_IDR != null ? (d.risk_IDR/1e6).toFixed(1) : '—'} jt` : '—', status: d.act_lvl === 'Normal' ? 'NORMAL' : d.act_lvl === 'Enhanced' ? 'PERHATIAN' : d.act_lvl ? 'KRITIS' : '—', standar:'CIGRE TB 165 §5 · IEEE C37.10 · ISO 31000', color:'violet' },
+            ];
+
+            const statusCfg = {
+                'NORMAL':   'bg-emerald-100 text-emerald-700',
+                'KONDISI BAIK': 'bg-emerald-100 text-emerald-700',
+                'PERHATIAN':'bg-amber-100 text-amber-700',
+                'WASPADA':  'bg-orange-100 text-orange-700',
+                'ALARM':    'bg-red-100 text-red-700',
+                'KRITIS':   'bg-red-100 text-red-700',
+            };
+            const sc = s => statusCfg[s] || 'bg-slate-100 text-slate-500';
+
+            const algoRowsHTML = algoRows.map(r => `
+                <tr class="border-b border-slate-100 hover:bg-indigo-50/30 transition-colors">
+                  <td class="py-2 px-3 text-[10px] font-extrabold text-${r.color}-600 whitespace-nowrap">${r.alg}</td>
+                  <td class="py-2 px-3 text-[10px] font-bold text-slate-700 whitespace-nowrap">${r.nama}</td>
+                  <td class="py-2 px-3 text-[10px] font-mono text-slate-600">${r.nilai}</td>
+                  <td class="py-2 px-3"><span class="text-[9px] font-extrabold px-2 py-0.5 rounded-full ${sc(r.status)}">${r.status}</span></td>
+                  <td class="py-2 px-3 text-[9px] text-slate-400">${r.standar}</td>
+                </tr>`).join('');
+
+            // ── Sintesis teknis lintas algoritma ────────────────────────
+            const skdirLabel = d.skdir_label || '—';
+            const P_pct = d.P_total != null ? (d.P_total * 100).toFixed(1) : '—';
+            const AF_val = d.AF_total != null ? d.AF_total.toFixed(3) : '—';
+            const RUL_val = d.rul_years != null ? (isFinite(d.rul_years) ? d.rul_years.toFixed(1) + ' tahun' : '>30 tahun') : '—';
+            const rateVal = d.ols_rate_yr != null ? d.ols_rate_yr.toFixed(1) : '—';
+            const riskJt = d.risk_IDR != null ? (d.risk_IDR / 1e6).toFixed(1) : '—';
+
+            let synthesis = '';
+            if (CHI == null) {
+                synthesis = `Data masukan belum lengkap untuk semua algoritma. Lengkapi paket data sensor suhu (Acrel ATP007), arus beban (ION8650), dan data uji R_contact (dulfur) untuk mengaktifkan sintesis penuh.`;
+            } else {
+                const chiTxt = CHI >= 80 ? `Composite Health Index (CHI) aset ini sebesar <b>${CHI}/100</b> — aset berada dalam kondisi operasional yang <b>baik dan andal</b> berdasarkan konvergensi delapan algoritma analitik.`
+                             : CHI >= 60 ? `Composite Health Index (CHI) aset ini sebesar <b>${CHI}/100</b> — terdapat <b>indikator degradasi awal</b> yang memerlukan perhatian operasional terstruktur.`
+                             : CHI >= 40 ? `Composite Health Index (CHI) aset ini sebesar <b>${CHI}/100</b> — aset menunjukkan <b>degradasi signifikan</b> pada multiple parameter. Risiko kegagalan terakselerasi.`
+                             :             `Composite Health Index (CHI) aset ini sebesar <b>${CHI}/100</b> — aset berada dalam kondisi <b>kritis</b>. Kegagalan tidak terencana memiliki probabilitas tinggi dalam jangka pendek.`;
+
+                const thermalTxt = d.F_AA_exact != null
+                    ? `Analisis termal menunjukkan faktor percepatan penuaan Arrhenius F_AA = <b>${d.F_AA_exact.toFixed(3)}×</b> (IEC 60216-1), dengan suhu hotspot kontak terkoreksi ΔT = <b>${d.dT_kor != null ? d.dT_kor.toFixed(1) : '—'} K</b> (normalisasi SKDIR PLN SKDIR 0520-2 kondisi <b>${skdirLabel}</b>).`
+                    : '';
+                const contactTxt = d.R_ratio != null
+                    ? `Model degradasi kontak (Physics + Bayesian + GPR) mengindikasikan R_contact saat ini <b>${(d.R_ratio * 100 - 100).toFixed(1)}% di atas nilai awal R₀</b>, dengan laju degradasi OLS <b>${rateVal} µΩ/tahun</b> (R²=${d.ols_R2 != null ? (d.ols_R2*100).toFixed(1) : '—'}%) dan estimasi Remaining Useful Life (RUL) Bayesian <b>${RUL_val}</b> sebelum mencapai batas 2×R₀ (IEC 62271-100 §6.4.1).`
+                    : '';
+                const reliabilityTxt = d.P_total != null
+                    ? `Analisis keandalan stokastik gabungan (Weibull + Rantai Markov + Cox PHM) menghasilkan probabilitas kegagalan P_total = <b>${P_pct}%</b>, dengan risiko finansial terukur sebesar <b>Rp ${riskJt} juta</b> (ENS + biaya perbaikan, ALARP — ISO 31000:2018).`
+                    : '';
+                const agingTxt = d.AF_total != null
+                    ? `Multi-faktor Aging Factor CB = <b>${AF_val}</b> (IEC 62271-100, IEC 60216, CIGRE TB 165), mencakup komponen umur kalender, thermal Arrhenius, degradasi kontak, keausan mekanik, dan deviasi timing.`
+                    : '';
+                const cusumTxt = d.cusum_alarm != null
+                    ? d.cusum_alarm ? `Deteksi perubahan CUSUM (Page 1954) mengidentifikasi <b>pergeseran statistik signifikan</b> pada deret suhu — sinyal anomali perlu diinvestigasi.`
+                                   : `Kontrol statistik CUSUM (Page 1954) tidak mendeteksi pergeseran abnormal pada deret suhu (S⁺ < h = ${d.cusum_h != null ? d.cusum_h.toFixed(1) : '—'}).`
+                    : '';
+                synthesis = [chiTxt, thermalTxt, contactTxt, agingTxt, reliabilityTxt, cusumTxt].filter(Boolean).join(' ');
+            }
+
+            // ── Rekomendasi berdasarkan CHI dan data ────────────────────
+            let recs = [];
+            if (CHI == null) {
+                recs = [
+                    { pri:1, act:'Lengkapi koneksi sensor ATP007 (suhu) dan ION8650 (arus beban)', std:'PLN SKDIR 0520-2 · IEC 62271-1', waktu:'Segera', color:'slate' },
+                    { pri:2, act:'Input data uji R_contact (dulfur) ke Firestore ml_dulfur minimal 2 titik', std:'IEC 62271-100 §6.4.1', waktu:'Sebelum analisis', color:'slate' },
+                ];
+            } else if (CHI >= 80) {
+                recs = [
+                    { pri:1, act:'Pertahankan program pemeliharaan preventif sesuai interval standar (uji timing, R_contact, thermografi 2–3 tahun)', std:'IEC 62271-100:2021 · PLN SKDIR 0520-2', waktu:'Rutin', color:'emerald' },
+                    { pri:2, act:'Update data pengukuran ke Firestore secara konsisten untuk mempertajam akurasi model Bayesian dan GPR', std:'CIGRE TB 761 · ISO 55000', waktu:'Setiap uji', color:'emerald' },
+                    { pri:3, act:'Evaluasi model ML ulang setiap ada data uji baru — pantau tren OLS agar CI tetap terkendali', std:'IEEE 90-2006 · ISO 5725-2', waktu:'Per pengukuran', color:'emerald' },
+                ];
+            } else if (CHI >= 60) {
+                recs = [
+                    { pri:1, act:`Persingkat interval inspeksi CB: uji timing dan ukur R_contact dalam ${d.rul_years != null && d.rul_years < 5 ? '3' : '6'} bulan ke depan`, std:'IEC 62271-100 §6.110 · PLN SKDIR 0520-2', waktu:'3–6 bulan', color:'amber' },
+                    { pri:2, act:'Lakukan thermografi inframerah dan uji partial discharge (PD) untuk validasi kondisi isolasi', std:'IEC 60270 · CIGRE TB 083', waktu:'4–6 bulan', color:'amber' },
+                    { pri:3, act:'Naikkan frekuensi monitoring SCADA menjadi harian; aktifkan alert otomatis untuk ΔT > 30 K (SKDIR Kondisi III)', std:'PLN SKDIR 0520-2 · IEC 62271-1 §7.4', waktu:'Segera', color:'amber' },
+                    { pri:4, act:'Siapkan spare part kritis (kontak, pegas trip) dan rencana kontingensi manuver beban', std:'IEEE Std 493-2007 §10 · ISO 55000:2014', waktu:'2–3 bulan', color:'amber' },
+                ];
+            } else if (CHI >= 40) {
+                recs = [
+                    { pri:1, act:'Jadwalkan major overhaul CB dalam window outage operasional terdekat (≤ 3 bulan)', std:'IEC 62271-100:2021 · CIGRE TB 165 §6', waktu:'≤ 3 bulan', color:'orange' },
+                    { pri:2, act:'Ganti komponen kritis: kontak vakum, pegas operasi, mekanisme trip — lakukan uji komisioning ulang pasca overhaul', std:'IEC 62271-100 §6.110 · IEEE C37.09', waktu:'Saat overhaul', color:'orange' },
+                    { pri:3, act:'Koordinasi dengan dispatcher PLN untuk menyiapkan manuver darurat sebagai backup selama masa transisi', std:'PLN SKDIR 0520-2 · ISO 31000:2018', waktu:'Segera', color:'orange' },
+                    { pri:4, act:'Lakukan semua uji diagnostik (timing, R_contact, PD, thermografi) sebelum dan sesudah overhaul', std:'IEC 60270 · CIGRE TB 083 · IEC 62271-100', waktu:'Saat overhaul', color:'orange' },
+                    { pri:5, act:'Eskalasi ke manajemen aset dengan laporan risiko finansial ALARP (Rp ' + riskJt + ' juta)', std:'ISO 55000:2014 · ISO 31000:2018', waktu:'Minggu ini', color:'orange' },
+                ];
+            } else {
+                recs = [
+                    { pri:1, act:'TINDAKAN SEGERA: Koordinasi dengan dispatcher untuk mempersiapkan isolasi CB dan manuver beban darurat', std:'PLN SKDIR 0520-2 · ISO 31000:2018', waktu:'24–48 jam', color:'red' },
+                    { pri:2, act:'Lakukan pemeliharaan darurat: shutdown, uji lengkap (timing, R_contact, PD, thermografi, visual)', std:'IEC 62271-100 · IEC 60270 · CIGRE TB 083', waktu:'Segera setelah isolasi', color:'red' },
+                    { pri:3, act:'Jika hasil uji mengkonfirmasi degradasi kritis: proses penggantian unit CB (CK-2000 / PIX-24 setara)', std:'IEC 62271-100:2021 · IEEE C37.09', waktu:'≤ 1 bulan', color:'red' },
+                    { pri:4, act:'Laporkan insiden ke manajemen aset PLN dengan dokumentasi lengkap: risiko Rp ' + riskJt + ' juta', std:'ISO 55000:2014 · PLN SKDIR 0520-2', waktu:'Bersamaan', color:'red' },
+                    { pri:5, act:'Review post-incident: update model ML dengan data kegagalan untuk meningkatkan akurasi prediksi ke depan', std:'CIGRE TB 165 §7 · IEEE Std 493-2007', waktu:'Pasca perbaikan', color:'red' },
+                ];
+            }
+
+            const recsHTML = recs.map(r => `
+                <div class="flex items-start gap-3 p-3 rounded-xl bg-${r.color}-50 border border-${r.color}-100">
+                  <span class="flex-shrink-0 w-6 h-6 rounded-full bg-${r.color}-500 text-white text-[10px] font-black flex items-center justify-center">${r.pri}</span>
+                  <div class="flex-1 min-w-0">
+                    <div class="text-[11px] font-bold text-slate-700 leading-relaxed">${r.act}</div>
+                    <div class="mt-1 flex flex-wrap gap-2">
+                      <span class="text-[9px] text-${r.color}-600 font-bold">${r.std}</span>
+                      <span class="text-[9px] text-slate-400 font-bold">· Waktu: ${r.waktu}</span>
+                    </div>
+                  </div>
+                </div>`).join('');
+
+            // ── Timestamp ────────────────────────────────────────────────
+            const now = new Date().toLocaleString('id-ID', { dateStyle:'medium', timeStyle:'short' });
+            const chiColor = verdict.color;
+            const chiGaugeClass = CHI == null ? 'from-slate-300 to-slate-400'
+                                : CHI >= 80 ? 'from-emerald-400 to-teal-500'
+                                : CHI >= 60 ? 'from-yellow-400 to-amber-500'
+                                : CHI >= 40 ? 'from-orange-400 to-orange-600'
+                                : 'from-red-500 to-rose-600';
+
+            root.innerHTML = `
+              <!-- Header -->
+              <div class="glass-card p-5 border-l-4 border-indigo-500 bg-gradient-to-r from-indigo-50 to-white">
+                <div class="flex items-start justify-between gap-4 flex-wrap">
+                  <div>
+                    <div class="flex items-center gap-2 mb-1">
+                      <span class="text-xl">🎯</span>
+                      <h4 class="text-sm font-extrabold text-indigo-800 uppercase tracking-widest">Executive Summary — Analisis Kondisi Aset CB Incoming Trafo ${d.trafo}</h4>
+                    </div>
+                    <p class="text-[10px] text-slate-500 font-medium">Sintesis lintas delapan algoritma ML/statistik · Diperbarui: ${now}</p>
+                    <div class="flex flex-wrap gap-1.5 mt-2">
+                      ${['PLN SKDIR 0520-2','IEC 62271-100:2021','CIGRE TB 165','CIGRE TB 761','IEEE Std 493','ISO 31000:2018','ISO 55000:2014'].map(s=>`<span class="text-[8px] font-extrabold bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded">${s}</span>`).join('')}
+                    </div>
+                  </div>
+                  <!-- CHI Score Badge -->
+                  <div class="flex flex-col items-center flex-shrink-0">
+                    <div class="w-24 h-24 rounded-full bg-gradient-to-br ${chiGaugeClass} flex flex-col items-center justify-center shadow-lg">
+                      <span class="text-white font-black text-2xl leading-none">${CHI != null ? CHI : '—'}</span>
+                      <span class="text-white/80 text-[8px] font-extrabold uppercase">/100 CHI</span>
+                    </div>
+                    <span class="mt-2 text-[9px] font-extrabold ${verdict.txt} uppercase tracking-wider">${verdict.icon} ${verdict.label}</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Composite Health Index explanation -->
+              <div class="glass-card p-4">
+                <div class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest mb-2">Composite Health Index (CHI) — Metodologi Pembobotan</div>
+                <div class="grid grid-cols-2 md:grid-cols-5 gap-2 mb-3">
+                  ${[
+                    { label:'Reliabilitas Stokastik', w:'35%', val: hi_failure != null ? (hi_failure*100).toFixed(0)+'%' : '—', color:'violet' },
+                    { label:'Aging Factor CB', w:'30%', val: hi_aging != null ? (hi_aging*100).toFixed(0)+'%' : '—', color:'orange' },
+                    { label:'Degradasi Kontak', w:'20%', val: hi_contact != null ? (hi_contact*100).toFixed(0)+'%' : '—', color:'blue' },
+                    { label:'CUSUM Alarm', w:'10%', val: hi_cusum != null ? (hi_cusum*100).toFixed(0)+'%' : '—', color:'red' },
+                    { label:'Tren Forecast', w:'5%', val: hi_forecast != null ? (hi_forecast*100).toFixed(0)+'%' : '—', color:'cyan' },
+                  ].map(f=>`
+                    <div class="bg-${f.color}-50 rounded-lg p-2 border border-${f.color}-100 text-center">
+                      <div class="text-[8px] font-extrabold text-${f.color}-600 mb-0.5">${f.label}</div>
+                      <div class="text-base font-black text-slate-700">${f.val}</div>
+                      <div class="text-[8px] text-slate-400">bobot ${f.w}</div>
+                    </div>`).join('')}
+                </div>
+                <div class="bg-slate-50 rounded-lg p-2 text-[9px] text-slate-500 font-mono">
+                  CHI = Σ(wᵢ · HIᵢ) × 100 | CIGRE TB 165 §5.2 · ISO 55000:2014 §6.2 · Bobot: P_fail=35% · AF=30% · R_contact=20% · CUSUM=10% · Forecast=5%
+                </div>
+              </div>
+
+              <!-- Tabel ringkasan algoritma -->
+              <div class="glass-card overflow-hidden">
+                <div class="px-4 py-3 border-b border-slate-100 flex items-center gap-2">
+                  <span class="text-[10px] font-extrabold text-slate-600 uppercase tracking-widest">Ringkasan Delapan Algoritma Analitik</span>
+                </div>
+                <div class="overflow-x-auto">
+                  <table class="w-full text-left">
+                    <thead><tr class="bg-slate-50 text-[9px] font-extrabold text-slate-500 uppercase">
+                      <th class="py-2 px-3">Alg.</th><th class="py-2 px-3">Metode</th><th class="py-2 px-3">Nilai Kunci</th><th class="py-2 px-3">Status</th><th class="py-2 px-3">Standar Acuan</th>
+                    </tr></thead>
+                    <tbody>${algoRowsHTML}</tbody>
+                  </table>
+                </div>
+              </div>
+
+              <!-- Sintesis teknis -->
+              <div class="glass-card p-5 border-l-4 ${verdict.border} ${verdict.bg}">
+                <div class="flex items-center gap-2 mb-3">
+                  <span class="text-base">${verdict.icon}</span>
+                  <span class="text-[10px] font-extrabold uppercase tracking-widest ${verdict.txt}">Sintesis Teknis Lintas Algoritma</span>
+                </div>
+                <p class="text-[11px] text-slate-700 leading-relaxed font-medium">${synthesis}</p>
+              </div>
+
+              <!-- Rekomendasi prioritas -->
+              <div class="glass-card p-5">
+                <div class="text-[10px] font-extrabold text-slate-600 uppercase tracking-widest mb-3">Rekomendasi Teknis Terprioritas</div>
+                <div class="space-y-2">${recsHTML}</div>
+              </div>
+
+              <!-- Footer standar -->
+              <div class="glass-card p-4 bg-slate-50">
+                <div class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest mb-2">Standar & Referensi yang Diterapkan</div>
+                <div class="flex flex-wrap gap-1.5">
+                  ${[
+                    'PLN SKDIR 0520-2.K/DIR/2014','IEC 62271-100:2021','IEC 62271-1:2017','IEC 60216-1',
+                    'IEC 60270','CIGRE TB 165','CIGRE TB 761','CIGRE TB 083','CIGRE WG A3.06',
+                    'IEEE Std 493-2007','IEEE C37.10','IEEE C37.09','IEEE 90-2006',
+                    'ISO 31000:2018','ISO 55000:2014','ISO 7966','GUM JCGM 100:2008',
+                    'Holt (1957)','Page (1954)','Cox (1972)','Weibull (1951)','Rasmussen & Williams (2006)'
+                  ].map(s=>`<span class="text-[8px] bg-white border border-slate-200 text-slate-500 px-1.5 py-0.5 rounded font-medium">${s}</span>`).join('')}
+                </div>
+                <p class="text-[9px] text-slate-400 mt-2">Executive Summary ini merupakan output sintesis otomatis dari delapan algoritma analitik yang berjalan secara paralel. Keputusan operasional final tetap berada di bawah otoritas engineer yang bertanggung jawab sesuai ISO 55000:2014 §6.2.</p>
+              </div>`;
+        }
+
         let mlAutoRefreshTimer = null;
 
         function initMLPage(){
-            switchInnerTab('ml','a0'); // Alg.0 Forecast is default first tab
+            switchInnerTab('ml','aex'); // Executive Summary is default first tab
             setTimeout(runMLAnalysis, 100);
             // ── Auto-refresh every 60 seconds while ML page is open ──
             if (mlAutoRefreshTimer) clearInterval(mlAutoRefreshTimer);
