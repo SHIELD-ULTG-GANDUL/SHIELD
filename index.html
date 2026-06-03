@@ -1310,7 +1310,7 @@
                           <div class="flex items-center gap-1.5"><span class="w-4 h-4 rounded bg-blue-100 text-blue-600 text-[9px] font-black flex items-center justify-center">T</span>Tanggal & suhu pengukuran</div>
                           <div class="flex items-center gap-1.5"><span class="w-4 h-4 rounded bg-teal-100 text-teal-600 text-[9px] font-black flex items-center justify-center">I</span>Arus injeksi pengujian (A)</div>
                         </div>
-                        <div class="text-[9px] text-slate-400 mt-2 pt-2 border-t border-slate-200">Tambahkan entri ke <code class="bg-slate-100 px-1 rounded">ML_R_CONTACT[]</code> untuk mengaktifkan forecasting degradasi + prediksi end-of-life berdasarkan tren dulfur.</div>
+                        <div class="text-[9px] text-slate-400 mt-2 pt-2 border-t border-slate-200">Tambahkan entri terverifikasi ke <code class="bg-slate-100 px-1 rounded">ml_dulfur</code> Firestore untuk mengaktifkan forecasting degradasi + prediksi end-of-life berdasarkan tren dulfur.</div>
                       </div>
                       <!-- R_contact trend mini from existing data -->
                       <div class="mt-3 space-y-1">
@@ -1339,65 +1339,26 @@
 
                 <!-- Tab A1: Physics Model -->
                 <div id="itab-content-ml-a1" class="space-y-4">
-
-                  <!-- Cara Kerja Panel -->
                   <div class="glass-card p-5 border-l-4 border-teal-400">
                     <div class="flex items-center gap-2 mb-3">
                       <span class="text-base">🔬</span>
                       <h5 class="text-xs font-extrabold text-teal-700 uppercase tracking-widest">Cara Kerja — Algoritma Fisika Estimasi R_contact</h5>
                       <span class="text-[9px] font-extrabold bg-teal-100 text-teal-700 px-2 py-0.5 rounded ml-auto">IEC 62271-1:2017 §7.4</span>
                     </div>
-                    <p class="text-[10px] text-slate-600 mb-3 leading-relaxed">Algoritma ini mengestimasi tahanan kontak PMT (<b>R_contact</b>) secara real-time berdasarkan pembacaan suhu sensor tanpa harus membuka panel PMT. Prinsipnya: resistivitas material kontak (CuCr) naik secara linear terhadap suhu — dikenal sebagai <b>Hukum Wilson/Matthiessen</b>.</p>
+                    <p class="text-[10px] text-slate-600 mb-3 leading-relaxed">Algoritma ini mengestimasi tahanan kontak PMT (<b>R_contact</b>) secara real-time berdasarkan suhu sensor tanpa membuka panel PMT. Prinsip: resistivitas material kontak (CuCr) naik linear terhadap suhu — <b>Hukum Wilson/Matthiessen</b>.</p>
                     <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
-                      <div class="bg-teal-50 rounded-xl p-3 border border-teal-100 flex flex-col items-center text-center">
-                        <div class="text-lg mb-1">🌡️</div>
-                        <div class="text-[9px] font-extrabold text-teal-600 uppercase mb-1">Step 1</div>
-                        <div class="text-[10px] font-bold text-slate-700">Baca T_sensor</div>
-                        <div class="text-[9px] text-slate-400 mt-1">Dari Acrel ATP007 — suhu tertinggi antar fasa R/S/T</div>
-                      </div>
-                      <div class="bg-blue-50 rounded-xl p-3 border border-blue-100 flex flex-col items-center text-center">
-                        <div class="text-lg mb-1">⚡</div>
-                        <div class="text-[9px] font-extrabold text-blue-600 uppercase mb-1">Step 2</div>
-                        <div class="text-[10px] font-bold text-slate-700">Koreksi Gradien</div>
-                        <div class="text-[9px] text-slate-400 mt-1">T_contact = T_sensor + 8°C (gradien VCB, IEC §7.4)</div>
-                      </div>
-                      <div class="bg-amber-50 rounded-xl p-3 border border-amber-100 flex flex-col items-center text-center">
-                        <div class="text-lg mb-1">📐</div>
-                        <div class="text-[9px] font-extrabold text-amber-600 uppercase mb-1">Step 3</div>
-                        <div class="text-[10px] font-bold text-slate-700">Formula Wilson</div>
-                        <div class="text-[9px] text-slate-400 mt-1">R(T) = R_ref × [1 + α × ΔT]</div>
-                      </div>
-                      <div class="bg-orange-50 rounded-xl p-3 border border-orange-100 flex flex-col items-center text-center">
-                        <div class="text-lg mb-1">🔥</div>
-                        <div class="text-[9px] font-extrabold text-orange-600 uppercase mb-1">Step 4</div>
-                        <div class="text-[10px] font-bold text-slate-700">Hitung P_Joule</div>
-                        <div class="text-[9px] text-slate-400 mt-1">P = I² × R_est × 10⁻⁶ [Watt]</div>
-                      </div>
-                      <div class="bg-rose-50 rounded-xl p-3 border border-rose-100 flex flex-col items-center text-center">
-                        <div class="text-lg mb-1">🚦</div>
-                        <div class="text-[9px] font-extrabold text-rose-600 uppercase mb-1">Step 5</div>
-                        <div class="text-[10px] font-bold text-slate-700">Bandingkan IEC</div>
-                        <div class="text-[9px] text-slate-400 mt-1">R_limit = 2×R₀ (IEC 62271-100 §6.4.1)</div>
-                      </div>
+                      <div class="bg-teal-50 rounded-xl p-3 border border-teal-100 flex flex-col items-center text-center"><div class="text-lg mb-1">🌡️</div><div class="text-[9px] font-extrabold text-teal-600 uppercase mb-1">Step 1</div><div class="text-[10px] font-bold text-slate-700">Baca T_sensor</div><div class="text-[9px] text-slate-400 mt-1">Dari Acrel ATP007 — suhu tertinggi antar fasa R/S/T</div></div>
+                      <div class="bg-blue-50 rounded-xl p-3 border border-blue-100 flex flex-col items-center text-center"><div class="text-lg mb-1">⚡</div><div class="text-[9px] font-extrabold text-blue-600 uppercase mb-1">Step 2</div><div class="text-[10px] font-bold text-slate-700">Koreksi Gradien</div><div class="text-[9px] text-slate-400 mt-1">T_contact = T_sensor + 8°C (gradien VCB, IEC §7.4)</div></div>
+                      <div class="bg-amber-50 rounded-xl p-3 border border-amber-100 flex flex-col items-center text-center"><div class="text-lg mb-1">📐</div><div class="text-[9px] font-extrabold text-amber-600 uppercase mb-1">Step 3</div><div class="text-[10px] font-bold text-slate-700">Formula Wilson</div><div class="text-[9px] text-slate-400 mt-1">R(T) = R_ref × [1 + α × ΔT]</div></div>
+                      <div class="bg-orange-50 rounded-xl p-3 border border-orange-100 flex flex-col items-center text-center"><div class="text-lg mb-1">🔥</div><div class="text-[9px] font-extrabold text-orange-600 uppercase mb-1">Step 4</div><div class="text-[10px] font-bold text-slate-700">Hitung P_Joule</div><div class="text-[9px] text-slate-400 mt-1">P = I² × R_est × 10⁻⁶ [W]</div></div>
+                      <div class="bg-rose-50 rounded-xl p-3 border border-rose-100 flex flex-col items-center text-center"><div class="text-lg mb-1">🚦</div><div class="text-[9px] font-extrabold text-rose-600 uppercase mb-1">Step 5</div><div class="text-[10px] font-bold text-slate-700">Bandingkan IEC</div><div class="text-[9px] text-slate-400 mt-1">R_limit = 2×R₀ (IEC 62271-100 §6.4.1)</div></div>
                     </div>
                     <div class="mt-3 bg-slate-50 rounded-xl p-3 font-mono text-[10px] grid grid-cols-1 md:grid-cols-2 gap-2">
-                      <div>
-                        <div class="text-teal-700 font-extrabold mb-1">Formula Utama:</div>
-                        <div>R(T) = R_ref × [1 + α × (T_contact − T_ref)]</div>
-                        <div class="text-slate-400 mt-1">α = 3.9×10⁻³ /K — koef. resistivitas CuCr</div>
-                        <div class="text-slate-400">T_ref = 20°C — suhu referensi IEC standard</div>
-                      </div>
-                      <div>
-                        <div class="text-amber-700 font-extrabold mb-1">Propagasi Error (GUM/JCGM 100:2008):</div>
-                        <div>δR/R = √[(δR_ref/R_ref)² + (ΔT·δα/f)² + (α·δT/f)²]</div>
-                        <div class="text-slate-400 mt-1">f = 1+α×ΔT | δα=±0.2×10⁻³ | δT=±3°C | δR_ref=±5%</div>
-                      </div>
+                      <div><div class="text-teal-700 font-extrabold mb-1">Formula Utama:</div><div>R(T) = R_ref × [1 + α × (T_contact − T_ref)]</div><div class="text-slate-400 mt-1">α = 3.9×10⁻³ /K — koef. resistivitas CuCr | T_ref = 20°C</div></div>
+                      <div><div class="text-amber-700 font-extrabold mb-1">Propagasi Error (GUM/JCGM 100:2008):</div><div>δR/R = √[(δR_ref/R_ref)² + (ΔT·δα/f)² + (α·δT/f)²]</div><div class="text-slate-400 mt-1">δα=±0.2×10⁻³ | δT=±3°C | δR_ref=±5% | f=1+α×ΔT</div></div>
                     </div>
                   </div>
-
-                  <!-- Main Grid: Parameter + Chart -->
                   <div class="grid grid-cols-1 xl:grid-cols-3 gap-4">
-                    <!-- Left: Parameters + Error Budget -->
                     <div class="glass-card p-5 space-y-4">
                       <div>
                         <h5 class="text-xs font-extrabold text-teal-700 uppercase tracking-widest mb-3">Parameter & Hasil Estimasi</h5>
@@ -1407,64 +1368,35 @@
                           <div class="flex justify-between text-[11px]"><span class="text-slate-500">ΔT (T_contact − 20°C)</span><span id="a1-dT" class="font-mono font-bold text-blue-600">- K</span></div>
                           <div class="flex justify-between text-[11px]"><span class="text-slate-500">I_rms rata-rata fasa</span><span id="a1-irms" class="font-mono font-bold">- A</span></div>
                           <div class="flex justify-between text-[11px]"><span class="text-slate-500">R_ref pengukuran terakhir</span><span id="a1-rref" class="font-mono font-bold">- µΩ</span></div>
-                          <div class="flex justify-between text-[11px] border-t border-slate-100 pt-2">
-                            <span class="text-slate-600 font-bold">R_contact estimasi</span>
-                            <span id="a1-rest" class="font-mono font-extrabold text-teal-700">- µΩ</span>
-                          </div>
-                          <div class="flex justify-between text-[11px]">
-                            <span class="text-slate-600 font-bold">Error Estimasi</span>
-                            <span id="a1-err-pct" class="font-mono font-extrabold text-amber-600">- %</span>
-                          </div>
-                          <div class="flex justify-between text-[11px]">
-                            <span class="text-slate-500">R_est ± Error Absolut</span>
-                            <span id="a1-err-abs" class="font-mono font-bold text-amber-600">± - µΩ</span>
-                          </div>
+                          <div class="flex justify-between text-[11px] border-t border-slate-100 pt-2"><span class="text-slate-600 font-bold">R_contact estimasi</span><span id="a1-rest" class="font-mono font-extrabold text-teal-700">- µΩ</span></div>
+                          <div class="flex justify-between text-[11px]"><span class="text-slate-600 font-bold">Error Estimasi</span><span id="a1-err-pct" class="font-mono font-extrabold text-amber-600">- %</span></div>
+                          <div class="flex justify-between text-[11px]"><span class="text-slate-500">R_est ± Error Absolut</span><span id="a1-err-abs" class="font-mono font-bold text-amber-600">± - µΩ</span></div>
                           <div class="flex justify-between text-[11px]"><span class="text-slate-600 font-bold">P_Joule (rugi kontak)</span><span id="a1-pjoule" class="font-mono font-extrabold text-orange-600">- W</span></div>
                           <div class="flex justify-between text-[11px]"><span class="text-slate-600 font-bold">Thermal Stress Ratio</span><span id="a1-tstress" class="font-mono font-extrabold">-</span></div>
                         </div>
                       </div>
-
-                      <!-- Error Budget Breakdown -->
                       <div class="bg-amber-50 rounded-xl p-3 border border-amber-100">
                         <div class="text-[9px] font-extrabold text-amber-700 uppercase tracking-widest mb-2">📊 Error Budget (GUM Analysis)</div>
                         <div class="space-y-1.5">
-                          <div class="flex justify-between text-[10px]">
-                            <span class="text-slate-600">δR_ref (micro-ohmmeter ±5%)</span>
-                            <span id="a1-err-rref" class="font-mono font-bold text-amber-700">5.00%</span>
-                          </div>
-                          <div class="flex justify-between text-[10px]">
-                            <span class="text-slate-600">δα (variasi material CuCr)</span>
-                            <span id="a1-err-alpha" class="font-mono font-bold text-amber-700">- %</span>
-                          </div>
-                          <div class="flex justify-between text-[10px]">
-                            <span class="text-slate-600">δT (sensor+gradien ±3°C)</span>
-                            <span id="a1-err-T" class="font-mono font-bold text-amber-700">- %</span>
-                          </div>
-                          <div class="flex justify-between text-[10px] border-t border-amber-200 pt-1.5 font-bold">
-                            <span class="text-amber-800">Total Ketidakpastian</span>
-                            <span id="a1-err-total" class="font-mono text-amber-800">- %</span>
-                          </div>
-                          <div class="flex justify-between text-[10px] font-bold">
-                            <span class="text-amber-800">Interval Kepercayaan 95%</span>
-                            <span id="a1-err-ci95" class="font-mono text-amber-800">±- µΩ</span>
-                          </div>
+                          <div class="flex justify-between text-[10px]"><span class="text-slate-600">δR_ref (micro-ohmmeter ±5%)</span><span id="a1-err-rref" class="font-mono font-bold text-amber-700">5.00%</span></div>
+                          <div class="flex justify-between text-[10px]"><span class="text-slate-600">δα (variasi material CuCr)</span><span id="a1-err-alpha" class="font-mono font-bold text-amber-700">- %</span></div>
+                          <div class="flex justify-between text-[10px]"><span class="text-slate-600">δT (sensor+gradien ±3°C)</span><span id="a1-err-T" class="font-mono font-bold text-amber-700">- %</span></div>
+                          <div class="flex justify-between text-[10px] border-t border-amber-200 pt-1.5 font-bold"><span class="text-amber-800">Total Ketidakpastian</span><span id="a1-err-total" class="font-mono text-amber-800">- %</span></div>
+                          <div class="flex justify-between text-[10px] font-bold"><span class="text-amber-800">Interval Kepercayaan 95%</span><span id="a1-err-ci95" class="font-mono text-amber-800">±- µΩ</span></div>
                         </div>
-                        <p class="text-[9px] text-slate-400 mt-2 leading-relaxed">Analisis GUM (Guide to the Expression of Uncertainty in Measurement, JCGM 100:2008). Error dominan dari akurasi alat ukur dulfur (micro-ohmmeter) ±5%.</p>
+                        <p class="text-[9px] text-slate-400 mt-2 leading-relaxed">GUM = Guide to Uncertainty in Measurement (JCGM 100:2008). Error dominan dari akurasi alat ukur dulfur ±5%.</p>
                       </div>
                     </div>
-
-                    <!-- Right: Chart + Interpretation -->
                     <div class="glass-card p-5 xl:col-span-2 space-y-3">
                       <div class="flex items-center justify-between">
                         <h5 class="text-xs font-extrabold text-slate-600 uppercase tracking-widest">R_contact: Estimasi vs Pengukuran Dulfur (µΩ)</h5>
                         <div id="a1-err-badge" class="text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">Error: -</div>
                       </div>
-                      <div class="text-[9px] text-slate-400 leading-relaxed">Bar oranye = estimasi real-time dari suhu sensor. Batang error (garis vertikal ⊤) = ketidakpastian ±<span id="a1-err-pct-chart">-</span>%. Bar hijau teal = hasil pengukuran dulfur langsung (micro-ohmmeter) sebagai acuan validasi.</div>
+                      <div class="text-[9px] text-slate-400 leading-relaxed">Bar oranye = estimasi real-time dari suhu sensor. Batang error ⊤ = ketidakpastian ±<span id="a1-err-pct-chart">-</span>%. Bar hijau teal = pengukuran dulfur langsung (micro-ohmmeter) sebagai acuan validasi.</div>
                       <div class="h-56"><canvas id="chart-a1"></canvas></div>
                       <div class="mt-2 p-3 bg-teal-50 rounded-xl text-[10px] text-teal-700 font-bold leading-relaxed" id="a1-interp">—</div>
                     </div>
                   </div>
-
                   <div id="a1-insight" class="glass-card p-4 border-l-4 border-slate-200 text-[10px] text-slate-400 italic">Menghitung analisis...</div>
                 </div>
 
@@ -2239,7 +2171,6 @@
 
         function _scheduleMLRealtimeUpdate(reason = 'data baru') {
             if (mlRealtimeUpdateTimer) clearTimeout(mlRealtimeUpdateTimer);
-            // Selalu set flag — ML akan run saat user membuka halaman ML
             _mlPendingUpdate = true;
             mlRealtimeUpdateTimer = setTimeout(() => {
                 if (activePage === 'ml' && typeof runMLAnalysis === 'function') {
@@ -2247,7 +2178,6 @@
                     _mlPendingUpdate = false;
                     runMLAnalysis();
                 }
-                // Jika tidak di halaman ML, flag tetap aktif — akan trigger saat switchPage('ml')
             }, 1200);
         }
 
@@ -2399,7 +2329,7 @@
                 setBebanTimeFilter(activeBebanTimeFilter);
             } else if (page === 'ml') {
                 titleEl.textContent = 'Machine Learning Analysis';
-                _mlPendingUpdate = false; // reset — initMLPage akan run fresh
+                _mlPendingUpdate = false;
                 initMLPage();
             }
         }
@@ -4300,16 +4230,8 @@
         //            CIGRE TB 761:2019, IEEE 493-2007, IEEE 90-2006
         // =============================================================
 
-        // ── Auto-generate flag: set saat data baru tiba di halaman lain ──
         let _mlPendingUpdate = false;
 
-        // ─────────────────────────────────────────────────────────────────
-        // DULFUR FIRESTORE LISTENER
-        // Collection: ml_dulfur
-        // Setiap dokumen: { date:"YYYY-MM-DD", trafo:2, R:[R_R,R_S,R_T], I:100 }
-        // Tambahkan data pengujian baru ke collection ini dari Firebase Console
-        // atau aplikasi lain — ML akan otomatis re-run dan update semua analisis.
-        // ─────────────────────────────────────────────────────────────────
         window.subscribeDulfurData = function() {
             try {
                 const col = window.fs.collection(window.db, 'ml_dulfur');
@@ -4319,57 +4241,36 @@
                     snap.forEach(doc => {
                         const d = doc.data();
                         if (d.date && d.trafo && Array.isArray(d.R) && d.R.length === 3) {
-                            firestoreEntries.push({
-                                date:  d.date,
-                                trafo: parseInt(d.trafo),
-                                R:     d.R.map(Number),
-                                I:     d.I || 100
-                            });
+                            firestoreEntries.push({ date:d.date, trafo:parseInt(d.trafo), R:d.R.map(Number), I:d.I||100, source:'firestore' });
                         }
                     });
                     if (!firestoreEntries.length) return;
-
-                    // Merge ke ML_R_CONTACT (hindari duplikat berdasarkan date+trafo)
                     let changed = false;
                     firestoreEntries.forEach(entry => {
-                        const exists = ML_R_CONTACT.some(
-                            e => e.date === entry.date && e.trafo === entry.trafo
-                        );
-                        if (!exists) {
-                            ML_R_CONTACT.push(entry);
-                            changed = true;
-                        }
+                        const exists = ML_R_CONTACT.some(e => e.date===entry.date && e.trafo===entry.trafo);
+                        if (!exists) { ML_R_CONTACT.push(entry); changed = true; }
                     });
-
                     if (changed) {
-                        // Sort by date then trafo
                         ML_R_CONTACT.sort((a,b) => a.date.localeCompare(b.date) || a.trafo - b.trafo);
-                        console.log(`[SHIELD Dulfur] ${firestoreEntries.length} entri Firestore dimuat. Total: ${ML_R_CONTACT.length}`);
-                        // Update badge info jika ada
                         const dulfurEl = document.getElementById('fc-dulfur-status');
-                        if (dulfurEl) dulfurEl.textContent = `${ML_R_CONTACT.length} pengukuran · FS+lokal · Terakhir: ${ML_R_CONTACT[ML_R_CONTACT.length-1].date}`;
-                        // Trigger re-analysis
+                        if (dulfurEl) dulfurEl.textContent = `${ML_R_CONTACT.length} pengukuran · Firestore+baseline lokal · Terakhir: ${ML_R_CONTACT[ML_R_CONTACT.length-1].date}`;
                         _scheduleMLRealtimeUpdate('data dulfur baru dari Firestore');
                     }
-                }, (err) => {
-                    console.warn('[SHIELD Dulfur] Collection ml_dulfur tidak tersedia atau error:', err.code);
-                });
-            } catch(e) {
-                console.warn('[SHIELD Dulfur] subscribeDulfurData error:', e.message);
-            }
+                }, (err) => { console.warn('[SHIELD Dulfur] ml_dulfur:', err.code); });
+            } catch(e) { console.warn('[SHIELD Dulfur] error:', e.message); }
         };
 
         let ML_R_CONTACT = [
-            {date:'2022-01-18',trafo:1,R:[293.9,226.3,150.6],I:100},
-            {date:'2022-04-07',trafo:1,R:[293.9,226.3,150.6],I:100},
-            {date:'2022-06-08',trafo:3,R:[166.1,100.0,92.4], I:100},
-            {date:'2022-07-07',trafo:3,R:[125.0,138.6,128.1],I:100},
-            {date:'2022-07-07',trafo:2,R:[162.5,147.8,126.5],I:100},
-            {date:'2024-01-20',trafo:4,R:[68.0, 50.0, 53.0], I:100},
-            {date:'2024-05-12',trafo:3,R:[101.0,100.0,106.0],I:100},
-            {date:'2024-06-07',trafo:2,R:[17.0, 29.0, 10.0], I:100},
-            {date:'2025-09-11',trafo:3,R:[94.0, 98.0, 92.0], I:100},
-            {date:'2026-01-17',trafo:2,R:[124.47,115.67,143.77],I:100}
+            {date:'2022-01-18',trafo:1,R:[293.9,226.3,150.6],I:100,source:'baseline_lokal'},
+            {date:'2022-04-07',trafo:1,R:[293.9,226.3,150.6],I:100,source:'baseline_lokal'},
+            {date:'2022-06-08',trafo:3,R:[166.1,100.0,92.4], I:100,source:'baseline_lokal'},
+            {date:'2022-07-07',trafo:3,R:[125.0,138.6,128.1],I:100,source:'baseline_lokal'},
+            {date:'2022-07-07',trafo:2,R:[162.5,147.8,126.5],I:100,source:'baseline_lokal'},
+            {date:'2024-01-20',trafo:4,R:[68.0, 50.0, 53.0], I:100,source:'baseline_lokal'},
+            {date:'2024-05-12',trafo:3,R:[101.0,100.0,106.0],I:100,source:'baseline_lokal'},
+            {date:'2024-06-07',trafo:2,R:[17.0, 29.0, 10.0], I:100,source:'baseline_lokal'},
+            {date:'2025-09-11',trafo:3,R:[94.0, 98.0, 92.0], I:100,source:'baseline_lokal'},
+            {date:'2026-01-17',trafo:2,R:[124.47,115.67,143.77],I:100,source:'baseline_lokal'}
         ];
 
         const ML_INC_SPEC = {
@@ -4396,6 +4297,71 @@
         const T_GRADIENT_VCB = 8; // °C
 
         let mlCharts = {};
+
+        function getValidatedRContactData(trafo) {
+            return ML_R_CONTACT
+                .filter(d => d.trafo === trafo)
+                .map(d => ({
+                    ...d,
+                    R: Array.isArray(d.R) ? d.R.map(Number) : [],
+                    _time: new Date(d.date).getTime()
+                }))
+                .filter(d =>
+                    !isNaN(d._time) &&
+                    d.R.length === 3 &&
+                    d.R.every(v => Number.isFinite(v) && v > 0)
+                )
+                .sort((a, b) => a._time - b._time);
+        }
+
+        function describeRContactSource(data) {
+            if (!data || data.length === 0) return 'tidak tersedia';
+            const fs = data.filter(d => d.source === 'firestore').length;
+            const local = data.length - fs;
+            const parts = [];
+            if (fs) parts.push(`${fs} Firestore`);
+            if (local) parts.push(`${local} baseline lokal`);
+            return parts.join(' + ');
+        }
+
+        function hasValidTemperaturePacket(td) {
+            const keys = ['R_Atas','R_Bawah','S_Atas','S_Bawah','T_Atas','T_Bawah'];
+            return !!td && keys.every(k => Number.isFinite(Number(td[k])) && Number(td[k]) > 0);
+        }
+
+        function hasValidBebanPacket(bd) {
+            return !!bd && ['I_R','I_S','I_T'].every(k => Number.isFinite(Number(bd[k])) && Number(bd[k]) > 0);
+        }
+
+        function resetChart(id) {
+            if (mlCharts[id]) {
+                mlCharts[id].destroy();
+                delete mlCharts[id];
+            }
+        }
+
+        function markAlgorithmUnavailable(alg, fields, reason, recommendation) {
+            fields.forEach(id => setText_id(id, '-'));
+            const slateBadge = 'text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600';
+            const setBadge = (id, text = 'Data kurang') => {
+                const el = document.getElementById(id);
+                if (el) { el.textContent = text; el.className = slateBadge; }
+            };
+            const setBarZero = (id) => {
+                const el = document.getElementById(id);
+                if (el) el.style.width = '0%';
+            };
+            if (alg === 'a1') setBadge('a1-err-badge');
+            if (alg === 'a2') { setBadge('a2-conf-badge'); setBarZero('a2-rul-bar'); }
+            if (alg === 'a3') setBadge('a3-conf-badge');
+            if (alg === 'a4') { setBadge('a4-hi-badge'); setBarZero('a4-hi-bar'); }
+            if (alg === 'a7') {
+                ['a7-skdir-badge','a7-thermal-alarm-badge','a7-ptotal-badge','a7-action-badge'].forEach(id => setBadge(id));
+                ['a7-ptotal-bar','a7-fm1-fill','a7-fm2-fill','a7-fm3-fill'].forEach(setBarZero);
+            }
+            updateOverviewCard(alg, 'N/A', 'DATA KURANG');
+            setInsight(`${alg}-insight`, 'DATA KURANG', reason, recommendation);
+        }
 
         // ─── UTILITY: Matrix operations (for GPR, small n≤10) ───────
 
@@ -4616,7 +4582,6 @@
             // ── Overlay "Prediksi Sebelumnya" untuk perbandingan margin error ──
             const snap = isTemp ? _prevFcTempSnap : _prevFcLoadSnap;
             if (snap && snap.values && snap.values.length) {
-                // AREA HISTORIS: timestamp matching toleransi lebar (1.5× stepMs)
                 const tol = snap.stepMs * 1.5;
                 const prevHistPart = histTs.map(t => {
                     let best = null, bestDiff = tol;
@@ -4626,15 +4591,9 @@
                     }
                     return best;
                 });
-
-                // AREA FORECAST: index-based langsung — snap.values[h] = prediksi step ke-h
-                // Dijamin selalu muncul mulai run ke-2, tanpa perlu timestamp match
                 const fcLen = Math.min(fc.allFc.length, snap.values.length);
                 const prevFcPart = fc.allFc.map((_, h) => h < fcLen ? snap.values[h] : null);
-
                 const prevAllData = [...prevHistPart, ...prevFcPart];
-
-                // Selalu tambahkan dataset jika ada nilai (fc area pasti ada nilai mulai run ke-2)
                 datasets.push({
                     label:                'Prediksi Sebelumnya',
                     data:                 prevAllData,
@@ -4644,7 +4603,7 @@
                     borderDash:           [6, 3],
                     fill:                 false,
                     pointRadius:          3.5,
-                    pointStyle:           'rectRot',   // bentuk berlian agar beda dari yang lain
+                    pointStyle:           'rectRot',
                     pointBackgroundColor: cPrev,
                     pointBorderColor:     '#fff',
                     pointBorderWidth:     1,
@@ -4657,9 +4616,9 @@
             return { n, allLbls, datasets };
         }
 
-        // ── ALG.0: Main run function (called inside runMLAnalysis) ────
+                // ── ALG.0: Main run function (called inside runMLAnalysis) ────
         function runForecastAlg(hasTempData, hasBebanData, td, bd) {
-            // ─ Gather temperature series (max 500 samples for long-term accuracy)
+            // ─ Gather temperature series
             let tempSeries=[], tempTs=[], tempSrc='';
             if (firestoreLogs.length >= 5) {
                 const sorted = [...firestoreLogs].sort((a,b)=>a.docSortTime-b.docSortTime);
@@ -4678,7 +4637,7 @@
                 tempSrc    = 'sesaat (data terbatas)';
             }
 
-            // ─ Gather load/beban series (max 300 samples)
+            // ─ Gather load/beban series
             let loadSeries=[], loadTs=[], loadSrc='';
             if (firestoreBebanLogs.length >= 5) {
                 const sorted = [...firestoreBebanLogs].sort((a,b)=>a.docSortTime-b.docSortTime);
@@ -4765,26 +4724,16 @@
                 // Interpretation
                 setText_id('fc-temp-interp', `Holt-Winters DES: L=${fcTemp.L.toFixed(2)}°C, T=${fcTemp.T.toFixed(4)}°C/step (α=0.30, β=0.10). Forecast +1hr=${f1h.f.toFixed(1)}°C ±${f1h.se.toFixed(2)}°C (95%CI). Akurasi: ${fcTemp.accuracy.toFixed(1)}% (MAPE=${fcTemp.MAPE.toFixed(2)}%, RMSE=${fcTemp.RMSE.toFixed(2)}°C, R²=${fcTemp.R2.toFixed(3)}). N=${fcTemp.n} titik data.`);
 
-                // KPI Description — Suhu Forecast
                 const _dTemp = document.getElementById('kpi-desc-temp-1h');
                 if (_dTemp) {
                     const _v = f1h.f;
-                    _dTemp.textContent = _v > 80
-                        ? `⚠ Kritis: diprediksi ${_v.toFixed(1)}°C — melewati batas IEC 60076-2 (80°C). Aktifkan pendingin tambahan dan kurangi beban segera.`
-                        : _v > 70
-                        ? `Perhatian: menuju ${_v.toFixed(1)}°C. Periksa sistem pendingin dan pantau tren beban. Ambang batas perhatian 70°C.`
-                        : `Aman: diprediksi ${_v.toFixed(1)}°C — dalam batas normal operasi (<70°C). Tidak diperlukan tindakan khusus.`;
+                    _dTemp.textContent = _v > 80 ? `⚠ Kritis: diprediksi ${_v.toFixed(1)}°C — melewati batas IEC 60076-2 (80°C). Aktifkan pendingin tambahan dan kurangi beban segera.` : _v > 70 ? `Perhatian: menuju ${_v.toFixed(1)}°C. Periksa sistem pendingin dan pantau tren beban. Ambang batas perhatian 70°C.` : `Aman: diprediksi ${_v.toFixed(1)}°C — dalam batas normal operasi (<70°C). Tidak diperlukan tindakan khusus.`;
                     _dTemp.className = `text-[9px] mt-2 pt-2 border-t leading-relaxed ${_v > 80 ? 'text-red-600 border-red-100' : _v > 70 ? 'text-amber-600 border-amber-100' : 'text-emerald-600 border-emerald-100'}`;
                 }
-                // KPI Description — Akurasi Suhu
                 const _dAccT = document.getElementById('kpi-desc-acc-temp');
                 if (_dAccT) {
                     const _a = fcTemp.accuracy;
-                    _dAccT.textContent = _a >= 90
-                        ? `Model sangat akurat (${_a.toFixed(1)}%). Forecast dapat dijadikan acuan penuh untuk keputusan operasional harian.`
-                        : _a >= 75
-                        ? `Akurasi cukup (${_a.toFixed(1)}%). Tambahkan lebih banyak data historis agar model semakin andal.`
-                        : `Akurasi rendah (${_a.toFixed(1)}%). Jangan andalkan forecast untuk keputusan kritis — periksa kualitas data sensor.`;
+                    _dAccT.textContent = _a >= 90 ? `Model sangat akurat (${_a.toFixed(1)}%). Forecast dapat dijadikan acuan penuh untuk keputusan operasional harian.` : _a >= 75 ? `Akurasi cukup (${_a.toFixed(1)}%). Tambahkan lebih banyak data historis agar model semakin andal.` : `Akurasi rendah (${_a.toFixed(1)}%). Jangan andalkan forecast untuk keputusan kritis — periksa kualitas data sensor.`;
                     _dAccT.className = `text-[9px] mt-2 pt-2 border-t leading-relaxed ${_a >= 90 ? 'text-emerald-600 border-emerald-100' : _a >= 75 ? 'text-amber-600 border-amber-100' : 'text-red-600 border-red-100'}`;
                 }
 
@@ -4834,27 +4783,17 @@
 
                 setText_id('fc-load-interp', `Holt-Winters DES: L=${fcLoad.L.toFixed(1)}A, T=${fcLoad.T.toFixed(3)}A/step. Forecast +1hr=${f1h.f.toFixed(0)}A ±${f1h.se.toFixed(0)}A (95%CI). Akurasi: ${fcLoad.accuracy.toFixed(1)}% (MAPE=${fcLoad.MAPE.toFixed(2)}%, RMSE=${fcLoad.RMSE.toFixed(2)}A, R²=${fcLoad.R2.toFixed(3)}). N=${fcLoad.n} titik data.`);
 
-                // KPI Description — Beban Forecast
                 const _dLoad = document.getElementById('kpi-desc-load-1h');
                 if (_dLoad) {
                     const _lv = f1h.f;
                     const _lpct = ((_lv / (window.I_NOMINAL_TRAFO || 2000)) * 100).toFixed(0);
-                    _dLoad.textContent = _lv > 1800
-                        ? `⚠ Kritis: beban diprediksi ${_lv.toFixed(0)}A (~${_lpct}% kapasitas). Risiko overload — pertimbangkan manuver ke trafo lain.`
-                        : _lv > 1400
-                        ? `Perhatian: beban ${_lv.toFixed(0)}A (~${_lpct}% kapasitas). Antisipasi beban puncak, siapkan tindakan pengurangan beban.`
-                        : `Normal: beban diprediksi ${_lv.toFixed(0)}A (~${_lpct}% kapasitas). Operasi aman — tidak diperlukan tindakan.`;
+                    _dLoad.textContent = _lv > 1800 ? `⚠ Kritis: beban diprediksi ${_lv.toFixed(0)}A (~${_lpct}% kapasitas). Risiko overload — pertimbangkan manuver ke trafo lain.` : _lv > 1400 ? `Perhatian: beban ${_lv.toFixed(0)}A (~${_lpct}% kapasitas). Antisipasi beban puncak, siapkan tindakan pengurangan beban.` : `Normal: beban diprediksi ${_lv.toFixed(0)}A (~${_lpct}% kapasitas). Operasi aman — tidak diperlukan tindakan.`;
                     _dLoad.className = `text-[9px] mt-2 pt-2 border-t leading-relaxed ${_lv > 1800 ? 'text-red-600 border-red-100' : _lv > 1400 ? 'text-amber-600 border-amber-100' : 'text-emerald-600 border-emerald-100'}`;
                 }
-                // KPI Description — Akurasi Beban
                 const _dAccL = document.getElementById('kpi-desc-acc-load');
                 if (_dAccL) {
                     const _la = fcLoad.accuracy;
-                    _dAccL.textContent = _la >= 90
-                        ? `Model sangat akurat (${_la.toFixed(1)}%). Forecast arus beban dapat diandalkan untuk perencanaan operasional.`
-                        : _la >= 75
-                        ? `Akurasi cukup (${_la.toFixed(1)}%). Tingkatkan dengan lebih banyak data log beban dari ION8650.`
-                        : `Akurasi rendah (${_la.toFixed(1)}%). Periksa kelengkapan data ION8650 — mungkin ada gap atau outlier pada log beban.`;
+                    _dAccL.textContent = _la >= 90 ? `Model sangat akurat (${_la.toFixed(1)}%). Forecast arus beban dapat diandalkan untuk perencanaan operasional.` : _la >= 75 ? `Akurasi cukup (${_la.toFixed(1)}%). Tingkatkan dengan lebih banyak data log beban dari ION8650.` : `Akurasi rendah (${_la.toFixed(1)}%). Periksa kelengkapan data ION8650 — mungkin ada gap atau outlier pada log beban.`;
                     _dAccL.className = `text-[9px] mt-2 pt-2 border-t leading-relaxed ${_la >= 90 ? 'text-emerald-600 border-emerald-100' : _la >= 75 ? 'text-amber-600 border-amber-100' : 'text-red-600 border-red-100'}`;
                 }
             }
@@ -4881,17 +4820,20 @@
 
             // ─ Dulfur integration status
             const T = parseInt(selectedTrafo);
-            const rcData = ML_R_CONTACT.filter(d=>d.trafo===T);
-            const rcAll  = rcData.length>0 ? rcData : ML_R_CONTACT.filter(d=>d.trafo===2);
+            const rcAll = getValidatedRContactData(T);
             const dulfurDiv = document.getElementById('fc-dulfur-status');
-            if (dulfurDiv) dulfurDiv.textContent = `${rcAll.length} pengukuran tersedia · Terakhir: ${rcAll[rcAll.length-1].date}`;
+            if (dulfurDiv) {
+                dulfurDiv.textContent = rcAll.length
+                    ? `${rcAll.length} pengukuran Trafo ${T} · ${describeRContactSource(rcAll)} · Terakhir: ${rcAll[rcAll.length-1].date}`
+                    : `Belum ada pengukuran R_contact valid untuk Trafo ${T}`;
+            }
             const dulfurData = document.getElementById('fc-dulfur-data');
             if (dulfurData) {
                 const last2 = rcAll.slice(-2);
                 dulfurData.innerHTML = last2.map(d=>`
                     <div class="flex justify-between text-[10px] font-bold">
                         <span class="text-slate-500">${d.date}</span>
-                        <span class="font-mono text-orange-700">R:${d.R[0]} S:${d.R[1]} T:${d.R[2]} µΩ</span>
+                        <span class="font-mono text-orange-700">R:${d.R[0]} S:${d.R[1]} T:${d.R[2]} µΩ · ${d.source==='firestore'?'FS':'lokal'}</span>
                     </div>`).join('');
             }
             const trendDiv = document.getElementById('fc-dulfur-trend');
@@ -4917,7 +4859,7 @@
                 const { fc: pfc, ts: pts } = _lastFcTempData;
                 const base = pts[pts.length-1];
                 _prevFcTempSnap = {
-                    values:  [...pfc.allFc],          // flat array untuk index-based access
+                    values:  [...pfc.allFc],
                     pts:     pfc.allFc.map((v,h) => ({ ts: base + (h+1)*pfc.avgStepMs, v })),
                     stepMs:  pfc.avgStepMs,
                     lastTs:  base
@@ -4953,7 +4895,6 @@
             if (!fc || !series.length) return;
             const period = _fcFilterPeriod.temp || '6h';
             const tk = _fcTickConfig(period);
-            // Sync active filter button
             ['1h','6h','12h','1d','7d','30d','all'].forEach(p => {
                 const b = document.getElementById('fc-f-temp-' + p);
                 if (b) b.className = 'fc-time-btn' + (p === period ? ' f-active-temp' : '');
@@ -4974,7 +4915,6 @@
             if (!fc || !series.length) return;
             const period = _fcFilterPeriod.load || '6h';
             const tk = _fcTickConfig(period);
-            // Sync active filter button
             ['1h','6h','12h','1d','7d','30d','all'].forEach(p => {
                 const b = document.getElementById('fc-f-load-' + p);
                 if (b) b.className = 'fc-time-btn' + (p === period ? ' f-active-load' : '');
@@ -4989,12 +4929,13 @@
             });
         }
 
-        function computeOLS(x, y) {
-            const n=x.length;
-            if(n<2) return null;
-            const xM=x.reduce((a,b)=>a+b)/n, yM=y.reduce((a,b)=>a+b)/n;
-            const Sxx=x.reduce((s,xi)=>s+(xi-xM)**2,0);
-            const Sxy=x.reduce((s,xi,i)=>s+(xi-xM)*(y[i]-yM),0);
+	        function computeOLS(x, y) {
+	            const n=x.length;
+	            if(n<2) return null;
+	            const xM=x.reduce((a,b)=>a+b)/n, yM=y.reduce((a,b)=>a+b)/n;
+	            const Sxx=x.reduce((s,xi)=>s+(xi-xM)**2,0);
+	            if(Sxx<=0) return null;
+	            const Sxy=x.reduce((s,xi,i)=>s+(xi-xM)*(y[i]-yM),0);
             const b1=Sxy/Sxx, b0=yM-b1*xM;
             const fitted=x.map(xi=>b0+b1*xi);
             const residuals=y.map((yi,i)=>yi-fitted[i]);
@@ -5010,7 +4951,7 @@
         // ─── ALG.5: CUSUM (Page 1954) ────────────────────────────────
 
         function computeCUSUM(observations) {
-            if(observations.length<3) return null;
+            if(observations.length<10) return null;
             const mu=observations.reduce((a,b)=>a+b)/observations.length;
             const residuals=observations.map(v=>v-mu);
             const sigma=Math.sqrt(residuals.reduce((s,r)=>s+r**2,0)/observations.length);
@@ -5027,13 +4968,14 @@
 
         // ─── ALG.2: Bayesian Linear Regression (CIGRE TB 761) ────────
 
-        function computeBayesian(x_days, y_R) {
-            if(x_days.length<2) return null;
-            const n=x_days.length;
-            const xM=x_days.reduce((a,b)=>a+b)/n;
-            const yM=y_R.reduce((a,b)=>a+b)/n;
-            const Sxx=x_days.reduce((s,xi)=>s+(xi-xM)**2,0);
-            const Sxy=x_days.reduce((s,xi,i)=>s+(xi-xM)*(y_R[i]-yM),0);
+	        function computeBayesian(x_days, y_R) {
+	            if(x_days.length<2) return null;
+	            const n=x_days.length;
+	            const xM=x_days.reduce((a,b)=>a+b)/n;
+	            const yM=y_R.reduce((a,b)=>a+b)/n;
+	            const Sxx=x_days.reduce((s,xi)=>s+(xi-xM)**2,0);
+	            if(Sxx<=0) return null;
+	            const Sxy=x_days.reduce((s,xi,i)=>s+(xi-xM)*(y_R[i]-yM),0);
             // Prior: β₁ ~ N(0, tau²=10000), β₀ ~ N(yM, tau²)
             // Noise: σ²=400 (20 µΩ measurement uncertainty)
             const tau2=10000, sigma2=400;
@@ -5078,69 +5020,30 @@
         }
 
         // ─── ALG.1: Physics Model (IEC 62271-1:2017) ─────────────────
-        // Model fisika hubungan suhu–resistansi kontak PMT (Vacuum CB).
-        // Prinsip: resistivitas material meningkat linear terhadap suhu (Hukum Wilson/Matthiessen).
-        // Referensi: IEC 62271-1:2017 §7.4, IEC 62271-100:2021, IEEE C37.04
 
         function computePhysicsModel(T_sensor_max, I_rms_avg, R_ref, T_ref=20) {
-            // ── Step 1: Koreksi gradien suhu kontak ──
-            // Suhu kontak lebih tinggi dari suhu sensor karena panas lokal di VCB
-            // Gradien 8°C berdasarkan IEC 62271-1 §7.4 untuk vakum CB (Vacuum Circuit Breaker)
             const T_contact = T_sensor_max + T_GRADIENT_VCB;
-
-            // ── Step 2: Formula Wilson — R(T) ──
-            // R(T) = R_ref × [1 + α × (T_contact − T_ref)]
-            // α_CuCr = 3.9×10⁻³ /K (koefisien resistivitas termal CuCr, IEC 62271-1 Tabel A.1)
-            const dT   = T_contact - T_ref;
-            const R_est = R_ref * (1 + ALPHA_CuCr * dT);
-
-            // ── Step 3: Rugi daya Joule di kontak ──
-            // P = I² × R × 10⁻⁶  [W]  — sumber panas utama di kontak PMT
-            const P_joule = I_rms_avg ** 2 * R_est * 1e-6;
-
-            // ── Step 4: Thermal stress ratio (tanpa dimensi) ──
-            // Menunjukkan seberapa besar tegangan termal relatif terhadap kondisi nominal
+            const dT        = T_contact - T_ref;
+            const R_est     = R_ref * (1 + ALPHA_CuCr * dT);
+            const P_joule   = I_rms_avg ** 2 * R_est * 1e-6;
             const thermal_stress = (I_rms_avg / 2000) ** 2 * (R_est / R_ref);
-
-            // ── Step 5: Status berdasarkan IEC 62271-100 §6.4.1 ──
-            // NORMAL: R < 1.5×R₀  |  PERHATIAN: 1.5–2×R₀  |  KRITIS: > 2×R₀ (R_limit)
-            const status = R_est < 1.5 * R_ref ? 'NORMAL' : R_est < 2 * R_ref ? 'PERHATIAN' : 'KRITIS';
-
-            // ── Error Propagation Analysis (ketidakpastian estimasi) ──
-            // Sumber error:
-            //   1. Ketidakpastian α:     δα = ±0.2×10⁻³ /K  (variasi paduan CuCr, ~5% dari α)
-            //   2. Ketidakpastian suhu:  δT = ±3°C  (sensor ±1°C + gradien model ±2°C)
-            //   3. Ketidakpastian R_ref: δR_ref = ±5%  (akurasi micro-ohmmeter)
-            // Metode: partial derivative error propagation (JCGM 100:2008 / GUM)
-            const delta_alpha = 0.2e-3;         // /K — variasi material CuCr
-            const delta_T     = 3.0;            // K  — kombinasi sensor + gradien
-            const delta_Rref  = 0.05;           // relatif (5%)
-
-            const factor      = 1 + ALPHA_CuCr * dT;  // = R_est / R_ref
-            // Kontribusi masing-masing sumber error (relative, squared)
+            const status    = R_est < 1.5 * R_ref ? 'NORMAL' : R_est < 2 * R_ref ? 'PERHATIAN' : 'KRITIS';
+            // Error propagation (GUM/JCGM 100:2008)
+            const delta_alpha = 0.2e-3;
+            const delta_T     = 3.0;
+            const delta_Rref  = 0.05;
+            const factor      = 1 + ALPHA_CuCr * dT;
             const err_alpha_contrib = Math.abs(dT * delta_alpha / factor);
             const err_T_contrib     = Math.abs(ALPHA_CuCr * delta_T / factor);
             const err_Rref_contrib  = delta_Rref;
-            // Total error relatif (kuadrat tambah — akar jumlah kuadrat)
-            const errPct = Math.sqrt(
-                err_Rref_contrib ** 2 +
-                err_alpha_contrib ** 2 +
-                err_T_contrib ** 2
-            ) * 100;
-            const errAbs     = R_est * errPct / 100;
-
-            // Error per fasa (menggunakan rasio fasa dari R_ref)
-            const R_perFasa  = (phaseRatios) => phaseRatios.map(r =>
-                R_ref * r * (1 + ALPHA_CuCr * dT)
-            );
-
+            const errPct = Math.sqrt(err_Rref_contrib**2 + err_alpha_contrib**2 + err_T_contrib**2) * 100;
+            const errAbs = R_est * errPct / 100;
             return {
                 T_contact, R_est, P_joule, thermal_stress, status,
-                errPct, errAbs,
-                err_alpha_contrib: (err_alpha_contrib * 100).toFixed(2),
-                err_T_contrib:     (err_T_contrib * 100).toFixed(2),
-                err_Rref_contrib:  (err_Rref_contrib * 100).toFixed(2),
-                dT, factor
+                errPct, errAbs, dT, factor,
+                err_alpha_contrib: (err_alpha_contrib*100).toFixed(2),
+                err_T_contrib:     (err_T_contrib*100).toFixed(2),
+                err_Rref_contrib:  (err_Rref_contrib*100).toFixed(2)
             };
         }
 
@@ -5379,36 +5282,35 @@
         // ─── MAIN: Run All Algorithms ─────────────────────────────────
 
         function runMLAnalysis() {
-            const T = parseInt(selectedTrafo);
-            const td = temperatureData[selectedTrafo];
-            const bd = latestBebanData[selectedTrafo];
-            const hasTempData_pre = td && (td.R_Atas||td.S_Atas||td.T_Atas)>0;
-            const hasBebanData_pre = bd && (bd.I_R||bd.I_S||bd.I_T)>0;
+	            const T = parseInt(selectedTrafo);
+	            const td = temperatureData[selectedTrafo];
+	            const bd = latestBebanData[selectedTrafo];
+	            const hasTempData_pre = hasValidTemperaturePacket(td);
+	            const hasBebanData_pre = hasValidBebanPacket(bd);
             // ── ALG.0 Realtime Forecasting (always runs first — realtime data) ──
             runForecastAlg(hasTempData_pre, hasBebanData_pre, td, bd);
             const spec = ML_INC_SPEC[T] || ML_INC_SPEC[2];
             const timing = ML_TIMING[T] || ML_TIMING[2];
 
             // Update source dots
-            const hasTempData = td && (td.R_Atas||td.S_Atas||td.T_Atas)>0;
-            const hasBebanData = bd && (bd.I_R||bd.I_S||bd.I_T)>0;
+	            const hasTempData = hasValidTemperaturePacket(td);
+	            const hasBebanData = hasValidBebanPacket(bd);
             document.getElementById('ml-dot-temp').className  = `w-2 h-2 rounded-full inline-block ${hasTempData?'bg-emerald-500':'bg-red-400'}`;
             document.getElementById('ml-dot-beban').className = `w-2 h-2 rounded-full inline-block ${hasBebanData?'bg-emerald-500':'bg-red-400'}`;
 
             // Filter R_contact data for this trafo
-            const rcData = ML_R_CONTACT.filter(d=>d.trafo===T);
-            const useTrafo = rcData.length>0 ? T : 2; // fallback to T2 if no data
-            const rcFiltered = rcData.length>0 ? rcData : ML_R_CONTACT.filter(d=>d.trafo===2);
+            const rcFiltered = getValidatedRContactData(T);
+            const rcSource = describeRContactSource(rcFiltered);
 
             // Prepare x (days from first measurement) and y (mean R across 3 phases)
-            const t0 = new Date(rcFiltered[0].date).getTime();
-            const xDays = rcFiltered.map(d=>(new Date(d.date).getTime()-t0)/(1000*86400));
+            const t0 = rcFiltered.length ? rcFiltered[0]._time : Date.now();
+            const xDays = rcFiltered.map(d=>(d._time-t0)/(1000*86400));
             const yR_mean = rcFiltered.map(d=>(d.R[0]+d.R[1]+d.R[2])/3);
             const yR_R = rcFiltered.map(d=>d.R[0]);
             const yR_S = rcFiltered.map(d=>d.R[1]);
             const yR_T = rcFiltered.map(d=>d.R[2]);
-            const lastRC = rcFiltered[rcFiltered.length-1];
-            const R_ref_avg = (lastRC.R[0]+lastRC.R[1]+lastRC.R[2])/3;
+            const lastRC = rcFiltered[rcFiltered.length-1] || null;
+            const R_ref_avg = lastRC ? (lastRC.R[0]+lastRC.R[1]+lastRC.R[2])/3 : null;
             const T_ref_meas = 20; // IEC standard reference temperature
 
             // ── ALG.6 OLS ───
@@ -5444,6 +5346,14 @@
                         : `Laju degradasi tidak dapat diterima. Lakukan uji R_contact fisik segera untuk verifikasi tren OLS. Jika terkonfirmasi, eskalasi ke tim pemeliharaan dan manajemen aset untuk keputusan overhaul/penggantian CB. Jangan tunda lebih dari 1 bulan.`;
                     setInsight('a6-insight', a6status, a6k, a6r);
                 }
+            } else {
+                resetChart('a6');
+                markAlgorithmUnavailable(
+                    'a6',
+                    ['a6-b0','a6-b1','a6-rate-yr','a6-ci','a6-r2','a6-proj5','a6-interp'],
+                    `Regresi OLS tidak dijalankan karena data R_contact valid untuk Trafo ${T} kurang dari 2 titik. Sumber saat ini: ${rcSource}.`,
+                    'Tambahkan minimal 2 hasil uji R_contact dengan tanggal berbeda di collection ml_dulfur atau dataset baseline yang tervalidasi.'
+                );
             }
 
             // ── ALG.5 CUSUM ───
@@ -5468,7 +5378,7 @@
                     cusumObs = [td.R_Atas,td.S_Atas,td.T_Atas,td.R_Bawah,td.S_Bawah,td.T_Bawah];
                     cusumSrc = 'sesaat';
                 }
-                const cusum = cusumObs.length >= 3 ? computeCUSUM(cusumObs) : null;
+	                const cusum = cusumObs.length >= 10 ? computeCUSUM(cusumObs) : null;
                 if (cusum) {
                     const lastSp = cusum.Sp[cusum.Sp.length-1];
                     const alarm  = cusum.alarmPos || cusum.alarmNeg;
@@ -5487,22 +5397,30 @@
                         : `NORMAL: Tidak ada perubahan sistematis (S⁺=${lastSp.toFixed(1)}, h=${cusum.h.toFixed(1)}). Sumber: ${cusumObs.length} titik dari ${cusumSrc}. Kondisi suhu stabil.`);
                     updateOverviewCard('a5', lastSp.toFixed(1), alarm ? 'ALARM' : 'NORMAL');
                     renderA5Chart(cusum, cusumTs);
-                    {
-                        const a5k = alarm
+	                    {
+	                        const a5k = alarm
                             ? `CUSUM mendeteksi pergeseran mean suhu yang signifikan: S⁺ = <b>${lastSp.toFixed(2)}</b> melewati threshold h = ${cusum.h.toFixed(2)} (σ = ${cusum.sigma.toFixed(2)} °C). Ini mengindikasikan adanya perubahan sistematis pada kondisi termal trafo — bukan sekadar fluktuasi acak. Perubahan ini mungkin dipicu oleh: peningkatan beban, kerusakan pendinginan, atau degradasi isolasi.`
                             : `CUSUM menunjukkan kondisi stabil: S⁺ = <b>${lastSp.toFixed(2)}</b> masih di bawah threshold h = ${cusum.h.toFixed(2)}. Tidak ada pergeseran mean suhu yang terdeteksi dari ${cusumObs.length} titik data (sumber: ${cusumSrc}). Profil termal trafo normal dan konsisten.`;
                         const a5r = alarm
                             ? `Segera periksa: (1) Apakah beban trafo meningkat di atas batas? (2) Apakah sistem pendingin (kipas/radiator) berfungsi normal? (3) Apakah ada indikasi pembebanan tidak seimbang? Lakukan pengukuran suhu tambahan dengan thermometer infrared. Jika alarm berlanjut >24 jam, eskalasi ke supervisor dan jadwalkan inspeksi langsung.`
                             : `Pertahankan monitoring suhu real-time. Sistem CUSUM akan memberikan peringatan dini jika terjadi perubahan tren. Pastikan sensor suhu dikalibrasi secara berkala (minimum 1 tahun sekali) agar baseline CUSUM tetap akurat.`;
-                        setInsight('a5-insight', alarm ? 'ALARM' : 'NORMAL', a5k, a5r);
-                    }
-                }
+	                        setInsight('a5-insight', alarm ? 'ALARM' : 'NORMAL', a5k, a5r);
+	                    }
+	                } else {
+	                    resetChart('a5');
+	                    markAlgorithmUnavailable(
+	                        'a5',
+	                        ['a5-n','a5-sigma','a5-k','a5-h','a5-spos','a5-status','a5-interp'],
+	                        `CUSUM tidak dijalankan karena observasi suhu valid kurang dari 10 titik. Jumlah saat ini: ${cusumObs.length || 0} (${cusumSrc || 'tidak ada sumber'}).`,
+	                        'Kumpulkan minimal 10 log suhu kronologis dari Firestore atau MQTT sebelum menyimpulkan ada/tidaknya pergeseran mean.'
+	                    );
+	                }
             }
 
             // ── ALG.1 Physics ───
-            if(hasTempData){
+            if(hasTempData && hasBebanData && R_ref_avg){
                 const T_max=Math.max(td.R_Atas,td.S_Atas,td.T_Atas,td.R_Bawah,td.S_Bawah,td.T_Bawah);
-                const I_rms=hasBebanData?(bd.I_R+bd.I_S+bd.I_T)/3:I_NOMINAL_TRAFO*0.6;
+                const I_rms=(bd.I_R+bd.I_S+bd.I_T)/3;
                 const phys=computePhysicsModel(T_max,I_rms,R_ref_avg,T_ref_meas);
                 setText_id('a1-tsensor',  `${T_max.toFixed(1)} °C`);
                 setText_id('a1-tcontact', `${phys.T_contact.toFixed(1)} °C`);
@@ -5511,43 +5429,44 @@
                 setText_id('a1-rref',     `${R_ref_avg.toFixed(1)} µΩ`);
                 setText_id('a1-rest',     `${phys.R_est.toFixed(1)} µΩ`);
                 setText_id('a1-pjoule',   `${phys.P_joule.toFixed(1)} W`);
-                // Error display
-                setText_id('a1-err-pct',      `±${phys.errPct.toFixed(1)}%`);
-                setText_id('a1-err-abs',       `±${phys.errAbs.toFixed(1)} µΩ`);
-                setText_id('a1-err-alpha',     `${phys.err_alpha_contrib}%`);
-                setText_id('a1-err-T',         `${phys.err_T_contrib}%`);
-                setText_id('a1-err-total',     `±${phys.errPct.toFixed(2)}%`);
-                setText_id('a1-err-ci95',      `±${(1.96 * phys.errAbs).toFixed(1)} µΩ`);
+                setText_id('a1-err-pct',  `±${phys.errPct.toFixed(1)}%`);
+                setText_id('a1-err-abs',  `±${phys.errAbs.toFixed(1)} µΩ`);
+                setText_id('a1-err-alpha',`${phys.err_alpha_contrib}%`);
+                setText_id('a1-err-T',    `${phys.err_T_contrib}%`);
+                setText_id('a1-err-total',`±${phys.errPct.toFixed(2)}%`);
+                setText_id('a1-err-ci95', `±${(1.96*phys.errAbs).toFixed(1)} µΩ`);
                 setText_id('a1-err-pct-chart', `${phys.errPct.toFixed(1)}`);
                 const _errBadge = document.getElementById('a1-err-badge');
-                if (_errBadge) {
-                    _errBadge.textContent = `Error: ±${phys.errPct.toFixed(1)}%`;
-                    _errBadge.className = `text-[9px] font-extrabold px-2 py-0.5 rounded-full ${phys.errPct < 7 ? 'bg-emerald-100 text-emerald-700' : phys.errPct < 12 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`;
-                }
+                if (_errBadge) { _errBadge.textContent=`Error: ±${phys.errPct.toFixed(1)}%`; _errBadge.className=`text-[9px] font-extrabold px-2 py-0.5 rounded-full ${phys.errPct<7?'bg-emerald-100 text-emerald-700':phys.errPct<12?'bg-amber-100 text-amber-700':'bg-red-100 text-red-700'}`; }
                 const stEl = document.getElementById('a1-tstress');
-                if (stEl) {
-                    stEl.textContent  = phys.thermal_stress.toFixed(3);
-                    stEl.className    = `font-mono font-extrabold ${phys.thermal_stress < 1 ? 'text-emerald-600' : phys.thermal_stress < 1.5 ? 'text-amber-600' : 'text-red-600'}`;
-                }
+                if (stEl) { stEl.textContent=phys.thermal_stress.toFixed(3); stEl.className=`font-mono font-extrabold ${phys.thermal_stress<1?'text-emerald-600':phys.thermal_stress<1.5?'text-amber-600':'text-red-600'}`; }
                 const ratio = phys.R_est / R_ref_avg;
                 setText_id('a1-interp', `R_contact estimasi: ${phys.R_est.toFixed(1)} ±${phys.errAbs.toFixed(1)} µΩ (±${phys.errPct.toFixed(1)}%) · Ref: ${R_ref_avg.toFixed(1)} µΩ pada ${lastRC.date} · Kenaikan: ${((ratio-1)*100).toFixed(1)}% dari R₀ · Limit IEC: ${(2*R_ref_avg).toFixed(1)} µΩ (2×R₀) · P_Joule: ${phys.P_joule.toFixed(1)} W · Status: ${phys.status}`);
                 updateOverviewCard('a1', phys.R_est.toFixed(1), phys.status);
                 renderA1Chart(rcFiltered, phys, lastRC.date);
                 {
-                    const pctToLimit = ((phys.R_est / (2 * R_ref_avg)) * 100).toFixed(1);
-                    const confLevel  = phys.errPct < 7 ? 'tinggi (>93%)' : phys.errPct < 12 ? 'sedang (~88%)' : 'rendah (<88%)';
-                    const a1k = phys.status === 'NORMAL'
-                        ? `R_contact terestimasi <b>${phys.R_est.toFixed(1)} µΩ</b> (±${phys.errPct.toFixed(1)}% error, confidence ${confLevel}) — <b>${((ratio-1)*100).toFixed(1)}%</b> di atas R₀. Kondisi aman karena belum mencapai batas perhatian IEC (1.5×R₀ = ${(1.5*R_ref_avg).toFixed(1)} µΩ). Telah mencapai <b>${pctToLimit}%</b> dari R_limit (${(2*R_ref_avg).toFixed(1)} µΩ). Thermal stress ${phys.thermal_stress.toFixed(3)} — rugi Joule ${phys.P_joule.toFixed(1)} W masih rendah.`
-                        : phys.status === 'PERHATIAN'
-                        ? `R_contact terestimasi <b>${phys.R_est.toFixed(1)} µΩ</b> (±${phys.errPct.toFixed(1)}% error) — naik <b>${((ratio-1)*100).toFixed(1)}%</b> dari R₀. Berada di zona perhatian (1.5–2×R₀), telah mencapai <b>${pctToLimit}%</b> dari R_limit. Thermal stress ${phys.thermal_stress.toFixed(3)} mulai signifikan: P_Joule = ${phys.P_joule.toFixed(1)} W. Perlu dipantau ketat.`
-                        : `R_contact terestimasi <b>${phys.R_est.toFixed(1)} µΩ</b> (±${phys.errPct.toFixed(1)}% error) — melebihi R_limit IEC 62271-100 (2×R₀ = ${(2*R_ref_avg).toFixed(1)} µΩ). Estimasi mencapai <b>${pctToLimit}%</b> dari limit. P_Joule = ${phys.P_joule.toFixed(1)} W — risiko pemanasan kontak dan flashover sangat tinggi.`;
-                    const a1r = phys.status === 'NORMAL'
-                        ? `Jadwalkan uji dulfur (micro-ohmmeter) minimal setiap 2 tahun sesuai IEC 62271-100. Untuk meningkatkan confidence estimasi (saat ini ${confLevel}), lakukan uji dulfur lebih sering dan masukkan ke ml_dulfur Firestore. Pastikan beban tidak melebihi I_nominal agar suhu kontak terkendali.`
-                        : phys.status === 'PERHATIAN'
-                        ? `Percepat jadwal uji dulfur dalam 6 bulan ke depan untuk verifikasi estimasi (error ±${phys.errPct.toFixed(1)}%). Lakukan thermography pada PMT untuk konfirmasi hot spot kontak. Periksa kebersihan kontak dan tekanan pegas. Pertimbangkan mengurangi jumlah operasi CB.`
-                        : `SEGERA lakukan uji dulfur langsung (micro-ohmmeter). Estimasi menunjukkan R_contact melewati R_limit — namun perlu konfirmasi fisik karena error ±${phys.errPct.toFixed(1)}%. Jadwalkan overhaul kontak dalam shutdown window terdekat. Koordinasi dispatcher untuk manuver beban ke trafo lain.`;
+                    const pctToLimit = ((phys.R_est/(2*R_ref_avg))*100).toFixed(1);
+                    const confLevel  = phys.errPct<7?'tinggi (>93%)':phys.errPct<12?'sedang (~88%)':'rendah (<88%)';
+                    const a1k = phys.status==='NORMAL'
+                        ? `R_contact terestimasi <b>${phys.R_est.toFixed(1)} µΩ</b> (±${phys.errPct.toFixed(1)}% error, confidence ${confLevel}) — <b>${((ratio-1)*100).toFixed(1)}%</b> di atas R₀. Kondisi aman, belum mencapai batas perhatian IEC (1.5×R₀=${(1.5*R_ref_avg).toFixed(1)} µΩ). Telah mencapai <b>${pctToLimit}%</b> dari R_limit. Thermal stress ${phys.thermal_stress.toFixed(3)} — P_Joule ${phys.P_joule.toFixed(1)} W masih rendah.`
+                        : phys.status==='PERHATIAN'
+                        ? `R_contact terestimasi <b>${phys.R_est.toFixed(1)} µΩ</b> (±${phys.errPct.toFixed(1)}% error) — naik <b>${((ratio-1)*100).toFixed(1)}%</b> dari R₀. Berada di zona perhatian (1.5–2×R₀), mencapai <b>${pctToLimit}%</b> dari R_limit. Thermal stress ${phys.thermal_stress.toFixed(3)}, P_Joule=${phys.P_joule.toFixed(1)} W mulai signifikan.`
+                        : `R_contact terestimasi <b>${phys.R_est.toFixed(1)} µΩ</b> (±${phys.errPct.toFixed(1)}% error) — melebihi R_limit IEC (2×R₀=${(2*R_ref_avg).toFixed(1)} µΩ). Mencapai <b>${pctToLimit}%</b> dari limit. P_Joule=${phys.P_joule.toFixed(1)} W — risiko flashover sangat tinggi.`;
+                    const a1r = phys.status==='NORMAL'
+                        ? `Jadwalkan uji dulfur minimal 2 tahun sesuai IEC 62271-100. Tambahkan hasil ke ml_dulfur Firestore untuk meningkatkan confidence estimasi (saat ini ${confLevel}). Pastikan beban tidak melebihi I_nominal.`
+                        : phys.status==='PERHATIAN'
+                        ? `Percepat uji dulfur dalam 6 bulan untuk verifikasi estimasi (error ±${phys.errPct.toFixed(1)}%). Lakukan thermography PMT, periksa kebersihan kontak dan tekanan pegas. Masukkan hasil ke ml_dulfur Firestore.`
+                        : `SEGERA lakukan uji dulfur langsung (micro-ohmmeter) — estimasi perlu konfirmasi fisik (error ±${phys.errPct.toFixed(1)}%). Jadwalkan overhaul dalam shutdown window terdekat. Koordinasi dispatcher untuk manuver beban.`;
                     setInsight('a1-insight', phys.status, a1k, a1r);
                 }
+            } else {
+                resetChart('a1');
+                markAlgorithmUnavailable(
+                    'a1',
+                    ['a1-tsensor','a1-tcontact','a1-dT','a1-irms','a1-rref','a1-rest','a1-pjoule','a1-tstress','a1-err-pct','a1-err-abs','a1-err-alpha','a1-err-T','a1-err-total','a1-err-ci95','a1-err-pct-chart','a1-interp'],
+                    `Model fisika Wilson tidak dijalankan karena membutuhkan suhu real-time, beban ION8650, dan R_ref Trafo ${T} yang valid. Status: suhu=${hasTempData?'ada':'tidak ada'}, beban=${hasBebanData?'ada':'tidak ada'}, R_ref=${R_ref_avg?'ada':'tidak ada'}.`,
+                    'Lengkapi data sensor suhu, arus beban, dan minimal 1 pengukuran R_contact langsung untuk trafo yang sama sebelum mengestimasi R_contact.'
+                );
             }
 
             // ── ALG.2 Bayesian ───
@@ -5586,18 +5505,26 @@
                         ? `Sisa umur kontak (RUL) diestimasi <b>${bayes.rul_years.toFixed(1)} tahun</b>. Tahanan dulfur prediksi: <b>${bayes.R_now_est.toFixed(1)} µΩ</b> (${pctToLimit}% menuju limit ${bayes.R_limit.toFixed(1)} µΩ). Laju degradasi: ${rateYrB.toFixed(1)} µΩ/tahun — pemeliharaan preventif perlu direncanakan dalam 1–3 tahun ke depan.`
                         : `Sisa umur kontak (RUL) KRITIS: <b>${bayes.rul_years.toFixed(1)} tahun</b>. Tahanan dulfur prediksi <b>${bayes.R_now_est.toFixed(1)} µΩ</b> sudah ${pctToLimit}% dari limit ${bayes.R_limit.toFixed(1)} µΩ. Laju degradasi ${rateYrB.toFixed(1)} µΩ/tahun sangat tinggi — potensi kegagalan kontak dalam waktu dekat.`;
                     const a2r = rul_badge === 'BAIK'
-                        ? `Jadwalkan uji dulfur (micro-ohmmeter) berikutnya sesuai interval 2 tahun. Monitor tren R_contact agar model Bayesian semakin akurat. Tambahkan data pengukuran ke ML_R_CONTACT[] setiap selesai uji.`
+                        ? `Jadwalkan uji dulfur (micro-ohmmeter) berikutnya sesuai interval 2 tahun. Monitor tren R_contact agar model Bayesian semakin akurat. Tambahkan data pengukuran terverifikasi ke collection ml_dulfur setiap selesai uji.`
                         : rul_badge === 'PERHATIAN'
-                        ? `Jadwalkan uji R_contact fisik dalam 6 bulan ke depan untuk verifikasi model. Masukkan hasil ke ML_R_CONTACT[] untuk update prediksi. Siapkan rencana penggantian kontak jika laju degradasi tidak melambat. Pertimbangkan pengurangan jumlah operasi CB.`
+                        ? `Jadwalkan uji R_contact fisik dalam 6 bulan ke depan untuk verifikasi model. Masukkan hasil terverifikasi ke collection ml_dulfur untuk update prediksi. Siapkan rencana penggantian kontak jika laju degradasi tidak melambat. Pertimbangkan pengurangan jumlah operasi CB.`
                         : `Lakukan uji dulfur SEGERA dan bandingkan dengan nilai referensi awal. Jika R_contact fisik ≥ 2×R₀, hentikan operasi dan lakukan overhaul/ganti kontak. Koordinasi dengan dispatcher untuk manuver beban ke trafo lain. Dokumentasikan sebagai temuan kritis.`;
-                    setInsight('a2-insight', rul_badge, a2k, a2r);
-                }
-            }
+	                    setInsight('a2-insight', rul_badge, a2k, a2r);
+	                }
+	            } else {
+	                resetChart('a2');
+	                markAlgorithmUnavailable(
+	                    'a2',
+	                    ['a2-n','a2-rate','a2-rlimit','a2-rnow','a2-rul','a2-sigma','a2-deadline','a2-post-sigma','a2-sigma-yr','a2-conf','a2-interp'],
+	                    `Bayesian RUL tidak dijalankan karena data R_contact valid untuk Trafo ${T} kurang dari 2 titik. Sumber saat ini: ${rcSource}.`,
+	                    'Tambahkan minimal 2 pengukuran R_contact berurutan agar posterior laju degradasi dan RUL dapat dihitung secara dapat dipertanggungjawabkan.'
+	                );
+	            }
 
             // ── ALG.3 GPR ───
             const todayDays=(Date.now()-t0)/(1000*86400);
             const x_test=Array.from({length:200},(_,i)=>i*(todayDays+3*365)/199);
-            const gpr=computeGPR(xDays,yR_mean,x_test);
+            const gpr=xDays.length>=2 ? computeGPR(xDays,yR_mean,x_test) : null;
             if(gpr){
                 const nowIdx=x_test.reduce((best,v,i)=>Math.abs(v-todayDays)<Math.abs(x_test[best]-todayDays)?i:best,0);
                 const yr1Idx=x_test.reduce((best,v,i)=>Math.abs(v-(todayDays+365))<Math.abs(x_test[best]-(todayDays+365))?i:best,0);
@@ -5628,14 +5555,24 @@
                         : a3st === 'PERHATIAN'
                         ? `Proyeksi GPR mendekati batas kritis dalam 3 tahun. Percepat interval uji R_contact menjadi 1 tahun sekali. Verifikasi dengan pengukuran fisik untuk mempersempit uncertainty band model.`
                         : `Proyeksi GPR menempatkan R_contact mendekati atau melebihi limit. Lakukan inspeksi kontak sesegera mungkin. Jangan andalkan model saja — konfirmasi dengan micro-ohmmeter dan thermography langsung.`;
-                    setInsight('a3-insight', a3st, a3k, a3r);
-                }
-            }
+	                    setInsight('a3-insight', a3st, a3k, a3r);
+	                }
+	            } else {
+	                resetChart('a3');
+	                markAlgorithmUnavailable(
+	                    'a3',
+	                    ['a3-n','a3-now','a3-sigma','a3-1y','a3-3y','a3-sigma-now','a3-ci95','a3-interp'],
+	                    `GPR tidak dijalankan karena data training R_contact Trafo ${T} kurang dari 2 titik. Sumber saat ini: ${rcSource}.`,
+	                    'Tambahkan data R_contact periodik dengan tanggal yang berbeda agar model non-parametrik memiliki training set minimum.'
+	                );
+	            }
 
-            // ── ALG.4 Aging Factor CB ───
-            const T_max_af = hasTempData ? Math.max(td.R_Atas,td.S_Atas,td.T_Atas,td.R_Bawah,td.S_Bawah,td.T_Bawah) : T_AMBIENT_REF;
-            const R_ratio_af = R_ref_avg > 0 ? R_ref_avg / ((rcFiltered[0].R[0]+rcFiltered[0].R[1]+rcFiltered[0].R[2])/3) : 1.0;
-            const dT_close_af = timing ? timing.dClose : 0;
+	            // ── ALG.4 Aging Factor CB ───
+	            const hasReliabilityInputs = hasTempData && hasBebanData && rcFiltered.length >= 2 && R_ref_avg;
+	            if (hasReliabilityInputs) {
+	            const T_max_af = hasTempData ? Math.max(td.R_Atas,td.S_Atas,td.T_Atas,td.R_Bawah,td.S_Bawah,td.T_Bawah) : T_AMBIENT_REF;
+	            const R_ratio_af = R_ref_avg > 0 ? R_ref_avg / ((rcFiltered[0].R[0]+rcFiltered[0].R[1]+rcFiltered[0].R[2])/3) : 1.0;
+	            const dT_close_af = timing ? timing.dClose : 0;
             const af = computeAgingFactor({
                 year_install:   spec.tahun,
                 T_max_C:        T_max_af,
@@ -5692,11 +5629,11 @@
             // ── ALG.7 STOCHASTIC ANALYSIS ───
             {
                 const st = computeStochasticAnalysis({
-                    T_max:    hasTempData ? Math.max(td.R_Atas,td.S_Atas,td.T_Atas,td.R_Bawah,td.S_Bawah,td.T_Bawah) : T_AMBIENT_REF + 10,
-                    I_rms:    hasBebanData ? (bd.I_R+bd.I_S+bd.I_T)/3 : I_NOMINAL_TRAFO * 0.6,
-                    I_R:      hasBebanData ? bd.I_R : 0,
-                    I_S:      hasBebanData ? bd.I_S : 0,
-                    I_T:      hasBebanData ? bd.I_T : 0,
+                    T_max:    Math.max(td.R_Atas,td.S_Atas,td.T_Atas,td.R_Bawah,td.S_Bawah,td.T_Bawah),
+                    I_rms:    (bd.I_R+bd.I_S+bd.I_T)/3,
+                    I_R:      bd.I_R,
+                    I_S:      bd.I_S,
+                    I_T:      bd.I_T,
                     R_mean:   R_ref_avg,
                     R0_mean:  (rcFiltered[0].R[0]+rcFiltered[0].R[1]+rcFiltered[0].R[2])/3,
                     age_yr:   af.age_yr,
@@ -5711,47 +5648,13 @@
 
                 // KPI Descriptions — Alg.7
                 const _dDtkor = document.getElementById('kpi-desc-dtkor');
-                if (_dDtkor) {
-                    const _dT = st.dT_kor;
-                    _dDtkor.textContent = _dT > 55
-                        ? `⚠ ΔT=${_dT.toFixed(1)}K — sangat tinggi. Isolasi mengalami penuaan sangat cepat. Segera periksa sistem pendingin dan kurangi beban.`
-                        : _dT > 35
-                        ? `ΔT=${_dT.toFixed(1)}K — di atas normal. Penuaan isolasi dipercepat. Monitor beban dan efisiensi pendingin secara ketat.`
-                        : `ΔT=${_dT.toFixed(1)}K — dalam batas aman. Laju penuaan isolasi normal sesuai desain IEEE C57.91.`;
-                    _dDtkor.className = `text-[9px] mt-2 pt-2 border-t leading-relaxed ${_dT > 55 ? 'text-red-600 border-red-100' : _dT > 35 ? 'text-amber-600 border-amber-100' : 'text-emerald-600 border-emerald-100'}`;
-                }
+                if (_dDtkor) { const _dT = st.dT_kor; _dDtkor.textContent = _dT > 55 ? `⚠ ΔT=${_dT.toFixed(1)}K — sangat tinggi. Isolasi mengalami penuaan sangat cepat. Segera periksa sistem pendingin dan kurangi beban.` : _dT > 35 ? `ΔT=${_dT.toFixed(1)}K — di atas normal. Penuaan isolasi dipercepat. Monitor beban dan efisiensi pendingin secara ketat.` : `ΔT=${_dT.toFixed(1)}K — dalam batas aman. Laju penuaan isolasi normal sesuai desain IEEE C57.91.`; _dDtkor.className = `text-[9px] mt-2 pt-2 border-t leading-relaxed ${_dT > 55 ? 'text-red-600 border-red-100' : _dT > 35 ? 'text-amber-600 border-amber-100' : 'text-emerald-600 border-emerald-100'}`; }
                 const _dFaa = document.getElementById('kpi-desc-faa');
-                if (_dFaa) {
-                    const _faa = st.F_AA_exact;
-                    _dFaa.textContent = _faa > 2
-                        ? `⚠ F_AA=${_faa.toFixed(2)}× — darurat termal! Isolasi rusak ${_faa.toFixed(1)}× lebih cepat. Kurangi beban segera dan jadwalkan inspeksi.`
-                        : _faa > 1.2
-                        ? `F_AA=${_faa.toFixed(2)}× — penuaan dipercepat ${((_faa-1)*100).toFixed(0)}% di atas normal. Pertimbangkan derating beban.`
-                        : `F_AA=${_faa.toFixed(2)}× — penuaan normal. Kondisi termal baik, umur isolasi sesuai desain.`;
-                    _dFaa.className = `text-[9px] mt-2 pt-2 border-t leading-relaxed ${_faa > 2 ? 'text-red-600 border-red-100' : _faa > 1.2 ? 'text-amber-600 border-amber-100' : 'text-emerald-600 border-emerald-100'}`;
-                }
+                if (_dFaa) { const _faa = st.F_AA_exact; _dFaa.textContent = _faa > 2 ? `⚠ F_AA=${_faa.toFixed(2)}× — darurat termal! Isolasi rusak ${_faa.toFixed(1)}× lebih cepat. Kurangi beban segera dan jadwalkan inspeksi.` : _faa > 1.2 ? `F_AA=${_faa.toFixed(2)}× — penuaan dipercepat ${((_faa-1)*100).toFixed(0)}% di atas normal. Pertimbangkan derating beban.` : `F_AA=${_faa.toFixed(2)}× — penuaan normal. Kondisi termal baik, umur isolasi sesuai desain.`; _dFaa.className = `text-[9px] mt-2 pt-2 border-t leading-relaxed ${_faa > 2 ? 'text-red-600 border-red-100' : _faa > 1.2 ? 'text-amber-600 border-amber-100' : 'text-emerald-600 border-emerald-100'}`; }
                 const _dPtot = document.getElementById('kpi-desc-ptotal');
-                if (_dPtot) {
-                    const _pp = st.P_total * 100;
-                    _dPtot.textContent = _pp > 15
-                        ? `⚠ Risiko tinggi (${_pp.toFixed(1)}%). Probabilitas kegagalan PMT signifikan. Jadwalkan inspeksi dan pemeliharaan segera.`
-                        : _pp > 5
-                        ? `Risiko sedang (${_pp.toFixed(1)}%). Rencanakan pemeliharaan preventif dalam 3–6 bulan ke depan.`
-                        : `Risiko rendah (${_pp.toFixed(1)}%). PMT dalam kondisi baik. Lanjutkan monitoring rutin berkala.`;
-                    _dPtot.className = `text-[9px] mt-2 pt-2 border-t leading-relaxed ${_pp > 15 ? 'text-red-600 border-red-100' : _pp > 5 ? 'text-amber-600 border-amber-100' : 'text-emerald-600 border-emerald-100'}`;
-                }
+                if (_dPtot) { const _pp = st.P_total * 100; _dPtot.textContent = _pp > 15 ? `⚠ Risiko tinggi (${_pp.toFixed(1)}%). Probabilitas kegagalan PMT signifikan. Jadwalkan inspeksi dan pemeliharaan segera.` : _pp > 5 ? `Risiko sedang (${_pp.toFixed(1)}%). Rencanakan pemeliharaan preventif dalam 3–6 bulan ke depan.` : `Risiko rendah (${_pp.toFixed(1)}%). PMT dalam kondisi baik. Lanjutkan monitoring rutin berkala.`; _dPtot.className = `text-[9px] mt-2 pt-2 border-t leading-relaxed ${_pp > 15 ? 'text-red-600 border-red-100' : _pp > 5 ? 'text-amber-600 border-amber-100' : 'text-emerald-600 border-emerald-100'}`; }
                 const _dRisk = document.getElementById('kpi-desc-risk');
-                if (_dRisk) {
-                    const _al = st.act_lvl;
-                    _dRisk.textContent = _al === 'Immediate'
-                        ? `⚠ TINDAKAN SEGERA — risiko tertinggi ALARP. Lakukan inspeksi langsung dan siapkan rencana penggantian komponen.`
-                        : _al === 'Plan'
-                        ? `Rencanakan pemeliharaan dalam jadwal terdekat. Monitor lebih intensif hingga PM dilaksanakan.`
-                        : _al === 'Enhanced'
-                        ? `Tingkatkan frekuensi monitoring. Siapkan sumber daya PM jika kondisi memburuk.`
-                        : `ALARP terpenuhi. Risiko dalam batas yang dapat diterima — lanjutkan program monitoring standar.`;
-                    _dRisk.className = `text-[9px] mt-2 pt-2 border-t leading-relaxed ${_al === 'Immediate' ? 'text-red-600 border-red-100' : _al === 'Plan' ? 'text-orange-600 border-orange-100' : _al === 'Enhanced' ? 'text-amber-600 border-amber-100' : 'text-emerald-600 border-emerald-100'}`;
-                }
+                if (_dRisk) { const _al = st.act_lvl; _dRisk.textContent = _al === 'Immediate' ? `⚠ TINDAKAN SEGERA — risiko tertinggi ALARP. Lakukan inspeksi langsung dan siapkan rencana penggantian komponen.` : _al === 'Plan' ? `Rencanakan pemeliharaan dalam jadwal terdekat. Monitor lebih intensif hingga PM dilaksanakan.` : _al === 'Enhanced' ? `Tingkatkan frekuensi monitoring. Siapkan sumber daya PM jika kondisi memburuk.` : `ALARP terpenuhi. Risiko dalam batas yang dapat diterima — lanjutkan program monitoring standar.`; _dRisk.className = `text-[9px] mt-2 pt-2 border-t leading-relaxed ${_al === 'Immediate' ? 'text-red-600 border-red-100' : _al === 'Plan' ? 'text-orange-600 border-orange-100' : _al === 'Enhanced' ? 'text-amber-600 border-amber-100' : 'text-emerald-600 border-emerald-100'}`; }
 
                 // SKDIR badge
                 const skdirBadge = document.getElementById('a7-skdir-badge');
@@ -5900,45 +5803,39 @@
                         : a7st === 'PERHATIAN'
                         ? `Lakukan inspeksi intensif: (1) Uji timing CB dan bandingkan dengan baseline. (2) Ukur R_contact (dulfur) dan partial discharge. (3) Periksa mekanisme trip dan pegas. Jadwalkan dalam 3 bulan ke depan. Naikkan frekuensi monitoring SCADA menjadi harian. Siapkan rencana kontingensi.`
                         : `TINDAKAN SEGERA: (1) Koordinasi dengan dispatcher untuk mempersiapkan manuver beban. (2) Jadwalkan shutdown dalam window terdekat untuk pemeliharaan darurat. (3) Lakukan semua uji diagnostik (timing, R_contact, PD, thermography). (4) Jika hasil uji mengkonfirmasi degradasi kritis, ganti unit CB. (5) Dokumentasi dan laporkan ke manajemen aset.`;
-                    setInsight('a7-insight', a7st, a7k, a7r);
-                }
-            }
+	                    setInsight('a7-insight', a7st, a7k, a7r);
+	                }
+	            }
+	            } else {
+	                const reason = `Analisis aging/reliability tidak dijalankan karena membutuhkan data suhu, beban ION8650, dan minimal 2 titik R_contact Trafo ${T}. Status: suhu=${hasTempData?'ada':'tidak ada'}, beban=${hasBebanData?'ada':'tidak ada'}, R_contact=${rcFiltered.length} titik (${rcSource}).`;
+	                const recommendation = 'Lengkapi paket data ukur untuk trafo yang sama. Parameter risiko tidak ditampilkan agar tidak bercampur dengan asumsi tersembunyi.';
+	                resetChart('a4');
+	                resetChart('a7-weibull');
+	                resetChart('a7-ptotal');
+	                const a4Table = document.getElementById('a4-table');
+	                if (a4Table) a4Table.innerHTML = '';
+	                markAlgorithmUnavailable('a4', ['a4-hi-score','a4-remain-life','a4-action'], reason, recommendation);
+	                markAlgorithmUnavailable('a7', ['a7-dtkor-kpi','a7-faa-kpi','a7-ptotal-kpi','a7-risk-kpi','a7-dT-meas','a7-pjoule-s','a7-tau-th','a7-thermal-status','a7-faa-exact','a7-faa-mont','a7-rmodel','a7-rratio','a7-dtkor-val','a7-skdir-cond','a7-wb-hi','a7-wb-etaadj','a7-fw','a7-mk-q01','a7-mk-q12','a7-mk-p0','a7-mk-p1','a7-pmarkov','a7-cox-lp','a7-cox-h0','a7-cox-htx','a7-pcox','a7-comb-fw','a7-comb-mk','a7-comb-cx','a7-ptotal-val','a7-ens-kwh','a7-repair-cost','a7-consequence','a7-risk-val','a7-action-text','a7-weibull-interp','a7-ptotal-interp'], reason, recommendation);
+	            }
 
-            // Render spec table
-            renderMLSpec(T);
+	            // Render spec table
+	            renderMLSpec(T);
 
-            // Isi semua insight yang masih kosong/default dengan pesan informatif
             _fillInsightDefaults();
 
             lucide.createIcons();
         }
 
-        function setText_id(id, text){const e=document.getElementById(id);if(e)e.textContent=text;}
-
-        function updateOverviewCard(alg, value, status){
-            setText_id(`ml-ov-${alg}`, value);
-            const badge=document.getElementById(`ml-ov-${alg}-badge`);
-            if(!badge) return;
-            const cls = status==='NORMAL'||status==='BAIK'||status==='OK'
-                ?'bg-emerald-100 text-emerald-700'
-                :status==='PERHATIAN'||status==='WARNING'
-                ?'bg-amber-100 text-amber-700'
-                :'bg-red-100 text-red-700';
-            badge.textContent=status;
-            badge.className=`mt-1.5 text-[9px] font-extrabold px-2 py-0.5 rounded-full inline-block ${cls}`;
-        }
-
-        // Isi insight yang masih kosong setelah runMLAnalysis selesai
         function _fillInsightDefaults() {
             const defaults = {
-                'a0-insight': { st:'NORMAL',  k:'Menunggu data suhu dan beban dari sensor. Pastikan MQTT terhubung dan ION8650 mengirimkan data.', r:'Periksa koneksi MQTT di menu sidebar, atau tunggu auto-refresh 60 detik berikutnya untuk mengambil data terbaru.' },
-                'a1-insight': { st:'NORMAL',  k:'Data suhu real-time belum tersedia untuk analisis fisika termal. Model membutuhkan pembacaan sensor Acrel ATP007.', r:'Pastikan sensor ATP007 terhubung dan mengirimkan data suhu melalui MQTT. Periksa topik MQTT di konfigurasi.' },
-                'a2-insight': { st:'NORMAL',  k:'Analisis Bayesian berjalan menggunakan data referensi historis yang tersedia.', r:'Tambahkan data uji dulfur (R_contact) terbaru ke collection ml_dulfur di Firestore untuk meningkatkan akurasi prediksi.' },
-                'a3-insight': { st:'NORMAL',  k:'Analisis Degradasi Linear berjalan menggunakan data referensi.', r:'Lakukan pengujian R_contact berkala (minimal 2 tahun) dan masukkan hasilnya ke Firestore collection ml_dulfur.' },
-                'a4-insight': { st:'NORMAL',  k:'Analisis Multi-Faktor membutuhkan data suhu dan beban real-time.', r:'Pastikan sensor suhu dan meter ION8650 terhubung dan mengirimkan data secara berkala.' },
-                'a5-insight': { st:'NORMAL',  k:'CUSUM membutuhkan minimal 10 titik data suhu historis dari Firestore. Data sedang dikumpulkan.', r:'Tunggu akumulasi data minimal 10 pembacaan suhu berkala. CUSUM akan aktif secara otomatis setelah threshold terpenuhi.' },
-                'a6-insight': { st:'NORMAL',  k:'Analisis OLS Regresi Linear berjalan menggunakan data referensi yang tersedia.', r:'Data historis sudah cukup. Tambahkan uji dulfur terbaru via Firestore (ml_dulfur) untuk meningkatkan akurasi proyeksi.' },
-                'a7-insight': { st:'NORMAL',  k:'Pipeline analisis degradasi PMT membutuhkan data suhu dan beban. Menunggu data real-time.', r:'Pastikan semua sensor dan meter terhubung. Kunjungi halaman ML setelah data mengalir agar analisis lengkap dapat dilakukan.' }
+                'a0-insight': { st:'NORMAL', k:'Menunggu data suhu dan beban dari sensor. Pastikan MQTT terhubung dan ION8650 mengirimkan data.', r:'Periksa koneksi MQTT di menu sidebar, atau tunggu auto-refresh 60 detik berikutnya untuk mengambil data terbaru.' },
+                'a1-insight': { st:'NORMAL', k:'Data suhu real-time belum tersedia. Model membutuhkan pembacaan sensor Acrel ATP007.', r:'Pastikan sensor ATP007 terhubung dan mengirimkan data suhu melalui MQTT.' },
+                'a2-insight': { st:'DATA KURANG', k:'Analisis Bayesian membutuhkan minimal 2 data R_contact valid untuk trafo yang sama.', r:'Tambahkan data uji dulfur terbaru ke collection ml_dulfur di Firestore untuk meningkatkan akurasi prediksi.' },
+                'a3-insight': { st:'DATA KURANG', k:'Analisis GPR membutuhkan minimal 2 data R_contact valid untuk trafo yang sama.', r:'Lakukan pengujian R_contact berkala dan masukkan hasilnya ke Firestore collection ml_dulfur.' },
+                'a4-insight': { st:'NORMAL', k:'Analisis Multi-Faktor membutuhkan data suhu dan beban real-time.', r:'Pastikan sensor suhu dan meter ION8650 terhubung dan mengirimkan data secara berkala.' },
+                'a5-insight': { st:'NORMAL', k:'CUSUM membutuhkan minimal 10 titik data suhu historis dari Firestore. Data sedang dikumpulkan.', r:'Tunggu akumulasi data minimal 10 pembacaan suhu berkala. CUSUM akan aktif secara otomatis.' },
+                'a6-insight': { st:'DATA KURANG', k:'Analisis OLS membutuhkan minimal 2 data R_contact valid untuk trafo yang sama.', r:'Tambahkan uji dulfur terbaru via Firestore (ml_dulfur) untuk meningkatkan akurasi proyeksi.' },
+                'a7-insight': { st:'NORMAL', k:'Pipeline analisis degradasi PMT membutuhkan data suhu dan beban. Menunggu data real-time.', r:'Pastikan semua sensor dan meter terhubung. Kunjungi halaman ML setelah data mengalir.' }
             };
             Object.entries(defaults).forEach(([id, def]) => {
                 const el = document.getElementById(id);
@@ -5948,6 +5845,23 @@
             });
         }
 
+        function setText_id(id, text){const e=document.getElementById(id);if(e)e.textContent=text;}
+
+        function updateOverviewCard(alg, value, status){
+            setText_id(`ml-ov-${alg}`, value);
+            const badge=document.getElementById(`ml-ov-${alg}-badge`);
+            if(!badge) return;
+	            const cls = status==='NORMAL'||status==='BAIK'||status==='OK'
+	                ?'bg-emerald-100 text-emerald-700'
+	                :status==='PERHATIAN'||status==='WARNING'
+	                ?'bg-amber-100 text-amber-700'
+	                :status==='DATA KURANG'||status==='TIDAK VALID'
+	                ?'bg-slate-100 text-slate-600'
+	                :'bg-red-100 text-red-700';
+            badge.textContent=status;
+            badge.className=`mt-1.5 text-[9px] font-extrabold px-2 py-0.5 rounded-full inline-block ${cls}`;
+        }
+
         function setInsight(id, status, kesimpulan, rekomendasi) {
             const el = document.getElementById(id);
             if (!el) return;
@@ -5955,9 +5869,11 @@
                 'BAIK':     { border:'border-emerald-400', bg:'bg-emerald-50', text:'text-emerald-700', icon:'✅' },
                 'NORMAL':   { border:'border-emerald-400', bg:'bg-emerald-50', text:'text-emerald-700', icon:'✅' },
                 'OK':       { border:'border-emerald-400', bg:'bg-emerald-50', text:'text-emerald-700', icon:'✅' },
-                'PERHATIAN':{ border:'border-amber-400',   bg:'bg-amber-50',   text:'text-amber-700',   icon:'⚠️' },
-                'WARNING':  { border:'border-amber-400',   bg:'bg-amber-50',   text:'text-amber-700',   icon:'⚠️' },
-                'KRITIS':   { border:'border-red-400',     bg:'bg-red-50',     text:'text-red-700',     icon:'🔴' },
+	                'PERHATIAN':{ border:'border-amber-400',   bg:'bg-amber-50',   text:'text-amber-700',   icon:'⚠️' },
+	                'WARNING':  { border:'border-amber-400',   bg:'bg-amber-50',   text:'text-amber-700',   icon:'⚠️' },
+	                'DATA KURANG':{ border:'border-slate-300', bg:'bg-slate-50',   text:'text-slate-700',   icon:'ℹ️' },
+	                'TIDAK VALID':{ border:'border-slate-300', bg:'bg-slate-50',   text:'text-slate-700',   icon:'ℹ️' },
+	                'KRITIS':   { border:'border-red-400',     bg:'bg-red-50',     text:'text-red-700',     icon:'🔴' },
                 'ALARM':    { border:'border-red-400',     bg:'bg-red-50',     text:'text-red-700',     icon:'🔴' },
             };
             const c = cfg[status] || { border:'border-slate-300', bg:'bg-slate-50', text:'text-slate-700', icon:'ℹ️' };
@@ -5989,24 +5905,18 @@
             const labels  = ['Fasa R','Fasa S','Fasa T'];
             const lastR   = rcData[rcData.length-1].R;
             const R_mean  = lastR.reduce((a,b)=>a+b,0)/3;
-
-            // Estimasi per fasa (proporsional terhadap pengukuran terakhir)
             const R_estPerFasa = lastR.map(r => phys.R_est * (R_mean > 0 ? r / R_mean : 1));
             const errAbs       = R_estPerFasa.map(v => v * phys.errPct / 100);
-
-            // ── Plugin error bars — digambar setelah bar chart ──
             const a1ErrorBarPlugin = {
                 id: 'a1ErrorBars',
                 afterDatasetsDraw(chart) {
                     const { ctx: c, scales } = chart;
                     const yScale = scales.y;
-                    const meta   = chart.getDatasetMeta(1); // dataset Estimasi Physics
+                    const meta   = chart.getDatasetMeta(1);
                     if (!meta || !meta.data.length) return;
-
                     c.save();
                     c.strokeStyle = '#d97706';
                     c.lineWidth   = 2;
-
                     meta.data.forEach((bar, i) => {
                         const val = R_estPerFasa[i];
                         const err = errAbs[i];
@@ -6015,94 +5925,28 @@
                         const yTop = yScale.getPixelForValue(val + err);
                         const yBot = yScale.getPixelForValue(val - err);
                         const capW = 7;
-                        // Garis vertikal
                         c.beginPath(); c.moveTo(x, yTop); c.lineTo(x, yBot); c.stroke();
-                        // Cap atas
                         c.beginPath(); c.moveTo(x - capW, yTop); c.lineTo(x + capW, yTop); c.stroke();
-                        // Cap bawah
                         c.beginPath(); c.moveTo(x - capW, yBot); c.lineTo(x + capW, yBot); c.stroke();
                     });
                     c.restore();
                 }
             };
-
             mlCharts['a1'] = new Chart(ctx, {
                 type: 'bar',
-                data: {
-                    labels,
-                    datasets: [
-                        {
-                            label: `Terukur Dulfur (${lastDate})`,
-                            data:  lastR,
-                            backgroundColor: 'rgba(13,148,136,0.75)',
-                            borderColor:     'rgba(13,148,136,1)',
-                            borderWidth:     1,
-                            borderRadius:    4
-                        },
-                        {
-                            label: `Estimasi Physics ±${phys.errPct.toFixed(1)}%`,
-                            data:  R_estPerFasa,
-                            backgroundColor: 'rgba(245,158,11,0.65)',
-                            borderColor:     'rgba(217,119,6,1)',
-                            borderWidth:     1,
-                            borderRadius:    4
-                        },
-                        {
-                            // Error upper bound (dibuat tipis/transparan — hanya untuk referensi legend)
-                            label: `±Batas Atas (CI)`,
-                            data:  R_estPerFasa.map((v,i) => v + errAbs[i]),
-                            type:  'line',
-                            borderColor:     'rgba(217,119,6,0.4)',
-                            borderWidth:     1,
-                            borderDash:      [4,3],
-                            backgroundColor: 'rgba(245,158,11,0.08)',
-                            fill:            '-1',
-                            pointRadius:     0,
-                            tension:         0
-                        },
-                        {
-                            label: `±Batas Bawah (CI)`,
-                            data:  R_estPerFasa.map((v,i) => v - errAbs[i]),
-                            type:  'line',
-                            borderColor:     'rgba(217,119,6,0.4)',
-                            borderWidth:     1,
-                            borderDash:      [4,3],
-                            fill:            false,
-                            pointRadius:     0,
-                            tension:         0
-                        }
-                    ]
-                },
+                data: { labels, datasets: [
+                    { label:`Terukur Dulfur (${lastDate})`, data:lastR, backgroundColor:'rgba(13,148,136,0.75)', borderColor:'rgba(13,148,136,1)', borderWidth:1, borderRadius:4 },
+                    { label:`Estimasi Physics ±${phys.errPct.toFixed(1)}%`, data:R_estPerFasa, backgroundColor:'rgba(245,158,11,0.65)', borderColor:'rgba(217,119,6,1)', borderWidth:1, borderRadius:4 },
+                    { label:'±Batas Atas (CI)', data:R_estPerFasa.map((v,i)=>v+errAbs[i]), type:'line', borderColor:'rgba(217,119,6,0.4)', borderWidth:1, borderDash:[4,3], backgroundColor:'rgba(245,158,11,0.08)', fill:'-1', pointRadius:0, tension:0 },
+                    { label:'±Batas Bawah (CI)', data:R_estPerFasa.map((v,i)=>v-errAbs[i]), type:'line', borderColor:'rgba(217,119,6,0.4)', borderWidth:1, borderDash:[4,3], fill:false, pointRadius:0, tension:0 }
+                ]},
                 options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
+                    responsive:true, maintainAspectRatio:false,
                     plugins: {
-                        legend: {
-                            position: 'top',
-                            labels:   {
-                                font:          { size: 9, weight: 'bold' },
-                                usePointStyle: true,
-                                filter:        l => !l.text.startsWith('±Batas') // sembunyikan CI lines dari legend
-                            }
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: (ctx) => {
-                                    if (ctx.datasetIndex === 0)
-                                        return ` Terukur: ${ctx.parsed.y.toFixed(1)} µΩ`;
-                                    if (ctx.datasetIndex === 1)
-                                        return ` Estimasi: ${ctx.parsed.y.toFixed(1)} ±${errAbs[ctx.dataIndex].toFixed(1)} µΩ (±${phys.errPct.toFixed(1)}%)`;
-                                    return null;
-                                }
-                            }
-                        }
+                        legend: { position:'top', labels:{ font:{size:9,weight:'bold'}, usePointStyle:true, filter:l=>!l.text.startsWith('±Batas') }},
+                        tooltip: { callbacks: { label:(ctx)=>{ if(ctx.datasetIndex===0) return ` Terukur: ${ctx.parsed.y.toFixed(1)} µΩ`; if(ctx.datasetIndex===1) return ` Estimasi: ${ctx.parsed.y.toFixed(1)} ±${errAbs[ctx.dataIndex].toFixed(1)} µΩ (±${phys.errPct.toFixed(1)}%)`; return null; }}}
                     },
-                    scales: {
-                        y: {
-                            ticks: { font: { size: 9 }, callback: v => v + ' µΩ' },
-                            grid:  { color: '#f1f5f9' }
-                        }
-                    }
+                    scales: { y: { ticks:{font:{size:9},callback:v=>v+' µΩ'}, grid:{color:'#f1f5f9'} }}
                 },
                 plugins: [a1ErrorBarPlugin]
             });
@@ -6332,10 +6176,11 @@
             });
         }
 
-        function renderMLSpec(trafo){
-            const spec=ML_INC_SPEC[trafo]||ML_INC_SPEC[2];
-            const timing=ML_TIMING[trafo]||ML_TIMING[2];
-            const el=document.getElementById('ml-spec-table');if(!el)return;
+	        function renderMLSpec(trafo){
+	            const spec=ML_INC_SPEC[trafo]||ML_INC_SPEC[2];
+	            const timing=ML_TIMING[trafo]||ML_TIMING[2];
+	            const rcRows = getValidatedRContactData(parseInt(trafo));
+	            const el=document.getElementById('ml-spec-table');if(!el)return;
             el.innerHTML=`
                 <div class="bg-slate-50 rounded-xl p-4">
                     <div class="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-3">Spesifikasi INC Trafo ${trafo}</div>
@@ -6351,12 +6196,12 @@
                       ['Limit ΔT Close (IEC)',`< ${TIMING_LIMITS.delta_close_max} ms`],['Status ΔT',timing.dClose<TIMING_LIMITS.delta_close_max?'✓ NORMAL':'⚠ MELEBIHI']
                     ].map(([k,v])=>`<div class="flex justify-between py-1 text-[11px] border-b border-slate-200"><span class="text-slate-500">${k}</span><span class="font-mono font-bold text-slate-700">${v}</span></div>`).join('')}
                 </div>
-                <div class="bg-slate-50 rounded-xl p-4">
-                    <div class="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-3">Data R_contact Trafo ${trafo}</div>
-                    ${ML_R_CONTACT.filter(d=>d.trafo===parseInt(trafo)).map(d=>
-                        `<div class="flex justify-between py-1 text-[11px] border-b border-slate-200"><span class="text-slate-500">${d.date}</span><span class="font-mono font-bold text-slate-700">${d.R[0]}/${d.R[1]}/${d.R[2]} µΩ</span></div>`
-                    ).join('') || '<div class="text-slate-400 text-[11px]">Tidak ada data pengukuran langsung</div>'}
-                </div>
+	                <div class="bg-slate-50 rounded-xl p-4">
+	                    <div class="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-3">Data R_contact Trafo ${trafo}</div>
+	                    ${rcRows.map(d=>
+	                        `<div class="flex justify-between py-1 text-[11px] border-b border-slate-200"><span class="text-slate-500">${d.date} · ${d.source==='firestore'?'Firestore':'baseline lokal'}</span><span class="font-mono font-bold text-slate-700">${d.R[0]}/${d.R[1]}/${d.R[2]} µΩ</span></div>`
+	                    ).join('') || '<div class="text-slate-400 text-[11px]">Tidak ada data pengukuran langsung</div>'}
+	                </div>
             `;
         }
 
@@ -6424,12 +6269,10 @@
                 const b = document.getElementById(id);
                 if (b) { b.className = 'fv-ds-btn ' + ac; b.dataset.visible = '1'; }
             });
-            // "Prediksi Sebelumnya" hanya aktif jika snapshot ada
             const prevBtn = document.getElementById('fv-toggle-prev');
             if (prevBtn) prevBtn.className = 'fv-ds-btn' + (snap ? ' ' + ac : '');
             document.getElementById('fv-drag-btn').classList.remove('active');
 
-            // Sync time filter from card filter
             const initPeriod = (type === 'temp' ? _fcFilterPeriod.temp : _fcFilterPeriod.load) || '6h';
             _fcFilterPeriod.fv = initPeriod;
             ['1h','6h','12h','1d','7d','30d','all'].forEach(p => {
@@ -6449,13 +6292,9 @@
             const ciColor = isTemp ? 'rgba(239,68,68,0.10)' : 'rgba(124,58,237,0.10)';
             const yUnit   = isTemp ? '°C' : 'A';
             const tk      = _fcTickConfig(period);
-
             const { n, allLbls, datasets } = _buildFcDatasets(fc, series, ts, period, isTemp);
-
-            // Update data info badge
             const infoEl = document.getElementById('fv-data-info');
             if (infoEl) infoEl.textContent = n + ' titik historis · ' + fc.allFc.length + ' titik forecast';
-
             _fcFvChart = new Chart(document.getElementById('fc-fv-canvas'), {
                 type: 'line',
                 data: { labels: allLbls, datasets },
@@ -6490,9 +6329,9 @@
             _fcFvDragZoom = false;
         }
 
+        // Toggle visibility per dataset (0=Historis, 1=Fitted, 2=Forecast, 3=CI)
         function toggleFcFvDataset(idx) {
             if (!_fcFvChart) return;
-            // idx 3 = CI Upper+Lower (3,4), idx 5 = Prediksi Sebelumnya
             const indices = idx === 3 ? [3, 4] : [idx];
             const totalDs = _fcFvChart.data.datasets.length;
             indices.forEach(i => {
@@ -6502,7 +6341,6 @@
                 }
             });
             _fcFvChart.update();
-
             const btnIds = ['fv-toggle-hist','fv-toggle-fitted','fv-toggle-forecast','fv-toggle-ci', null, 'fv-toggle-prev'];
             const btnId  = btnIds[idx];
             if (!btnId) return;
@@ -6516,9 +6354,9 @@
 
         function fcFvZoom(action) {
             if (!_fcFvChart) return;
-            if (action === 'in')         _fcFvChart.zoom(1.3);
+            if (action === 'in')    _fcFvChart.zoom(1.3);
             else if (action === 'out')   _fcFvChart.zoom(0.77);
-            else if (action === 'reset') _fcFvChart.resetZoom();
+            else if (action === 'reset') { _fcFvChart.resetZoom(); }
         }
 
         function toggleFcFvDragZoom() {
@@ -6528,8 +6366,11 @@
             _fcFvChart.options.plugins.zoom.pan.enabled       = !_fcFvDragZoom;
             _fcFvChart.update('none');
 
-            document.getElementById('fc-fv-canvas').classList.toggle('drag-zoom-canvas', _fcFvDragZoom);
+            const canvas = document.getElementById('fc-fv-canvas');
+            canvas.classList.toggle('drag-zoom-canvas', _fcFvDragZoom);
+
             document.getElementById('fv-drag-btn').classList.toggle('active', _fcFvDragZoom);
+
             document.getElementById('fc-fv-zoom-hint').textContent = _fcFvDragZoom
                 ? 'Klik & seret untuk pilih area zoom · ESC = Batal mode pilih area'
                 : 'Scroll = Zoom · Drag = Geser · ESC = Tutup';
@@ -6580,6 +6421,7 @@
                 } catch(e) {
                     if (e.name === 'AbortError') return;
                 }
+                // Fallback: download
                 const url = URL.createObjectURL(blob);
                 const a   = document.createElement('a');
                 a.href     = url;
@@ -6589,11 +6431,13 @@
             }, 'image/png');
         }
 
+        // Extend ESC key handler for fullview modal
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
                 const modal = document.getElementById('fc-fullview-modal');
                 if (modal && !modal.classList.contains('hidden')) {
                     if (_fcFvDragZoom) {
+                        // First ESC exits drag-zoom mode only
                         toggleFcFvDragZoom();
                     } else {
                         closeForecastFullview();
@@ -6627,7 +6471,7 @@
         <div class="flex items-center gap-1.5 flex-wrap">
           <span class="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mr-0.5">Dataset:</span>
           <button id="fv-toggle-hist"     onclick="toggleFcFvDataset(0)" class="fv-ds-btn" title="Tampil/sembunyikan data historis">Historis</button>
-          <button id="fv-toggle-fitted"   onclick="toggleFcFvDataset(1)" class="fv-ds-btn" title="Kurva Fitted = rekonstruksi model terhadap data historis (bukan forecast)">Fitted</button>
+          <button id="fv-toggle-fitted"   onclick="toggleFcFvDataset(1)" class="fv-ds-btn" title="Tampil/sembunyikan kurva fitted">Fitted</button>
           <button id="fv-toggle-forecast" onclick="toggleFcFvDataset(2)" class="fv-ds-btn" title="Tampil/sembunyikan garis forecast">Forecast</button>
           <button id="fv-toggle-ci"       onclick="toggleFcFvDataset(3)" class="fv-ds-btn" title="Tampil/sembunyikan pita CI 95%">CI 95%</button>
           <button id="fv-toggle-prev"     onclick="toggleFcFvDataset(5)" class="fv-ds-btn" title="Prediksi run sebelumnya — bandingkan dengan data aktual untuk melihat margin error">Prediksi Sblm</button>
