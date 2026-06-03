@@ -5360,6 +5360,17 @@
             const rcFiltered = getValidatedRContactData(T);
             const rcSource = describeRContactSource(rcFiltered);
 
+            // Capture data availability for Executive Summary (updated every refresh)
+            _exSumData.hasTempData     = hasTempData;
+            _exSumData.hasBebanData    = hasBebanData;
+            _exSumData.rcCount         = rcFiltered.length;
+            _exSumData.rcSource        = rcSource;
+            _exSumData.firestoreCount  = firestoreLogs.length;
+            _exSumData.hasRcForPhysics = rcFiltered.length >= 1;
+            _exSumData.hasRcForModels  = rcFiltered.length >= 2;
+            _exSumData.hasCusumData    = firestoreLogs.length >= 10 ||
+                                         !!(window.chartDataPoints && chartDataPoints.R_Atas && chartDataPoints.R_Atas.length >= 10);
+
             // Prepare x (days from first measurement) and y (mean R across 3 phases)
             const t0 = rcFiltered.length ? rcFiltered[0]._time : Date.now();
             const xDays = rcFiltered.map(d=>(d._time-t0)/(1000*86400));
@@ -6356,7 +6367,12 @@
 
             let synthesis = '';
             if (CHI == null) {
-                synthesis = `Data masukan belum lengkap untuk semua algoritma. Lengkapi paket data sensor suhu (Acrel ATP007), arus beban (ION8650), dan data uji R_contact (dulfur) untuk mengaktifkan sintesis penuh.`;
+                const missingItems = [];
+                if (!d.hasTempData)   missingItems.push('sensor suhu real-time (Acrel ATP007/MQTT)');
+                if (!d.hasBebanData)  missingItems.push('arus beban real-time (ION8650/MQTT)');
+                if (!d.hasRcForModels) missingItems.push(\`data R_contact uji dulfur Trafo \${d.trafo} (\${d.rcCount||0} titik tersedia, butuh ≥2)\`);
+                if (!d.hasCusumData)  missingItems.push(\`log historis Firestore (\${d.firestoreCount||0} rekaman, butuh ≥10 untuk CUSUM)\`);
+                synthesis = \`Composite Health Index (CHI) belum dapat dihitung karena \${missingItems.length} sumber data belum terpenuhi: \${missingItems.map((m,i)=>\`(\${i+1}) \${m}\`).join('; ')}. Panel <b>Status Kelengkapan Data</b> di bawah ini menjelaskan tindakan spesifik yang diperlukan untuk masing-masing data. Executive Summary akan memperbarui diri secara otomatis setiap 60 detik.\`;
             } else {
                 const chiTxt = CHI >= 80 ? `Composite Health Index (CHI) aset ini sebesar <b>${CHI}/100</b> — aset berada dalam kondisi operasional yang <b>baik dan andal</b> berdasarkan konvergensi delapan algoritma analitik.`
                              : CHI >= 60 ? `Composite Health Index (CHI) aset ini sebesar <b>${CHI}/100</b> — terdapat <b>indikator degradasi awal</b> yang memerlukan perhatian operasional terstruktur.`
@@ -6385,10 +6401,18 @@
             // ── Rekomendasi berdasarkan CHI dan data ────────────────────
             let recs = [];
             if (CHI == null) {
-                recs = [
-                    { pri:1, act:'Lengkapi koneksi sensor ATP007 (suhu) dan ION8650 (arus beban)', std:'PLN SKDIR 0520-2 · IEC 62271-1', waktu:'Segera', color:'slate' },
-                    { pri:2, act:'Input data uji R_contact (dulfur) ke Firestore ml_dulfur minimal 2 titik', std:'IEC 62271-100 §6.4.1', waktu:'Sebelum analisis', color:'slate' },
-                ];
+                recs = [];
+                let pri = 1;
+                if (!d.hasTempData)
+                    recs.push({ pri:pri++, act:'Hubungkan sensor suhu Acrel ATP007 ke broker MQTT. Periksa konfigurasi topik, koneksi jaringan, dan daya sensor. Pastikan data diterima di dashboard sebelum refresh.', std:'IEC 62271-1 §7.4 · PLN SKDIR 0520-2', waktu:'Segera', color:'red' });
+                if (!d.hasBebanData)
+                    recs.push({ pri:pri++, act:'Hubungkan power meter ION8650 ke broker MQTT. Verifikasi topik MQTT untuk arus fasa (I_R/I_S/I_T) dan pastikan nilai > 0 saat beban aktif.', std:'IEC 62271-100 · PLN SKDIR 0520-2.K/DIR/2014', waktu:'Segera', color:'red' });
+                if (!d.hasRcForModels)
+                    recs.push({ pri:pri++, act:\`Lakukan uji resistansi kontak (micro-ohmmeter) pada CB Incoming Trafo \${d.trafo}. Masukkan hasil R fasa R/S/T (µΩ) ke Firestore collection <b>ml_dulfur</b>. Dibutuhkan minimal 2 pengukuran pada tanggal berbeda untuk analisis tren.\`, std:'IEC 62271-100 §6.4.1 · IEC 62271-1 · CIGRE TB 165', waktu:'Sebelum analisis', color:'amber' });
+                if (!d.hasCusumData)
+                    recs.push({ pri:pri++, act:\`Log historis sedang dikumpulkan otomatis (\${d.firestoreCount||0}/10 rekaman). Pastikan MQTT dan Firestore listener aktif. CUSUM akan aktif sendiri setelah ≥10 rekaman suhu terkumpul — tidak perlu tindakan manual.\`, std:'Page (1954) · ISO 7966 · IEC 62271-1', waktu:'Otomatis', color:'slate' });
+                if (recs.length === 0)
+                    recs.push({ pri:1, act:'Semua data tersedia. Jalankan ulang analisis ML untuk memperbarui CHI.', std:'CIGRE TB 165 §5.2', waktu:'Segera', color:'emerald' });
             } else if (CHI >= 80) {
                 recs = [
                     { pri:1, act:'Pertahankan program pemeliharaan preventif sesuai interval standar (uji timing, R_contact, thermografi 2–3 tahun)', std:'IEC 62271-100:2021 · PLN SKDIR 0520-2', waktu:'Rutin', color:'emerald' },
@@ -6441,6 +6465,103 @@
                                 : CHI >= 40 ? 'from-orange-400 to-orange-600'
                                 : 'from-red-500 to-rose-600';
 
+            // ── Panel Status Data (selalu tampil, auto-update tiap refresh) ─────
+            // Setiap baris menjelaskan sumber data, status, dampak ke algoritma,
+            // dan tindakan spesifik yang harus dilakukan user.
+            const dataSources = [
+                {
+                    icon: d.hasTempData ? '✅' : '🔴',
+                    label: 'Sensor Suhu Real-time',
+                    sublabel: 'Acrel ATP007 via MQTT broker',
+                    status: d.hasTempData ? 'TERHUBUNG' : 'TIDAK ADA DATA',
+                    statusCls: d.hasTempData ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700',
+                    rowCls: d.hasTempData ? 'border-emerald-100 bg-emerald-50/30' : 'border-red-100 bg-red-50/40',
+                    algsOk:  d.hasTempData ? ['Alg.0 Forecast','Alg.1 Physics','Alg.4 Aging','Alg.7 Stokastik'] : [],
+                    algsWait: d.hasTempData ? [] : ['Alg.0 Forecast','Alg.1 Physics','Alg.4 Aging','Alg.7 Stokastik'],
+                    detail: d.hasTempData
+                        ? 'Data suhu 6 titik (R/S/T Atas-Bawah) diterima dari sensor. Semua algoritma berbasis suhu aktif.'
+                        : 'Tidak ada paket suhu valid dari sensor. Empat algoritma tidak dapat dijalankan.',
+                    action: d.hasTempData ? null
+                        : '1. Periksa koneksi MQTT broker di menu sidebar. 2. Pastikan sensor Acrel ATP007 bertenaga dan topik MQTT sesuai konfigurasi. 3. Cek log MQTT untuk error koneksi.',
+                    std: 'IEC 62271-1 §7.4 · PLN SKDIR 0520-2'
+                },
+                {
+                    icon: d.hasBebanData ? '✅' : '🔴',
+                    label: 'Arus Beban Real-time',
+                    sublabel: 'Power Meter ION8650 via MQTT',
+                    status: d.hasBebanData ? 'TERHUBUNG' : 'TIDAK ADA DATA',
+                    statusCls: d.hasBebanData ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700',
+                    rowCls: d.hasBebanData ? 'border-emerald-100 bg-emerald-50/30' : 'border-red-100 bg-red-50/40',
+                    algsOk:  d.hasBebanData ? ['Alg.0 Forecast','Alg.1 Physics','Alg.4 Aging','Alg.7 Stokastik'] : [],
+                    algsWait: d.hasBebanData ? [] : ['Alg.0 Forecast','Alg.1 Physics','Alg.4 Aging','Alg.7 Stokastik'],
+                    detail: d.hasBebanData
+                        ? \`Arus tiga fasa (I_R/I_S/I_T) valid diterima dari ION8650. Analisis loading dan Joule heating aktif.\`
+                        : 'Tidak ada data arus dari power meter. Normalisasi beban SKDIR dan model termal tidak dapat dihitung.',
+                    action: d.hasBebanData ? null
+                        : '1. Periksa apakah ION8650 aktif dan terhubung ke jaringan. 2. Verifikasi topik MQTT untuk data arus fasa. 3. Cek apakah beban trafo sedang nol (CB terbuka).',
+                    std: 'IEC 62271-100 · PLN SKDIR 0520-2.K/DIR/2014'
+                },
+                {
+                    icon: d.rcCount >= 2 ? '✅' : d.rcCount === 1 ? '🟡' : '🔴',
+                    label: 'Data R_contact / Uji Dulfur',
+                    sublabel: \`Firestore: ml_dulfur — Trafo \${d.trafo} · Sumber: \${d.rcSource || 'tidak tersedia'}\`,
+                    status: d.rcCount >= 2 ? \`\${d.rcCount} TITIK — CUKUP\` : d.rcCount === 1 ? '1 TITIK — KURANG' : 'TIDAK ADA DATA',
+                    statusCls: d.rcCount >= 2 ? 'bg-emerald-100 text-emerald-700' : d.rcCount === 1 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700',
+                    rowCls: d.rcCount >= 2 ? 'border-emerald-100 bg-emerald-50/30' : d.rcCount === 1 ? 'border-amber-100 bg-amber-50/40' : 'border-red-100 bg-red-50/40',
+                    algsOk:  d.rcCount >= 2 ? ['Alg.2 Bayesian RUL','Alg.3 GPR','Alg.6 OLS'] : [],
+                    algsWait: d.rcCount < 2 ? ['Alg.2 Bayesian RUL','Alg.3 GPR','Alg.6 OLS'] : [],
+                    detail: d.rcCount >= 2
+                        ? \`\${d.rcCount} titik pengukuran R_contact tersedia — regresi, GPR, dan Bayesian RUL aktif penuh.\`
+                        : d.rcCount === 1
+                        ? 'Baru 1 titik R_contact tersedia. Dibutuhkan minimal 2 titik dengan tanggal berbeda untuk menghitung tren degradasi. Alg.1 Physics aktif (butuh ≥1 titik).'
+                        : 'Tidak ada data R_contact untuk trafo ini. Tiga algoritma tren dan satu model fisika tidak dapat dijalankan.',
+                    action: d.rcCount >= 2 ? null
+                        : \`1. Lakukan uji resistansi kontak (micro-ohmmeter / dulfur) pada CB Incoming Trafo \${d.trafo}. 2. Masukkan hasil (nilai R fasa R/S/T dalam µΩ) ke Firestore collection <b>ml_dulfur</b> dengan field: trafo, date, R[0]/R[1]/R[2]. 3. Refresh halaman ML setelah data tersimpan.\`,
+                    std: 'IEC 62271-100 §6.4.1 · IEC 62271-1 · CIGRE TB 165'
+                },
+                {
+                    icon: d.hasCusumData ? '✅' : '🟡',
+                    label: 'Data Historis Suhu (Firestore Logs)',
+                    sublabel: \`\${d.firestoreCount || 0} rekaman log suhu tersimpan\`,
+                    status: d.hasCusumData ? \`\${d.firestoreCount} LOG — CUKUP\` : \`\${d.firestoreCount||0} LOG — PERLU ≥10\`,
+                    statusCls: d.hasCusumData ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700',
+                    rowCls: d.hasCusumData ? 'border-emerald-100 bg-emerald-50/30' : 'border-amber-100 bg-amber-50/40',
+                    algsOk:  d.hasCusumData ? ['Alg.5 CUSUM','Alg.0 Forecast (historis)'] : ['Alg.0 Forecast (data sesaat)'],
+                    algsWait: d.hasCusumData ? [] : ['Alg.5 CUSUM (menunggu akumulasi)'],
+                    detail: d.hasCusumData
+                        ? \`\${d.firestoreCount} log historis tersedia. Algoritma CUSUM dan Forecast historis aktif penuh.\`
+                        : \`Baru \${d.firestoreCount||0} log tersedia (butuh ≥10 untuk CUSUM). Data akan terakumulasi otomatis seiring operasi.\`,
+                    action: d.hasCusumData ? null
+                        : 'Data log terakumulasi otomatis dari pembacaan MQTT yang masuk ke Firestore. Pastikan MQTT aktif dan Firestore listener berjalan. CUSUM akan aktif otomatis saat ≥10 rekaman terkumpul.',
+                    std: 'Page (1954) Biometrika · ISO 7966 · IEC 62271-1'
+                },
+            ];
+
+            const dataStatusHTML = dataSources.map(s => \`
+                <div class="rounded-xl border p-3 \${s.rowCls}">
+                  <div class="flex items-start gap-3">
+                    <span class="text-lg flex-shrink-0 mt-0.5">\${s.icon}</span>
+                    <div class="flex-1 min-w-0">
+                      <div class="flex flex-wrap items-center gap-2 mb-0.5">
+                        <span class="text-[11px] font-extrabold text-slate-700">\${s.label}</span>
+                        <span class="text-[9px] font-extrabold px-2 py-0.5 rounded-full \${s.statusCls}">\${s.status}</span>
+                      </div>
+                      <div class="text-[9px] text-slate-500 mb-1">\${s.sublabel}</div>
+                      <div class="text-[10px] text-slate-600 leading-relaxed mb-1">\${s.detail}</div>
+                      \${s.algsOk.length ? \`<div class="text-[9px] mb-0.5"><span class="text-emerald-600 font-extrabold">✓ Aktif: </span>\${s.algsOk.join(' · ')}</div>\` : ''}
+                      \${s.algsWait.length ? \`<div class="text-[9px] mb-1"><span class="text-red-500 font-extrabold">✗ Menunggu: </span>\${s.algsWait.join(' · ')}</div>\` : ''}
+                      \${s.action ? \`<div class="mt-1.5 bg-white/70 rounded-lg p-2 border border-current border-opacity-20">
+                        <div class="text-[9px] font-extrabold text-slate-500 uppercase tracking-wide mb-0.5">Tindakan yang Diperlukan:</div>
+                        <div class="text-[10px] text-slate-700 leading-relaxed">\${s.action}</div>
+                        <div class="text-[8px] text-slate-400 mt-1">Standar: \${s.std}</div>
+                      </div>\` : \`<div class="text-[8px] text-slate-400">Standar: \${s.std}</div>\`}
+                    </div>
+                  </div>
+                </div>\`).join('');
+
+            const allDataOk = d.hasTempData && d.hasBebanData && d.hasRcForModels && d.hasCusumData;
+            const missingCount = [!d.hasTempData, !d.hasBebanData, !d.hasRcForModels, !d.hasCusumData].filter(Boolean).length;
+
             root.innerHTML = `
               <!-- Header -->
               <div class="glass-card p-5 border-l-4 border-indigo-500 bg-gradient-to-r from-indigo-50 to-white">
@@ -6486,6 +6607,23 @@
                 <div class="bg-slate-50 rounded-lg p-2 text-[9px] text-slate-500 font-mono">
                   CHI = Σ(wᵢ · HIᵢ) × 100 | CIGRE TB 165 §5.2 · ISO 55000:2014 §6.2 · Bobot: P_fail=35% · AF=30% · R_contact=20% · CUSUM=10% · Forecast=5%
                 </div>
+              </div>
+
+              <!-- Status Data (auto-update tiap refresh) -->
+              <div class="glass-card overflow-hidden">
+                <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between gap-2">
+                  <div class="flex items-center gap-2">
+                    <span class="text-[10px] font-extrabold text-slate-600 uppercase tracking-widest">Status Kelengkapan Data</span>
+                    ${missingCount > 0 ? `<span class="text-[9px] font-extrabold bg-red-100 text-red-600 px-2 py-0.5 rounded-full">${missingCount} sumber data belum terpenuhi</span>` : '<span class="text-[9px] font-extrabold bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded-full">Semua data tersedia ✓</span>'}
+                  </div>
+                  <span class="text-[9px] text-slate-400">Diperbarui: ${now} · Auto-refresh 60 dtk</span>
+                </div>
+                <div class="p-4 space-y-3">${dataStatusHTML}</div>
+                ${missingCount === 0 ? '' : `<div class="px-4 pb-4">
+                  <div class="bg-indigo-50 border border-indigo-200 rounded-xl p-3 text-[10px] text-indigo-700 leading-relaxed">
+                    <span class="font-extrabold">ℹ️ Cara kerja auto-update:</span> Halaman ini memperbarui status data setiap <b>60 detik</b> secara otomatis. Setelah data yang kurang ditambahkan, Executive Summary akan memperbarui CHI dan sintesis teknis pada refresh berikutnya tanpa perlu reload manual.
+                  </div>
+                </div>`}
               </div>
 
               <!-- Tabel ringkasan algoritma -->
