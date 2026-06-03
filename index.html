@@ -1318,35 +1318,132 @@
 
                 <!-- Tab A1: Physics Model -->
                 <div id="itab-content-ml-a1" class="space-y-4">
-                  <div class="grid grid-cols-1 xl:grid-cols-3 gap-4">
-                    <div class="glass-card p-5">
-                      <div class="flex items-center gap-2 mb-3">
-                        <span class="text-[9px] font-extrabold bg-teal-100 text-teal-700 px-2 py-0.5 rounded">IEC 62271-1:2017 §7.4</span>
-                        <span class="text-[9px] font-extrabold bg-blue-100 text-blue-700 px-2 py-0.5 rounded">IEC 62271-100</span>
+
+                  <!-- Cara Kerja Panel -->
+                  <div class="glass-card p-5 border-l-4 border-teal-400">
+                    <div class="flex items-center gap-2 mb-3">
+                      <span class="text-base">🔬</span>
+                      <h5 class="text-xs font-extrabold text-teal-700 uppercase tracking-widest">Cara Kerja — Algoritma Fisika Estimasi R_contact</h5>
+                      <span class="text-[9px] font-extrabold bg-teal-100 text-teal-700 px-2 py-0.5 rounded ml-auto">IEC 62271-1:2017 §7.4</span>
+                    </div>
+                    <p class="text-[10px] text-slate-600 mb-3 leading-relaxed">Algoritma ini mengestimasi tahanan kontak PMT (<b>R_contact</b>) secara real-time berdasarkan pembacaan suhu sensor tanpa harus membuka panel PMT. Prinsipnya: resistivitas material kontak (CuCr) naik secara linear terhadap suhu — dikenal sebagai <b>Hukum Wilson/Matthiessen</b>.</p>
+                    <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
+                      <div class="bg-teal-50 rounded-xl p-3 border border-teal-100 flex flex-col items-center text-center">
+                        <div class="text-lg mb-1">🌡️</div>
+                        <div class="text-[9px] font-extrabold text-teal-600 uppercase mb-1">Step 1</div>
+                        <div class="text-[10px] font-bold text-slate-700">Baca T_sensor</div>
+                        <div class="text-[9px] text-slate-400 mt-1">Dari Acrel ATP007 — suhu tertinggi antar fasa R/S/T</div>
                       </div>
-                      <h5 class="text-xs font-extrabold text-teal-700 uppercase tracking-widest mb-3">Model Fisika R_contact</h5>
-                      <div class="bg-slate-50 rounded-xl p-3 text-[10px] font-mono space-y-1">
-                        <div>R(T) = R_ref × [1 + α × (T − T_ref)]</div>
-                        <div class="text-slate-400">α = 3.9×10⁻³ /K (CuCr, IEC Tab.A.1)</div>
-                        <div class="text-slate-400">T_contact = T_sensor + 8°C (VCB gradient)</div>
-                        <div class="text-slate-400">P_loss = I² × R × 10⁻⁶ (W)</div>
+                      <div class="bg-blue-50 rounded-xl p-3 border border-blue-100 flex flex-col items-center text-center">
+                        <div class="text-lg mb-1">⚡</div>
+                        <div class="text-[9px] font-extrabold text-blue-600 uppercase mb-1">Step 2</div>
+                        <div class="text-[10px] font-bold text-slate-700">Koreksi Gradien</div>
+                        <div class="text-[9px] text-slate-400 mt-1">T_contact = T_sensor + 8°C (gradien VCB, IEC §7.4)</div>
                       </div>
-                      <div class="mt-4 space-y-2">
-                        <div class="flex justify-between text-[11px]"><span class="text-slate-500">T_sensor max</span><span id="a1-tsensor" class="font-mono font-bold">- °C</span></div>
-                        <div class="flex justify-between text-[11px]"><span class="text-slate-500">T_contact est.</span><span id="a1-tcontact" class="font-mono font-bold text-teal-700">- °C</span></div>
-                        <div class="flex justify-between text-[11px]"><span class="text-slate-500">I_rms (avg fasa)</span><span id="a1-irms" class="font-mono font-bold">- A</span></div>
-                        <div class="flex justify-between text-[11px]"><span class="text-slate-500">R_ref (last meas.)</span><span id="a1-rref" class="font-mono font-bold">- µΩ</span></div>
-                        <div class="flex justify-between text-[11px] border-t border-slate-100 pt-2"><span class="text-slate-600 font-bold">R_contact est.</span><span id="a1-rest" class="font-mono font-extrabold text-teal-700">- µΩ</span></div>
-                        <div class="flex justify-between text-[11px]"><span class="text-slate-600 font-bold">P_Joule</span><span id="a1-pjoule" class="font-mono font-extrabold text-orange-600">- W</span></div>
-                        <div class="flex justify-between text-[11px]"><span class="text-slate-600 font-bold">Thermal Stress</span><span id="a1-tstress" class="font-mono font-extrabold">-</span></div>
+                      <div class="bg-amber-50 rounded-xl p-3 border border-amber-100 flex flex-col items-center text-center">
+                        <div class="text-lg mb-1">📐</div>
+                        <div class="text-[9px] font-extrabold text-amber-600 uppercase mb-1">Step 3</div>
+                        <div class="text-[10px] font-bold text-slate-700">Formula Wilson</div>
+                        <div class="text-[9px] text-slate-400 mt-1">R(T) = R_ref × [1 + α × ΔT]</div>
+                      </div>
+                      <div class="bg-orange-50 rounded-xl p-3 border border-orange-100 flex flex-col items-center text-center">
+                        <div class="text-lg mb-1">🔥</div>
+                        <div class="text-[9px] font-extrabold text-orange-600 uppercase mb-1">Step 4</div>
+                        <div class="text-[10px] font-bold text-slate-700">Hitung P_Joule</div>
+                        <div class="text-[9px] text-slate-400 mt-1">P = I² × R_est × 10⁻⁶ [Watt]</div>
+                      </div>
+                      <div class="bg-rose-50 rounded-xl p-3 border border-rose-100 flex flex-col items-center text-center">
+                        <div class="text-lg mb-1">🚦</div>
+                        <div class="text-[9px] font-extrabold text-rose-600 uppercase mb-1">Step 5</div>
+                        <div class="text-[10px] font-bold text-slate-700">Bandingkan IEC</div>
+                        <div class="text-[9px] text-slate-400 mt-1">R_limit = 2×R₀ (IEC 62271-100 §6.4.1)</div>
                       </div>
                     </div>
-                    <div class="glass-card p-5 xl:col-span-2">
-                      <h5 class="text-xs font-extrabold text-slate-600 uppercase tracking-widest mb-3">R_contact: Estimasi vs Pengukuran (µΩ)</h5>
-                      <div class="h-56"><canvas id="chart-a1"></canvas></div>
-                      <div class="mt-3 p-3 bg-teal-50 rounded-xl text-[10px] text-teal-700 font-bold" id="a1-interp">—</div>
+                    <div class="mt-3 bg-slate-50 rounded-xl p-3 font-mono text-[10px] grid grid-cols-1 md:grid-cols-2 gap-2">
+                      <div>
+                        <div class="text-teal-700 font-extrabold mb-1">Formula Utama:</div>
+                        <div>R(T) = R_ref × [1 + α × (T_contact − T_ref)]</div>
+                        <div class="text-slate-400 mt-1">α = 3.9×10⁻³ /K — koef. resistivitas CuCr</div>
+                        <div class="text-slate-400">T_ref = 20°C — suhu referensi IEC standard</div>
+                      </div>
+                      <div>
+                        <div class="text-amber-700 font-extrabold mb-1">Propagasi Error (GUM/JCGM 100:2008):</div>
+                        <div>δR/R = √[(δR_ref/R_ref)² + (ΔT·δα/f)² + (α·δT/f)²]</div>
+                        <div class="text-slate-400 mt-1">f = 1+α×ΔT | δα=±0.2×10⁻³ | δT=±3°C | δR_ref=±5%</div>
+                      </div>
                     </div>
                   </div>
+
+                  <!-- Main Grid: Parameter + Chart -->
+                  <div class="grid grid-cols-1 xl:grid-cols-3 gap-4">
+                    <!-- Left: Parameters + Error Budget -->
+                    <div class="glass-card p-5 space-y-4">
+                      <div>
+                        <h5 class="text-xs font-extrabold text-teal-700 uppercase tracking-widest mb-3">Parameter & Hasil Estimasi</h5>
+                        <div class="space-y-2">
+                          <div class="flex justify-between text-[11px]"><span class="text-slate-500">T_sensor max (ATP007)</span><span id="a1-tsensor" class="font-mono font-bold">- °C</span></div>
+                          <div class="flex justify-between text-[11px]"><span class="text-slate-500">T_contact (+ gradien VCB)</span><span id="a1-tcontact" class="font-mono font-bold text-teal-700">- °C</span></div>
+                          <div class="flex justify-between text-[11px]"><span class="text-slate-500">ΔT (T_contact − 20°C)</span><span id="a1-dT" class="font-mono font-bold text-blue-600">- K</span></div>
+                          <div class="flex justify-between text-[11px]"><span class="text-slate-500">I_rms rata-rata fasa</span><span id="a1-irms" class="font-mono font-bold">- A</span></div>
+                          <div class="flex justify-between text-[11px]"><span class="text-slate-500">R_ref pengukuran terakhir</span><span id="a1-rref" class="font-mono font-bold">- µΩ</span></div>
+                          <div class="flex justify-between text-[11px] border-t border-slate-100 pt-2">
+                            <span class="text-slate-600 font-bold">R_contact estimasi</span>
+                            <span id="a1-rest" class="font-mono font-extrabold text-teal-700">- µΩ</span>
+                          </div>
+                          <div class="flex justify-between text-[11px]">
+                            <span class="text-slate-600 font-bold">Error Estimasi</span>
+                            <span id="a1-err-pct" class="font-mono font-extrabold text-amber-600">- %</span>
+                          </div>
+                          <div class="flex justify-between text-[11px]">
+                            <span class="text-slate-500">R_est ± Error Absolut</span>
+                            <span id="a1-err-abs" class="font-mono font-bold text-amber-600">± - µΩ</span>
+                          </div>
+                          <div class="flex justify-between text-[11px]"><span class="text-slate-600 font-bold">P_Joule (rugi kontak)</span><span id="a1-pjoule" class="font-mono font-extrabold text-orange-600">- W</span></div>
+                          <div class="flex justify-between text-[11px]"><span class="text-slate-600 font-bold">Thermal Stress Ratio</span><span id="a1-tstress" class="font-mono font-extrabold">-</span></div>
+                        </div>
+                      </div>
+
+                      <!-- Error Budget Breakdown -->
+                      <div class="bg-amber-50 rounded-xl p-3 border border-amber-100">
+                        <div class="text-[9px] font-extrabold text-amber-700 uppercase tracking-widest mb-2">📊 Error Budget (GUM Analysis)</div>
+                        <div class="space-y-1.5">
+                          <div class="flex justify-between text-[10px]">
+                            <span class="text-slate-600">δR_ref (micro-ohmmeter ±5%)</span>
+                            <span id="a1-err-rref" class="font-mono font-bold text-amber-700">5.00%</span>
+                          </div>
+                          <div class="flex justify-between text-[10px]">
+                            <span class="text-slate-600">δα (variasi material CuCr)</span>
+                            <span id="a1-err-alpha" class="font-mono font-bold text-amber-700">- %</span>
+                          </div>
+                          <div class="flex justify-between text-[10px]">
+                            <span class="text-slate-600">δT (sensor+gradien ±3°C)</span>
+                            <span id="a1-err-T" class="font-mono font-bold text-amber-700">- %</span>
+                          </div>
+                          <div class="flex justify-between text-[10px] border-t border-amber-200 pt-1.5 font-bold">
+                            <span class="text-amber-800">Total Ketidakpastian</span>
+                            <span id="a1-err-total" class="font-mono text-amber-800">- %</span>
+                          </div>
+                          <div class="flex justify-between text-[10px] font-bold">
+                            <span class="text-amber-800">Interval Kepercayaan 95%</span>
+                            <span id="a1-err-ci95" class="font-mono text-amber-800">±- µΩ</span>
+                          </div>
+                        </div>
+                        <p class="text-[9px] text-slate-400 mt-2 leading-relaxed">Analisis GUM (Guide to the Expression of Uncertainty in Measurement, JCGM 100:2008). Error dominan dari akurasi alat ukur dulfur (micro-ohmmeter) ±5%.</p>
+                      </div>
+                    </div>
+
+                    <!-- Right: Chart + Interpretation -->
+                    <div class="glass-card p-5 xl:col-span-2 space-y-3">
+                      <div class="flex items-center justify-between">
+                        <h5 class="text-xs font-extrabold text-slate-600 uppercase tracking-widest">R_contact: Estimasi vs Pengukuran Dulfur (µΩ)</h5>
+                        <div id="a1-err-badge" class="text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">Error: -</div>
+                      </div>
+                      <div class="text-[9px] text-slate-400 leading-relaxed">Bar oranye = estimasi real-time dari suhu sensor. Batang error (garis vertikal ⊤) = ketidakpastian ±<span id="a1-err-pct-chart">-</span>%. Bar hijau teal = hasil pengukuran dulfur langsung (micro-ohmmeter) sebagai acuan validasi.</div>
+                      <div class="h-56"><canvas id="chart-a1"></canvas></div>
+                      <div class="mt-2 p-3 bg-teal-50 rounded-xl text-[10px] text-teal-700 font-bold leading-relaxed" id="a1-interp">—</div>
+                    </div>
+                  </div>
+
                   <div id="a1-insight" class="glass-card p-4 border-l-4 border-slate-200 text-[10px] text-slate-400 italic">Menghitung analisis...</div>
                 </div>
 
@@ -4825,17 +4922,70 @@
         }
 
         // ─── ALG.1: Physics Model (IEC 62271-1:2017) ─────────────────
+        // Model fisika hubungan suhu–resistansi kontak PMT (Vacuum CB).
+        // Prinsip: resistivitas material meningkat linear terhadap suhu (Hukum Wilson/Matthiessen).
+        // Referensi: IEC 62271-1:2017 §7.4, IEC 62271-100:2021, IEEE C37.04
 
         function computePhysicsModel(T_sensor_max, I_rms_avg, R_ref, T_ref=20) {
-            const T_contact=T_sensor_max+T_GRADIENT_VCB;
-            // R(T) = R_ref × [1 + α × (T_contact - T_ref)] — Wilson's formula, IEC 62271-1 Table A.1
-            const R_est=R_ref*(1+ALPHA_CuCr*(T_contact-T_ref));
-            // Joule heating at contact
-            const P_joule=I_rms_avg**2*R_est*1e-6; // W
-            // Thermal stress ratio (dimensionless)
-            const thermal_stress=(I_rms_avg/2000)**2*(R_est/R_ref);
-            const status=R_est<1.5*R_ref?'NORMAL':R_est<2*R_ref?'PERHATIAN':'KRITIS';
-            return {T_contact,R_est,P_joule,thermal_stress,status};
+            // ── Step 1: Koreksi gradien suhu kontak ──
+            // Suhu kontak lebih tinggi dari suhu sensor karena panas lokal di VCB
+            // Gradien 8°C berdasarkan IEC 62271-1 §7.4 untuk vakum CB (Vacuum Circuit Breaker)
+            const T_contact = T_sensor_max + T_GRADIENT_VCB;
+
+            // ── Step 2: Formula Wilson — R(T) ──
+            // R(T) = R_ref × [1 + α × (T_contact − T_ref)]
+            // α_CuCr = 3.9×10⁻³ /K (koefisien resistivitas termal CuCr, IEC 62271-1 Tabel A.1)
+            const dT   = T_contact - T_ref;
+            const R_est = R_ref * (1 + ALPHA_CuCr * dT);
+
+            // ── Step 3: Rugi daya Joule di kontak ──
+            // P = I² × R × 10⁻⁶  [W]  — sumber panas utama di kontak PMT
+            const P_joule = I_rms_avg ** 2 * R_est * 1e-6;
+
+            // ── Step 4: Thermal stress ratio (tanpa dimensi) ──
+            // Menunjukkan seberapa besar tegangan termal relatif terhadap kondisi nominal
+            const thermal_stress = (I_rms_avg / 2000) ** 2 * (R_est / R_ref);
+
+            // ── Step 5: Status berdasarkan IEC 62271-100 §6.4.1 ──
+            // NORMAL: R < 1.5×R₀  |  PERHATIAN: 1.5–2×R₀  |  KRITIS: > 2×R₀ (R_limit)
+            const status = R_est < 1.5 * R_ref ? 'NORMAL' : R_est < 2 * R_ref ? 'PERHATIAN' : 'KRITIS';
+
+            // ── Error Propagation Analysis (ketidakpastian estimasi) ──
+            // Sumber error:
+            //   1. Ketidakpastian α:     δα = ±0.2×10⁻³ /K  (variasi paduan CuCr, ~5% dari α)
+            //   2. Ketidakpastian suhu:  δT = ±3°C  (sensor ±1°C + gradien model ±2°C)
+            //   3. Ketidakpastian R_ref: δR_ref = ±5%  (akurasi micro-ohmmeter)
+            // Metode: partial derivative error propagation (JCGM 100:2008 / GUM)
+            const delta_alpha = 0.2e-3;         // /K — variasi material CuCr
+            const delta_T     = 3.0;            // K  — kombinasi sensor + gradien
+            const delta_Rref  = 0.05;           // relatif (5%)
+
+            const factor      = 1 + ALPHA_CuCr * dT;  // = R_est / R_ref
+            // Kontribusi masing-masing sumber error (relative, squared)
+            const err_alpha_contrib = Math.abs(dT * delta_alpha / factor);
+            const err_T_contrib     = Math.abs(ALPHA_CuCr * delta_T / factor);
+            const err_Rref_contrib  = delta_Rref;
+            // Total error relatif (kuadrat tambah — akar jumlah kuadrat)
+            const errPct = Math.sqrt(
+                err_Rref_contrib ** 2 +
+                err_alpha_contrib ** 2 +
+                err_T_contrib ** 2
+            ) * 100;
+            const errAbs     = R_est * errPct / 100;
+
+            // Error per fasa (menggunakan rasio fasa dari R_ref)
+            const R_perFasa  = (phaseRatios) => phaseRatios.map(r =>
+                R_ref * r * (1 + ALPHA_CuCr * dT)
+            );
+
+            return {
+                T_contact, R_est, P_joule, thermal_stress, status,
+                errPct, errAbs,
+                err_alpha_contrib: (err_alpha_contrib * 100).toFixed(2),
+                err_T_contrib:     (err_T_contrib * 100).toFixed(2),
+                err_Rref_contrib:  (err_Rref_contrib * 100).toFixed(2),
+                dT, factor
+            };
         }
 
         // ─── ALG.4: Aging Factor CB Incoming ──────────────────────────
@@ -5198,29 +5348,48 @@
                 const T_max=Math.max(td.R_Atas,td.S_Atas,td.T_Atas,td.R_Bawah,td.S_Bawah,td.T_Bawah);
                 const I_rms=hasBebanData?(bd.I_R+bd.I_S+bd.I_T)/3:I_NOMINAL_TRAFO*0.6;
                 const phys=computePhysicsModel(T_max,I_rms,R_ref_avg,T_ref_meas);
-                setText_id('a1-tsensor',`${T_max.toFixed(1)} °C`);
-                setText_id('a1-tcontact',`${phys.T_contact.toFixed(1)} °C`);
-                setText_id('a1-irms',`${I_rms.toFixed(0)} A`);
-                setText_id('a1-rref',`${R_ref_avg.toFixed(1)} µΩ`);
-                setText_id('a1-rest',`${phys.R_est.toFixed(1)} µΩ`);
-                setText_id('a1-pjoule',`${phys.P_joule.toFixed(1)} W`);
-                const stEl=document.getElementById('a1-tstress');
-                if(stEl){stEl.textContent=phys.thermal_stress.toFixed(3);stEl.className=`font-mono font-extrabold ${phys.thermal_stress<1?'text-emerald-600':phys.thermal_stress<1.5?'text-amber-600':'text-red-600'}`;}
-                setText_id('a1-interp',`R_contact estimasi: ${phys.R_est.toFixed(1)} µΩ (ref: ${R_ref_avg.toFixed(1)} µΩ pada ${lastRC.date}). Status: ${phys.status}. Formula: R(T)=R_ref×[1+α×ΔT], α=3.9×10⁻³/K (IEC 62271-1 §7.4).`);
-                updateOverviewCard('a1',phys.R_est.toFixed(1),phys.status);
-                renderA1Chart(rcFiltered,phys,lastRC.date);
+                setText_id('a1-tsensor',  `${T_max.toFixed(1)} °C`);
+                setText_id('a1-tcontact', `${phys.T_contact.toFixed(1)} °C`);
+                setText_id('a1-dT',       `${phys.dT.toFixed(1)} K`);
+                setText_id('a1-irms',     `${I_rms.toFixed(0)} A`);
+                setText_id('a1-rref',     `${R_ref_avg.toFixed(1)} µΩ`);
+                setText_id('a1-rest',     `${phys.R_est.toFixed(1)} µΩ`);
+                setText_id('a1-pjoule',   `${phys.P_joule.toFixed(1)} W`);
+                // Error display
+                setText_id('a1-err-pct',      `±${phys.errPct.toFixed(1)}%`);
+                setText_id('a1-err-abs',       `±${phys.errAbs.toFixed(1)} µΩ`);
+                setText_id('a1-err-alpha',     `${phys.err_alpha_contrib}%`);
+                setText_id('a1-err-T',         `${phys.err_T_contrib}%`);
+                setText_id('a1-err-total',     `±${phys.errPct.toFixed(2)}%`);
+                setText_id('a1-err-ci95',      `±${(1.96 * phys.errAbs).toFixed(1)} µΩ`);
+                setText_id('a1-err-pct-chart', `${phys.errPct.toFixed(1)}`);
+                const _errBadge = document.getElementById('a1-err-badge');
+                if (_errBadge) {
+                    _errBadge.textContent = `Error: ±${phys.errPct.toFixed(1)}%`;
+                    _errBadge.className = `text-[9px] font-extrabold px-2 py-0.5 rounded-full ${phys.errPct < 7 ? 'bg-emerald-100 text-emerald-700' : phys.errPct < 12 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`;
+                }
+                const stEl = document.getElementById('a1-tstress');
+                if (stEl) {
+                    stEl.textContent  = phys.thermal_stress.toFixed(3);
+                    stEl.className    = `font-mono font-extrabold ${phys.thermal_stress < 1 ? 'text-emerald-600' : phys.thermal_stress < 1.5 ? 'text-amber-600' : 'text-red-600'}`;
+                }
+                const ratio = phys.R_est / R_ref_avg;
+                setText_id('a1-interp', `R_contact estimasi: ${phys.R_est.toFixed(1)} ±${phys.errAbs.toFixed(1)} µΩ (±${phys.errPct.toFixed(1)}%) · Ref: ${R_ref_avg.toFixed(1)} µΩ pada ${lastRC.date} · Kenaikan: ${((ratio-1)*100).toFixed(1)}% dari R₀ · Limit IEC: ${(2*R_ref_avg).toFixed(1)} µΩ (2×R₀) · P_Joule: ${phys.P_joule.toFixed(1)} W · Status: ${phys.status}`);
+                updateOverviewCard('a1', phys.R_est.toFixed(1), phys.status);
+                renderA1Chart(rcFiltered, phys, lastRC.date);
                 {
-                    const ratio = phys.R_est / R_ref_avg;
+                    const pctToLimit = ((phys.R_est / (2 * R_ref_avg)) * 100).toFixed(1);
+                    const confLevel  = phys.errPct < 7 ? 'tinggi (>93%)' : phys.errPct < 12 ? 'sedang (~88%)' : 'rendah (<88%)';
                     const a1k = phys.status === 'NORMAL'
-                        ? `R_contact terestimasi <b>${phys.R_est.toFixed(1)} µΩ</b> (${((ratio-1)*100).toFixed(1)}% di atas referensi awal ${R_ref_avg.toFixed(1)} µΩ). Kondisi kontak PMT masih dalam batas aman (< 1.5× R₀ per IEC 62271-1). Thermal stress ${phys.thermal_stress.toFixed(3)} — risiko pemanasan kontak rendah.`
+                        ? `R_contact terestimasi <b>${phys.R_est.toFixed(1)} µΩ</b> (±${phys.errPct.toFixed(1)}% error, confidence ${confLevel}) — <b>${((ratio-1)*100).toFixed(1)}%</b> di atas R₀. Kondisi aman karena belum mencapai batas perhatian IEC (1.5×R₀ = ${(1.5*R_ref_avg).toFixed(1)} µΩ). Telah mencapai <b>${pctToLimit}%</b> dari R_limit (${(2*R_ref_avg).toFixed(1)} µΩ). Thermal stress ${phys.thermal_stress.toFixed(3)} — rugi Joule ${phys.P_joule.toFixed(1)} W masih rendah.`
                         : phys.status === 'PERHATIAN'
-                        ? `R_contact terestimasi <b>${phys.R_est.toFixed(1)} µΩ</b> — naik ${((ratio-1)*100).toFixed(1)}% dari referensi. Mendekati batas perhatian (1.5× R₀). Thermal stress ${phys.thermal_stress.toFixed(3)} mulai signifikan; perlu dipantau lebih ketat.`
-                        : `R_contact terestimasi <b>${phys.R_est.toFixed(1)} µΩ</b> — melebihi batas kritis (2× R₀ = ${(2*R_ref_avg).toFixed(1)} µΩ). Risiko flashover dan pemanasan berlebih sangat tinggi. Tindakan segera diperlukan.`;
+                        ? `R_contact terestimasi <b>${phys.R_est.toFixed(1)} µΩ</b> (±${phys.errPct.toFixed(1)}% error) — naik <b>${((ratio-1)*100).toFixed(1)}%</b> dari R₀. Berada di zona perhatian (1.5–2×R₀), telah mencapai <b>${pctToLimit}%</b> dari R_limit. Thermal stress ${phys.thermal_stress.toFixed(3)} mulai signifikan: P_Joule = ${phys.P_joule.toFixed(1)} W. Perlu dipantau ketat.`
+                        : `R_contact terestimasi <b>${phys.R_est.toFixed(1)} µΩ</b> (±${phys.errPct.toFixed(1)}% error) — melebihi R_limit IEC 62271-100 (2×R₀ = ${(2*R_ref_avg).toFixed(1)} µΩ). Estimasi mencapai <b>${pctToLimit}%</b> dari limit. P_Joule = ${phys.P_joule.toFixed(1)} W — risiko pemanasan kontak dan flashover sangat tinggi.`;
                     const a1r = phys.status === 'NORMAL'
-                        ? `Lanjutkan monitoring berkala. Jadwalkan pengukuran dulfur (uji R_contact) minimal setiap 2 tahun sekali sesuai IEC 62271-100. Pastikan beban tidak melebihi I_nominal agar suhu kontak terkendali.`
+                        ? `Jadwalkan uji dulfur (micro-ohmmeter) minimal setiap 2 tahun sesuai IEC 62271-100. Untuk meningkatkan confidence estimasi (saat ini ${confLevel}), lakukan uji dulfur lebih sering dan masukkan ke ml_dulfur Firestore. Pastikan beban tidak melebihi I_nominal agar suhu kontak terkendali.`
                         : phys.status === 'PERHATIAN'
-                        ? `Percepat jadwal uji dulfur (R_contact fisik) dalam 6 bulan ke depan. Periksa kebersihan kontak dan pastikan tekanan pegas kontak sesuai spesifikasi. Ukur thermography untuk konfirmasi.`
-                        : `SEGERA lakukan uji dulfur langsung (micro-ohmmeter) dan bandingkan dengan nilai referensi awal. Jadwalkan overhaul kontak PMT. Koordinasi dengan planner untuk shutdown window terdekat.`;
+                        ? `Percepat jadwal uji dulfur dalam 6 bulan ke depan untuk verifikasi estimasi (error ±${phys.errPct.toFixed(1)}%). Lakukan thermography pada PMT untuk konfirmasi hot spot kontak. Periksa kebersihan kontak dan tekanan pegas. Pertimbangkan mengurangi jumlah operasi CB.`
+                        : `SEGERA lakukan uji dulfur langsung (micro-ohmmeter). Estimasi menunjukkan R_contact melewati R_limit — namun perlu konfirmasi fisik karena error ±${phys.errPct.toFixed(1)}%. Jadwalkan overhaul kontak dalam shutdown window terdekat. Koordinasi dispatcher untuk manuver beban ke trafo lain.`;
                     setInsight('a1-insight', phys.status, a1k, a1r);
                 }
             }
@@ -5646,17 +5815,127 @@
 
         function renderA1Chart(rcData, phys, lastDate){
             destroyChart('a1');
-            const ctx=document.getElementById('chart-a1');if(!ctx)return;
-            const labels=['Fasa R','Fasa S','Fasa T'];
-            const lastR=rcData[rcData.length-1].R;
-            mlCharts['a1']=new Chart(ctx,{type:'bar',data:{labels,datasets:[
-                {label:`Terukur (${lastDate})`,data:lastR,backgroundColor:'rgba(13,148,136,0.7)',borderRadius:4},
-                {label:'Estimasi Physics',data:[
-                    phys.R_est*(lastR[0]/(lastR.reduce((a,b)=>a+b)/3)||1),
-                    phys.R_est*(lastR[1]/(lastR.reduce((a,b)=>a+b)/3)||1),
-                    phys.R_est*(lastR[2]/(lastR.reduce((a,b)=>a+b)/3)||1)
-                ],backgroundColor:'rgba(245,158,11,0.7)',borderRadius:4}
-            ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{font:{size:9,weight:'bold'},usePointStyle:true}}},scales:{y:{ticks:{font:{size:9},callback:v=>v+' µΩ'},grid:{color:'#f1f5f9'}}}}});
+            const ctx = document.getElementById('chart-a1'); if (!ctx) return;
+            const labels  = ['Fasa R','Fasa S','Fasa T'];
+            const lastR   = rcData[rcData.length-1].R;
+            const R_mean  = lastR.reduce((a,b)=>a+b,0)/3;
+
+            // Estimasi per fasa (proporsional terhadap pengukuran terakhir)
+            const R_estPerFasa = lastR.map(r => phys.R_est * (R_mean > 0 ? r / R_mean : 1));
+            const errAbs       = R_estPerFasa.map(v => v * phys.errPct / 100);
+
+            // ── Plugin error bars — digambar setelah bar chart ──
+            const a1ErrorBarPlugin = {
+                id: 'a1ErrorBars',
+                afterDatasetsDraw(chart) {
+                    const { ctx: c, scales } = chart;
+                    const yScale = scales.y;
+                    const meta   = chart.getDatasetMeta(1); // dataset Estimasi Physics
+                    if (!meta || !meta.data.length) return;
+
+                    c.save();
+                    c.strokeStyle = '#d97706';
+                    c.lineWidth   = 2;
+
+                    meta.data.forEach((bar, i) => {
+                        const val = R_estPerFasa[i];
+                        const err = errAbs[i];
+                        if (val == null || err == null) return;
+                        const x    = bar.x;
+                        const yTop = yScale.getPixelForValue(val + err);
+                        const yBot = yScale.getPixelForValue(val - err);
+                        const capW = 7;
+                        // Garis vertikal
+                        c.beginPath(); c.moveTo(x, yTop); c.lineTo(x, yBot); c.stroke();
+                        // Cap atas
+                        c.beginPath(); c.moveTo(x - capW, yTop); c.lineTo(x + capW, yTop); c.stroke();
+                        // Cap bawah
+                        c.beginPath(); c.moveTo(x - capW, yBot); c.lineTo(x + capW, yBot); c.stroke();
+                    });
+                    c.restore();
+                }
+            };
+
+            mlCharts['a1'] = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [
+                        {
+                            label: `Terukur Dulfur (${lastDate})`,
+                            data:  lastR,
+                            backgroundColor: 'rgba(13,148,136,0.75)',
+                            borderColor:     'rgba(13,148,136,1)',
+                            borderWidth:     1,
+                            borderRadius:    4
+                        },
+                        {
+                            label: `Estimasi Physics ±${phys.errPct.toFixed(1)}%`,
+                            data:  R_estPerFasa,
+                            backgroundColor: 'rgba(245,158,11,0.65)',
+                            borderColor:     'rgba(217,119,6,1)',
+                            borderWidth:     1,
+                            borderRadius:    4
+                        },
+                        {
+                            // Error upper bound (dibuat tipis/transparan — hanya untuk referensi legend)
+                            label: `±Batas Atas (CI)`,
+                            data:  R_estPerFasa.map((v,i) => v + errAbs[i]),
+                            type:  'line',
+                            borderColor:     'rgba(217,119,6,0.4)',
+                            borderWidth:     1,
+                            borderDash:      [4,3],
+                            backgroundColor: 'rgba(245,158,11,0.08)',
+                            fill:            '-1',
+                            pointRadius:     0,
+                            tension:         0
+                        },
+                        {
+                            label: `±Batas Bawah (CI)`,
+                            data:  R_estPerFasa.map((v,i) => v - errAbs[i]),
+                            type:  'line',
+                            borderColor:     'rgba(217,119,6,0.4)',
+                            borderWidth:     1,
+                            borderDash:      [4,3],
+                            fill:            false,
+                            pointRadius:     0,
+                            tension:         0
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels:   {
+                                font:          { size: 9, weight: 'bold' },
+                                usePointStyle: true,
+                                filter:        l => !l.text.startsWith('±Batas') // sembunyikan CI lines dari legend
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: (ctx) => {
+                                    if (ctx.datasetIndex === 0)
+                                        return ` Terukur: ${ctx.parsed.y.toFixed(1)} µΩ`;
+                                    if (ctx.datasetIndex === 1)
+                                        return ` Estimasi: ${ctx.parsed.y.toFixed(1)} ±${errAbs[ctx.dataIndex].toFixed(1)} µΩ (±${phys.errPct.toFixed(1)}%)`;
+                                    return null;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            ticks: { font: { size: 9 }, callback: v => v + ' µΩ' },
+                            grid:  { color: '#f1f5f9' }
+                        }
+                    }
+                },
+                plugins: [a1ErrorBarPlugin]
+            });
         }
 
         function renderA2Chart(xDays, yR, bayes, t0){
