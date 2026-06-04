@@ -113,7 +113,7 @@
                 url('https://images.unsplash.com/photo-1473341304170-971dccb5ac1e?auto=format&fit=crop&q=85&w=1920');
             background-size: cover; background-position: center 35%; background-attachment: fixed;
         }
-        #sidebar { background: linear-gradient(180deg, #0a4f5e 0%, #083d4b 100%); border-right: 1px solid rgba(255,255,255,0.08); }
+        #sidebar { background: linear-gradient(180deg, #0e6b7c 0%, #0a5264 100%); border-right: 1px solid rgba(255,255,255,0.1); }
         .sidebar-item { transition: all 0.2s ease; cursor: pointer; color: rgba(255,255,255,0.8); position: relative; }
         .sidebar-item:hover { background: rgba(255,255,255,0.1); color: white; }
         .sidebar-item.active { background: rgba(76,175,80,0.18); color: #fff; border-left: 4px solid #4caf50; }
@@ -199,11 +199,13 @@
     <!-- Sidebar Menu Navigasi -->
     <aside id="sidebar" class="w-64 flex-col hidden">
         <div class="px-5 py-4 border-b border-white/10 flex items-center gap-3">
-            <svg width="40" height="46" viewBox="0 0 100 114" fill="none" xmlns="http://www.w3.org/2000/svg" class="shrink-0 drop-shadow-md">
-                <path fill="white" d="M4,4 L40,4 L40,17 L16,17 L16,72 C16,90 33,103 50,111 C28,101 22,88 22,72 L22,11 L4,11 Z"/>
-                <path fill="white" d="M40,4 L96,4 L96,17 L40,17 Z"/>
-                <path fill="white" d="M62,9 L42,54 L57,54 L44,105 L77,46 L61,46 Z"/>
-            </svg>
+            <div class="shrink-0 rounded-xl p-1.5" style="background:rgba(255,255,255,0.15)">
+                <svg width="38" height="44" viewBox="0 0 100 114" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path fill="white" d="M4,4 L40,4 L40,17 L16,17 L16,72 C16,90 33,103 50,111 C28,101 22,88 22,72 L22,11 L4,11 Z"/>
+                    <path fill="white" d="M40,4 L96,4 L96,17 L40,17 Z"/>
+                    <path fill="white" d="M62,9 L42,54 L57,54 L44,105 L77,46 L61,46 Z"/>
+                </svg>
+            </div>
             <div class="min-w-0">
                 <div class="text-xl font-black tracking-widest text-white leading-none">SHIELD</div>
                 <div class="text-[8px] font-bold uppercase tracking-wider leading-snug mt-0.5" style="color:#7dd9e0">Smart Hotspot<br>Identification & Early<br>Warning Device</div>
