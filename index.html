@@ -1161,57 +1161,13 @@
                         <button onclick="applyFcFilter('temp','all')" id="fc-f-temp-all" class="fc-time-btn">Semua</button>
                       </div>
                       <div class="h-48"><canvas id="chart-fc-temp"></canvas></div>
-                      <!-- Play Simulation Controls — Temp -->
-                      <div class="flex items-center gap-2 mt-2 flex-wrap">
-                        <button id="fc-sim-btn-temp" onclick="toggleFcSimulation('temp')"
+                      <!-- Play Simulation Button — Temp -->
+                      <div class="flex items-center gap-2 mt-2">
+                        <button onclick="openFcSimModal('temp')"
                           class="flex items-center gap-1.5 text-[9px] font-bold px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-colors">
-                          ▶ Play Simulasi
+                          ▶ Play Simulasi Grafik
                         </button>
-                        <label class="text-[9px] text-slate-500 flex items-center gap-1">Kecepatan:
-                          <select id="fc-sim-spd-temp" class="text-[9px] border border-slate-200 rounded px-1 py-0.5 bg-white" onchange="setFcSimSpeed('temp',this.value)">
-                            <option value="600">Lambat</option>
-                            <option value="250" selected>Normal</option>
-                            <option value="80">Cepat</option>
-                            <option value="25">Turbo</option>
-                          </select>
-                        </label>
-                      </div>
-                      <!-- Simulation Panel — Temp -->
-                      <div id="fc-sim-panel-temp" class="hidden mt-2 p-3 bg-slate-50 rounded-xl border border-slate-200 text-[9px]">
-                        <div class="flex items-center gap-2 mb-2">
-                          <span class="font-extrabold text-emerald-700 uppercase tracking-widest">▶ Simulasi Real-Time</span>
-                          <div class="flex-1 h-1.5 bg-slate-200 rounded-full overflow-hidden">
-                            <div id="fc-sim-prog-temp" class="h-full bg-emerald-400 rounded-full transition-all" style="width:0%"></div>
-                          </div>
-                          <span id="fc-sim-step-temp" class="font-mono text-slate-400 shrink-0">0/0</span>
-                        </div>
-                        <div class="grid grid-cols-4 gap-1 mb-2">
-                          <div class="bg-white rounded p-1.5 text-center border border-slate-100">
-                            <div class="text-slate-400 font-bold uppercase tracking-widest text-[8px]">Waktu</div>
-                            <div id="fc-sim-time-temp" class="font-mono font-black text-slate-600">—</div>
-                          </div>
-                          <div class="bg-white rounded p-1.5 text-center border border-rose-100">
-                            <div class="text-rose-500 font-bold uppercase tracking-widest text-[8px]">Forecast</div>
-                            <div id="fc-sim-fc-temp" class="font-mono font-black text-rose-700">—</div>
-                          </div>
-                          <div class="bg-white rounded p-1.5 text-center border border-slate-100">
-                            <div class="text-slate-500 font-bold uppercase tracking-widest text-[8px]">Aktual</div>
-                            <div id="fc-sim-act-temp" class="font-mono font-black text-slate-700">—</div>
-                          </div>
-                          <div class="bg-white rounded p-1.5 text-center border border-amber-100">
-                            <div class="text-amber-600 font-bold uppercase tracking-widest text-[8px]">Error</div>
-                            <div id="fc-sim-err-temp" class="font-mono font-black text-amber-700">—</div>
-                          </div>
-                        </div>
-                        <div class="flex gap-2 px-1 font-extrabold text-slate-400 uppercase tracking-widest text-[8px] mb-0.5">
-                          <span class="w-12">Waktu</span><span class="w-16">Forecast</span><span class="w-16">Aktual</span><span class="w-14">Error</span><span class="flex-1 text-right">Status</span>
-                        </div>
-                        <div id="fc-sim-log-temp" class="max-h-24 overflow-y-auto"></div>
-                        <div class="mt-2 pt-2 border-t border-slate-200 flex gap-4 font-mono text-[9px] text-slate-500">
-                          <span>MAE: <b id="fc-sim-mae-temp" class="text-slate-700">—</b></span>
-                          <span>RMSE: <b id="fc-sim-rmse-temp" class="text-slate-700">—</b></span>
-                          <span>MAPE: <b id="fc-sim-mape-temp" class="text-slate-700">—</b></span>
-                        </div>
+                        <span class="text-[9px] text-slate-400 italic">Animasi perbandingan forecast vs aktual — layar penuh</span>
                       </div>
                       <div id="fc-temp-interp" class="mt-3 p-3 bg-rose-50 rounded-xl text-[10px] text-rose-700 font-bold">—</div>
                     </div>
@@ -1236,57 +1192,13 @@
                         <button onclick="applyFcFilter('load','all')" id="fc-f-load-all" class="fc-time-btn">Semua</button>
                       </div>
                       <div class="h-48"><canvas id="chart-fc-load"></canvas></div>
-                      <!-- Play Simulation Controls — Load -->
-                      <div class="flex items-center gap-2 mt-2 flex-wrap">
-                        <button id="fc-sim-btn-load" onclick="toggleFcSimulation('load')"
+                      <!-- Play Simulation Button — Load -->
+                      <div class="flex items-center gap-2 mt-2">
+                        <button onclick="openFcSimModal('load')"
                           class="flex items-center gap-1.5 text-[9px] font-bold px-3 py-1.5 rounded-lg bg-violet-50 text-violet-700 border border-violet-200 hover:bg-violet-100 transition-colors">
-                          ▶ Play Simulasi
+                          ▶ Play Simulasi Grafik
                         </button>
-                        <label class="text-[9px] text-slate-500 flex items-center gap-1">Kecepatan:
-                          <select id="fc-sim-spd-load" class="text-[9px] border border-slate-200 rounded px-1 py-0.5 bg-white" onchange="setFcSimSpeed('load',this.value)">
-                            <option value="600">Lambat</option>
-                            <option value="250" selected>Normal</option>
-                            <option value="80">Cepat</option>
-                            <option value="25">Turbo</option>
-                          </select>
-                        </label>
-                      </div>
-                      <!-- Simulation Panel — Load -->
-                      <div id="fc-sim-panel-load" class="hidden mt-2 p-3 bg-slate-50 rounded-xl border border-slate-200 text-[9px]">
-                        <div class="flex items-center gap-2 mb-2">
-                          <span class="font-extrabold text-violet-700 uppercase tracking-widest">▶ Simulasi Real-Time</span>
-                          <div class="flex-1 h-1.5 bg-slate-200 rounded-full overflow-hidden">
-                            <div id="fc-sim-prog-load" class="h-full bg-violet-400 rounded-full transition-all" style="width:0%"></div>
-                          </div>
-                          <span id="fc-sim-step-load" class="font-mono text-slate-400 shrink-0">0/0</span>
-                        </div>
-                        <div class="grid grid-cols-4 gap-1 mb-2">
-                          <div class="bg-white rounded p-1.5 text-center border border-slate-100">
-                            <div class="text-slate-400 font-bold uppercase tracking-widest text-[8px]">Waktu</div>
-                            <div id="fc-sim-time-load" class="font-mono font-black text-slate-600">—</div>
-                          </div>
-                          <div class="bg-white rounded p-1.5 text-center border border-violet-100">
-                            <div class="text-violet-500 font-bold uppercase tracking-widest text-[8px]">Forecast</div>
-                            <div id="fc-sim-fc-load" class="font-mono font-black text-violet-700">—</div>
-                          </div>
-                          <div class="bg-white rounded p-1.5 text-center border border-slate-100">
-                            <div class="text-slate-500 font-bold uppercase tracking-widest text-[8px]">Aktual</div>
-                            <div id="fc-sim-act-load" class="font-mono font-black text-slate-700">—</div>
-                          </div>
-                          <div class="bg-white rounded p-1.5 text-center border border-amber-100">
-                            <div class="text-amber-600 font-bold uppercase tracking-widest text-[8px]">Error</div>
-                            <div id="fc-sim-err-load" class="font-mono font-black text-amber-700">—</div>
-                          </div>
-                        </div>
-                        <div class="flex gap-2 px-1 font-extrabold text-slate-400 uppercase tracking-widest text-[8px] mb-0.5">
-                          <span class="w-12">Waktu</span><span class="w-16">Forecast</span><span class="w-16">Aktual</span><span class="w-14">Error</span><span class="flex-1 text-right">Status</span>
-                        </div>
-                        <div id="fc-sim-log-load" class="max-h-24 overflow-y-auto"></div>
-                        <div class="mt-2 pt-2 border-t border-slate-200 flex gap-4 font-mono text-[9px] text-slate-500">
-                          <span>MAE: <b id="fc-sim-mae-load" class="text-slate-700">—</b></span>
-                          <span>RMSE: <b id="fc-sim-rmse-load" class="text-slate-700">—</b></span>
-                          <span>MAPE: <b id="fc-sim-mape-load" class="text-slate-700">—</b></span>
-                        </div>
+                        <span class="text-[9px] text-slate-400 italic">Animasi perbandingan forecast vs aktual — layar penuh</span>
                       </div>
                       <div id="fc-load-interp" class="mt-3 p-3 bg-violet-50 rounded-xl text-[10px] text-violet-700 font-bold">—</div>
                     </div>
@@ -5019,156 +4931,280 @@
             });
         }
 
-        // ── PLAY SIMULATION — Forecast vs Aktual ──────────────────────────────
-        const _fcSim = {
-            temp: { active: false, step: 0, timer: null, speed: 250, errors: [] },
-            load: { active: false, step: 0, timer: null, speed: 250, errors: [] }
+        // ── FULLSCREEN SIMULATION MODAL — Forecast vs Aktual ─────────────────
+        let _fcSimMd = {
+            type:null, chart:null, active:false, paused:false,
+            step:0, timer:null, speed:300, errors:[],
+            totalH:0, totalFc:0, total:0, fc:null, series:null, ts:null
         };
 
-        function setFcSimSpeed(type, val) {
-            _fcSim[type].speed = parseInt(val) || 250;
-            if (_fcSim[type].active && _fcSim[type].timer) {
-                clearInterval(_fcSim[type].timer);
-                _fcSim[type].timer = setInterval(() => _simStep(type), _fcSim[type].speed);
-            }
-        }
-
-        function toggleFcSimulation(type) {
-            if (_fcSim[type].active) stopFcSimulation(type);
-            else startFcSimulation(type);
-        }
-
-        function startFcSimulation(type) {
+        function openFcSimModal(type) {
             const data = type === 'temp' ? _lastFcTempData : _lastFcLoadData;
             if (!data || !data.fc) return;
-            const sim = _fcSim[type];
-            sim.active = true;
-            sim.step   = 0;
-            sim.errors = [];
-
-            const btn = document.getElementById('fc-sim-btn-' + type);
-            if (btn) {
-                const isTemp = type === 'temp';
-                btn.textContent = '⏹ Stop Simulasi';
-                btn.className = `flex items-center gap-1.5 text-[9px] font-bold px-3 py-1.5 rounded-lg ${isTemp ? 'bg-red-50 text-red-700 border border-red-200 hover:bg-red-100' : 'bg-red-50 text-red-700 border border-red-200 hover:bg-red-100'} transition-colors`;
-            }
-
-            const panel = document.getElementById('fc-sim-panel-' + type);
-            if (panel) panel.classList.remove('hidden');
-
-            const logEl = document.getElementById('fc-sim-log-' + type);
-            if (logEl) logEl.innerHTML = '';
-
-            ['fc-sim-mae-','fc-sim-rmse-','fc-sim-mape-'].forEach(p => {
-                const el = document.getElementById(p + type);
-                if (el) el.textContent = '—';
+            const sm   = _fcSimMd;
+            sm.type    = type; sm.fc = data.fc; sm.series = data.series; sm.ts = data.ts;
+            sm.active  = false; sm.paused = false; sm.step = 0; sm.errors = [];
+            sm.totalH  = data.series.length;
+            sm.totalFc = data.fc.allFc.length;
+            sm.total   = sm.totalH + sm.totalFc;
+            const isTemp = type === 'temp';
+            document.getElementById('fc-sim-md-title').textContent =
+                isTemp ? 'Simulasi Forecast Suhu — Holt-Winters DES'
+                       : 'Simulasi Forecast Beban — Holt-Winters DES';
+            const iconEl = document.getElementById('fc-sim-md-icon');
+            iconEl.textContent = isTemp ? '🌡️' : '⚡';
+            iconEl.style.background = isTemp
+                ? 'linear-gradient(135deg,#fca5a5,#ef4444)'
+                : 'linear-gradient(135deg,#c4b5fd,#7c3aed)';
+            _simMdResetBtn();
+            document.getElementById('fc-sim-md-prog').style.width = '0%';
+            document.getElementById('fc-sim-md-step').textContent = '0/'+sm.total;
+            document.getElementById('fc-sim-md-nh').textContent   = sm.totalH;
+            document.getElementById('fc-sim-md-nf').textContent   = sm.totalFc;
+            document.getElementById('fc-sim-md-nt').textContent   = sm.total;
+            ['fc-sim-md-time','fc-sim-md-fc','fc-sim-md-act','fc-sim-md-err',
+             'fc-sim-md-mae','fc-sim-md-rmse','fc-sim-md-mape','fc-sim-md-acc'].forEach(id=>{
+                const el=document.getElementById(id); if(el) el.textContent='—';
             });
-
-            const spdEl = document.getElementById('fc-sim-spd-' + type);
-            sim.speed = spdEl ? parseInt(spdEl.value) || 250 : 250;
-            sim.timer = setInterval(() => _simStep(type), sim.speed);
+            document.getElementById('fc-sim-md-log').innerHTML='';
+            document.getElementById('fc-sim-md-status').textContent='Siap';
+            const fcColor  = isTemp ? '#10b981' : '#f59e0b';
+            const actColor = isTemp ? '#ef4444' : '#7c3aed';
+            document.getElementById('fc-sim-md-legend-fc').style.borderTopColor  = fcColor;
+            document.getElementById('fc-sim-md-legend-act').style.borderTopColor = actColor;
+            document.getElementById('fc-sim-md-fc').style.color = fcColor;
+            document.getElementById('fc-sim-modal').classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+            _buildSimMdChart();
+            simMdTogglePlay();
         }
 
-        function stopFcSimulation(type) {
-            const sim = _fcSim[type];
-            sim.active = false;
-            if (sim.timer) { clearInterval(sim.timer); sim.timer = null; }
+        function closeFcSimModal() {
+            _simMdStop();
+            if (_fcSimMd.chart) { _fcSimMd.chart.destroy(); _fcSimMd.chart = null; }
+            document.getElementById('fc-sim-modal').classList.add('hidden');
+            document.body.style.overflow = '';
+        }
 
-            const btn = document.getElementById('fc-sim-btn-' + type);
-            if (btn) {
-                const isTemp = type === 'temp';
-                btn.textContent = '▶ Play Simulasi';
-                btn.className = `flex items-center gap-1.5 text-[9px] font-bold px-3 py-1.5 rounded-lg ${isTemp ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100' : 'bg-violet-50 text-violet-700 border border-violet-200 hover:bg-violet-100'} transition-colors`;
+        function _buildSimMdChart() {
+            if (_fcSimMd.chart) { _fcSimMd.chart.destroy(); _fcSimMd.chart = null; }
+            const sm     = _fcSimMd;
+            const isTemp = sm.type === 'temp';
+            const unit   = isTemp ? '°C' : 'A';
+            const dec    = isTemp ? 1 : 0;
+            const { fc, series, ts, totalH, totalFc, total } = sm;
+            const cFc  = isTemp ? '#10b981' : '#f59e0b';
+            const cAct = isTemp ? '#ef4444' : '#7c3aed';
+            const cCI  = isTemp ? 'rgba(239,68,68,0.12)' : 'rgba(124,58,237,0.12)';
+            const cErr = 'rgba(251,191,36,0.22)';
+            const lastTs = ts[ts.length-1];
+            const fmt    = t => new Date(t).toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'});
+            const allLbls = [...ts.map(fmt),...fc.allFc.map((_,h)=>fmt(lastTs+(h+1)*fc.avgStepMs))];
+            const fullFcLine = [...fc.fitted,...fc.allFc];
+            const varF  = h => Array.from({length:h+1},(_,j)=>Math.pow(1+j*0.10,2)).reduce((a,b)=>a+b,0);
+            const ciUp  = [...Array(totalH).fill(null),...fc.allFc.map((f,h)=>f+1.96*fc.sigma*Math.sqrt(varF(h)))];
+            const ciLow = [...Array(totalH).fill(null),...fc.allFc.map((f,h)=>f-1.96*fc.sigma*Math.sqrt(varF(h)))];
+            const ctx = document.getElementById('fc-sim-md-canvas');
+            sm.chart = new Chart(ctx, {
+                type:'line',
+                data:{ labels:allLbls, datasets:[
+                    { label:'Model Forecast', data:[...fullFcLine],
+                      borderColor:cFc, borderWidth:2, borderDash:[6,3],
+                      fill:false, pointRadius:0, tension:0.3, spanGaps:true, order:2 },
+                    { label:'CI 95% Upper', data:ciUp,
+                      borderColor:cCI, borderWidth:1, fill:'+1', backgroundColor:cCI,
+                      pointRadius:0, tension:0.2, spanGaps:false, order:4 },
+                    { label:'CI 95% Lower', data:ciLow,
+                      borderColor:cCI, borderWidth:1, fill:false,
+                      pointRadius:0, tension:0.2, spanGaps:false, order:4 },
+                    { label:'Data Aktual', data:Array(total).fill(null),
+                      borderColor:cAct, borderWidth:2.5, fill:false,
+                      pointRadius:2, pointBackgroundColor:cAct, tension:0.3, spanGaps:false, order:1 },
+                    { label:'_errH', data:Array(total).fill(null),
+                      borderColor:'transparent', borderWidth:0, fill:'+1',
+                      backgroundColor:cErr, pointRadius:0, tension:0.3, spanGaps:false, order:3 },
+                    { label:'_errL', data:Array(total).fill(null),
+                      borderColor:'transparent', borderWidth:0, fill:false,
+                      pointRadius:0, tension:0.3, spanGaps:false, order:3 },
+                    { label:'_cursor', data:Array(total).fill(null),
+                      borderColor:'#f97316', backgroundColor:'#f97316', borderWidth:2,
+                      fill:false, pointRadius:9, pointBackgroundColor:'#f97316',
+                      pointBorderColor:'#fff', pointBorderWidth:2.5, tension:0,
+                      spanGaps:false, order:0 }
+                ]},
+                options:{
+                    responsive:true, maintainAspectRatio:false, animation:false,
+                    plugins:{
+                        legend:{ position:'top', labels:{ font:{size:10,weight:'bold'},
+                            usePointStyle:true,
+                            filter:l=>!['CI 95% Lower','_errH','_errL','_cursor'].includes(l.text) }},
+                        tooltip:{ mode:'index', intersect:false,
+                            callbacks:{ label:ctx=>{
+                                if(ctx.parsed.y===null) return null;
+                                if(['_errH','_errL','_cursor'].includes(ctx.dataset.label)) return null;
+                                return ` ${ctx.dataset.label}: ${ctx.parsed.y.toFixed(dec)} ${unit}`;
+                            }}}
+                    },
+                    scales:{
+                        x:{ ticks:{font:{size:9},maxTicksLimit:14,maxRotation:0}, grid:{color:'#f1f5f9'} },
+                        y:{ ticks:{font:{size:10},callback:v=>v.toFixed(0)+unit}, grid:{color:'#f1f5f9'} }
+                    },
+                    interaction:{ mode:'nearest', axis:'x', intersect:false }
+                }
+            });
+        }
+
+        function simMdTogglePlay() {
+            const sm = _fcSimMd;
+            if (!sm.chart) return;
+            if (sm.active && !sm.paused) {
+                sm.paused = true;
+                if (sm.timer) { clearInterval(sm.timer); sm.timer = null; }
+                const btn = document.getElementById('fc-sim-md-play-btn');
+                if (btn) { btn.textContent = '▶ Lanjut'; btn.style.background = '#f59e0b'; }
+                document.getElementById('fc-sim-md-status').textContent = 'Dijeda';
+            } else {
+                sm.active = true; sm.paused = false;
+                const spdEl = document.getElementById('fc-sim-md-spd');
+                sm.speed = spdEl ? parseInt(spdEl.value)||300 : 300;
+                sm.timer = setInterval(_simMdStep, sm.speed);
+                const btn = document.getElementById('fc-sim-md-play-btn');
+                if (btn) { btn.textContent = '⏸ Jeda'; btn.style.background = '#ef4444'; }
+                document.getElementById('fc-sim-md-status').textContent = 'Berjalan';
             }
         }
 
-        function _simStep(type) {
-            const data = type === 'temp' ? _lastFcTempData : _lastFcLoadData;
-            if (!data || !data.fc) { stopFcSimulation(type); return; }
+        function simMdReset() {
+            _simMdStop();
+            const sm = _fcSimMd;
+            sm.step = 0; sm.errors = [];
+            if (!sm.chart) return;
+            [3,4,5,6].forEach(i => sm.chart.data.datasets[i].data = Array(sm.total).fill(null));
+            sm.chart.update('none');
+            document.getElementById('fc-sim-md-prog').style.width = '0%';
+            document.getElementById('fc-sim-md-step').textContent = '0/'+sm.total;
+            ['fc-sim-md-time','fc-sim-md-fc','fc-sim-md-act','fc-sim-md-err',
+             'fc-sim-md-mae','fc-sim-md-rmse','fc-sim-md-mape','fc-sim-md-acc'].forEach(id=>{
+                const el=document.getElementById(id); if(el) el.textContent='—';
+            });
+            document.getElementById('fc-sim-md-log').innerHTML='';
+            document.getElementById('fc-sim-md-status').textContent='Siap';
+        }
 
-            const { fc, series, ts } = data;
-            const sim     = _fcSim[type];
-            const isTemp  = type === 'temp';
-            const unit    = isTemp ? '°C' : 'A';
-            const dec     = isTemp ? 1 : 0;
-            const totalH  = series.length;
-            const totalFc = fc.allFc.length;
-            const total   = totalH + totalFc;
+        function _simMdStop() {
+            const sm = _fcSimMd;
+            sm.active = false; sm.paused = false;
+            if (sm.timer) { clearInterval(sm.timer); sm.timer = null; }
+            _simMdResetBtn();
+        }
 
-            if (sim.step >= total) { stopFcSimulation(type); return; }
+        function _simMdResetBtn() {
+            const btn = document.getElementById('fc-sim-md-play-btn');
+            if (btn) { btn.textContent = '▶ Play'; btn.style.background = ''; }
+        }
 
+        function simMdSetSpeed(val) {
+            _fcSimMd.speed = parseInt(val) || 300;
+            if (_fcSimMd.active && !_fcSimMd.paused && _fcSimMd.timer) {
+                clearInterval(_fcSimMd.timer);
+                _fcSimMd.timer = setInterval(_simMdStep, _fcSimMd.speed);
+            }
+        }
+
+        function _simMdStep() {
+            const sm = _fcSimMd;
+            if (!sm.chart || !sm.fc) return;
+            const { fc, series, ts, totalH, total } = sm;
+            const isTemp = sm.type === 'temp';
+            const unit   = isTemp ? '°C' : 'A';
+            const dec    = isTemp ? 1 : 0;
+            if (sm.step >= total) {
+                _simMdStop();
+                const btn = document.getElementById('fc-sim-md-play-btn');
+                if (btn) { btn.textContent = '✓ Selesai'; btn.style.background = '#10b981'; }
+                document.getElementById('fc-sim-md-status').textContent = 'Selesai';
+                return;
+            }
             let forecast, actual, time, errorPct = null;
-
-            if (sim.step < totalH) {
-                actual   = series[sim.step];
-                forecast = fc.fitted[sim.step] != null ? fc.fitted[sim.step] : (fc.L + sim.step * fc.T);
-                time     = ts[sim.step];
-                if (actual != null && actual !== 0) {
-                    errorPct = Math.abs((forecast - actual) / actual) * 100;
-                    sim.errors.push({ e: Math.abs(forecast - actual), e2: (forecast - actual) ** 2, pe: errorPct });
+            if (sm.step < totalH) {
+                actual   = series[sm.step];
+                forecast = fc.fitted[sm.step] != null ? fc.fitted[sm.step] : (fc.L + sm.step * fc.T);
+                time     = ts[sm.step];
+                sm.chart.data.datasets[3].data[sm.step] = actual;
+                if (actual != null) {
+                    sm.chart.data.datasets[4].data[sm.step] = Math.max(forecast, actual);
+                    sm.chart.data.datasets[5].data[sm.step] = Math.min(forecast, actual);
+                    if (actual !== 0) {
+                        errorPct = Math.abs((forecast-actual)/actual)*100;
+                        sm.errors.push({ e:Math.abs(forecast-actual), e2:(forecast-actual)**2, pe:errorPct });
+                    }
                 }
             } else {
-                const fi = sim.step - totalH;
+                const fi = sm.step - totalH;
                 forecast = fc.allFc[fi];
                 actual   = null;
-                time     = ts[ts.length - 1] + (fi + 1) * fc.avgStepMs;
+                time     = ts[ts.length-1] + (fi+1)*fc.avgStepMs;
             }
-
-            const timeStr = new Date(time).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-
-            // Update live display
-            const setT = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
-            setT('fc-sim-time-' + type, timeStr);
-            setT('fc-sim-fc-'   + type, forecast.toFixed(dec) + unit);
-            setT('fc-sim-act-'  + type, actual != null ? actual.toFixed(dec) + unit : '—');
-
-            if (errorPct != null) {
-                const errEl = document.getElementById('fc-sim-err-' + type);
-                if (errEl) {
-                    errEl.textContent = errorPct.toFixed(2) + '%';
-                    errEl.className = `font-mono font-black ${errorPct < 5 ? 'text-emerald-600' : errorPct < 15 ? 'text-amber-700' : 'text-red-600'}`;
+            if (sm.step > 0) sm.chart.data.datasets[6].data[sm.step-1] = null;
+            sm.chart.data.datasets[6].data[sm.step] = actual != null ? actual : forecast;
+            sm.chart.update('none');
+            const timeStr = new Date(time).toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'});
+            const setT = (id,v) => { const el=document.getElementById(id); if(el) el.textContent=v; };
+            setT('fc-sim-md-time', timeStr);
+            const fcEl = document.getElementById('fc-sim-md-fc');
+            if (fcEl) fcEl.textContent = forecast.toFixed(dec)+unit;
+            setT('fc-sim-md-act', actual!=null ? actual.toFixed(dec)+unit : '— (Prediksi)');
+            const errEl = document.getElementById('fc-sim-md-err');
+            if (errEl) {
+                if (errorPct!=null) {
+                    errEl.textContent = errorPct.toFixed(2)+'%';
+                    errEl.className = `font-mono font-bold ${errorPct<5?'text-emerald-400':errorPct<15?'text-amber-400':'text-red-400'}`;
+                } else { errEl.textContent='— (Prediksi)'; errEl.className='font-mono font-bold text-white/30'; }
+            }
+            document.getElementById('fc-sim-md-prog').style.width=((sm.step+1)/total*100).toFixed(1)+'%';
+            setT('fc-sim-md-step',(sm.step+1)+'/'+total);
+            if (sm.errors.length > 0) {
+                const n=sm.errors.length;
+                const mae  = sm.errors.reduce((s,e)=>s+e.e,0)/n;
+                const rmse = Math.sqrt(sm.errors.reduce((s,e)=>s+e.e2,0)/n);
+                const mape = sm.errors.reduce((s,e)=>s+e.pe,0)/n;
+                const acc  = Math.max(0,100-mape);
+                setT('fc-sim-md-mae',  mae.toFixed(dec)+unit);
+                setT('fc-sim-md-rmse', rmse.toFixed(dec)+unit);
+                setT('fc-sim-md-mape', mape.toFixed(2)+'%');
+                const accEl=document.getElementById('fc-sim-md-acc');
+                if(accEl){ accEl.textContent=acc.toFixed(1)+'%';
+                    accEl.className=`font-mono font-bold ${acc>=90?'text-emerald-400':acc>=75?'text-amber-400':'text-red-400'}`; }
+            }
+            if (actual !== null) {
+                const logEl = document.getElementById('fc-sim-md-log');
+                if (logEl) {
+                    const errCls = errorPct!=null
+                        ?(errorPct<5?'text-emerald-400':errorPct<15?'text-amber-400':'text-red-400')
+                        :'text-white/30';
+                    const status = errorPct==null?'—'
+                        :errorPct<2?'Sangat Akurat':errorPct<5?'Akurat':errorPct<15?'Deviasi':'Error Tinggi';
+                    const fcColor = isTemp?'#10b981':'#f59e0b';
+                    const row = document.createElement('div');
+                    row.className='flex gap-2 text-[8.5px] font-mono border-b border-white/10 py-0.5';
+                    row.innerHTML=`<span class="text-white/40 w-12 shrink-0">${timeStr}</span>`
+                        +`<span class="w-14 shrink-0" style="color:${fcColor}">${forecast.toFixed(dec)}${unit}</span>`
+                        +`<span class="w-14 shrink-0 text-white/80">${actual.toFixed(dec)}${unit}</span>`
+                        +`<span class="w-12 shrink-0 ${errCls}">${errorPct!=null?errorPct.toFixed(2)+'%':'—'}</span>`
+                        +`<span class="flex-1 text-right ${errCls}">${status}</span>`;
+                    logEl.prepend(row);
+                    while(logEl.children.length>15) logEl.removeChild(logEl.lastChild);
                 }
-            } else {
-                setT('fc-sim-err-' + type, '—');
             }
-
-            // Update progress
-            const prog = document.getElementById('fc-sim-prog-' + type);
-            if (prog) prog.style.width = ((sim.step + 1) / total * 100).toFixed(1) + '%';
-            setT('fc-sim-step-' + type, (sim.step + 1) + '/' + total);
-
-            // Add log row
-            const logEl = document.getElementById('fc-sim-log-' + type);
-            if (logEl) {
-                const errCls = errorPct != null
-                    ? (errorPct < 5 ? 'text-emerald-600' : errorPct < 15 ? 'text-amber-600' : 'text-red-600')
-                    : 'text-slate-400';
-                const status = actual == null ? 'Prediksi' : errorPct < 5 ? 'Akurat' : errorPct < 15 ? 'Deviasi' : 'Error Tinggi';
-                const row = document.createElement('div');
-                row.className = 'flex gap-2 text-[8.5px] font-mono border-b border-slate-100 py-0.5';
-                row.innerHTML = `<span class="text-slate-400 w-12 shrink-0">${timeStr}</span>`
-                    + `<span class="w-16 shrink-0 ${isTemp ? 'text-rose-600' : 'text-violet-600'}">${forecast.toFixed(dec)}${unit}</span>`
-                    + `<span class="w-16 shrink-0 text-slate-600">${actual != null ? actual.toFixed(dec) + unit : '—'}</span>`
-                    + `<span class="w-14 shrink-0 ${errCls}">${errorPct != null ? errorPct.toFixed(2) + '%' : '—'}</span>`
-                    + `<span class="flex-1 text-right ${errCls}">${status}</span>`;
-                logEl.prepend(row);
-                while (logEl.children.length > 10) logEl.removeChild(logEl.lastChild);
-            }
-
-            // Update cumulative error metrics
-            if (sim.errors.length > 0) {
-                const n   = sim.errors.length;
-                const mae = sim.errors.reduce((s, e) => s + e.e, 0) / n;
-                const rmse = Math.sqrt(sim.errors.reduce((s, e) => s + e.e2, 0) / n);
-                const mape = sim.errors.reduce((s, e) => s + e.pe, 0) / n;
-                setT('fc-sim-mae-'  + type, mae.toFixed(dec) + unit);
-                setT('fc-sim-rmse-' + type, rmse.toFixed(dec) + unit);
-                setT('fc-sim-mape-' + type, mape.toFixed(2) + '%');
-            }
-
-            sim.step++;
+            sm.step++;
         }
-        // ── END PLAY SIMULATION ───────────────────────────────────────────────
+
+        document.addEventListener('keydown', e => {
+            if (e.key==='Escape' && document.getElementById('fc-sim-modal') &&
+                !document.getElementById('fc-sim-modal').classList.contains('hidden'))
+                closeFcSimModal();
+        });
+        // ── END FULLSCREEN SIMULATION MODAL ──────────────────────────────────
 
 	        function computeOLS(x, y) {
 	            const n=x.length;
@@ -7207,6 +7243,121 @@
 
     </div>
     <!-- /FORECAST FULLVIEW MODAL -->
+
+    <!-- ── SIMULATION FULLSCREEN MODAL ─────────────────────────────── -->
+    <div id="fc-sim-modal" class="hidden fixed inset-0 z-[9999] flex flex-col" style="background:#0f172a;padding:16px;gap:10px;">
+
+      <!-- Header -->
+      <div class="flex items-center gap-3 shrink-0">
+        <div id="fc-sim-md-icon" class="w-10 h-10 rounded-xl flex items-center justify-center text-xl shrink-0" style="background:linear-gradient(135deg,#fca5a5,#ef4444)">🌡️</div>
+        <div>
+          <div id="fc-sim-md-title" class="text-sm font-extrabold text-white uppercase tracking-wider">Simulasi Forecast</div>
+          <div class="text-[9px] font-mono" style="color:rgba(255,255,255,0.4)">Holt-Winters DES · Replay animasi grafik forecast vs data aktual real-time</div>
+        </div>
+        <button onclick="closeFcSimModal()" title="Tutup (ESC)"
+          class="ml-auto px-4 py-2 rounded-lg font-bold text-[10px] text-white transition-colors"
+          style="background:rgba(255,255,255,0.1)"
+          onmouseover="this.style.background='rgba(255,255,255,0.2)'"
+          onmouseout="this.style.background='rgba(255,255,255,0.1)'">✕ Tutup</button>
+      </div>
+
+      <!-- Controls + Progress + Legend -->
+      <div class="flex items-center gap-3 shrink-0 flex-wrap rounded-xl px-4 py-2.5" style="background:rgba(255,255,255,0.06)">
+        <button id="fc-sim-md-play-btn" onclick="simMdTogglePlay()"
+          class="flex items-center gap-1.5 text-[10px] font-bold px-4 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-white transition-colors">
+          ▶ Play
+        </button>
+        <button onclick="simMdReset()"
+          class="flex items-center gap-1.5 text-[10px] font-bold px-3 py-1.5 rounded-lg text-white transition-colors"
+          style="background:rgba(255,255,255,0.1)"
+          onmouseover="this.style.background='rgba(255,255,255,0.2)'"
+          onmouseout="this.style.background='rgba(255,255,255,0.1)'">↺ Reset</button>
+        <label class="flex items-center gap-1.5 text-[9px]" style="color:rgba(255,255,255,0.6)">
+          Kecepatan:
+          <select id="fc-sim-md-spd" onchange="simMdSetSpeed(this.value)"
+            class="text-[9px] rounded px-2 py-0.5 text-white"
+            style="background:#1e293b;border:1px solid rgba(255,255,255,0.2)">
+            <option value="800">Lambat</option>
+            <option value="300" selected>Normal</option>
+            <option value="80">Cepat</option>
+            <option value="15">Turbo</option>
+          </select>
+        </label>
+        <div class="flex-1 flex items-center gap-2 min-w-32">
+          <div class="flex-1 h-2 rounded-full overflow-hidden" style="background:rgba(255,255,255,0.1)">
+            <div id="fc-sim-md-prog" class="h-full bg-emerald-400 rounded-full" style="width:0%"></div>
+          </div>
+          <span id="fc-sim-md-step" class="text-[9px] font-mono whitespace-nowrap" style="color:rgba(255,255,255,0.4)">0/0</span>
+        </div>
+        <!-- Legend -->
+        <div class="flex items-center gap-4 text-[9px] flex-wrap" style="color:rgba(255,255,255,0.5)">
+          <div class="flex items-center gap-1.5">
+            <div id="fc-sim-md-legend-fc" class="w-7 h-0" style="border-top:2px dashed #10b981"></div><span>Model Forecast</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <div id="fc-sim-md-legend-act" class="w-7 h-0" style="border-top:2.5px solid #ef4444"></div><span>Data Aktual</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <div class="w-5 h-3 rounded-sm" style="background:rgba(251,191,36,0.35)"></div><span>Selisih Error</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <div class="w-3.5 h-3.5 rounded-full" style="background:#f97316;border:2px solid #fff"></div><span>Posisi Saat Ini</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Chart (main) -->
+      <div class="flex-1 bg-white rounded-2xl p-4 shadow-2xl relative min-h-0">
+        <canvas id="fc-sim-md-canvas" class="w-full h-full"></canvas>
+      </div>
+
+      <!-- Bottom Stats Grid -->
+      <div class="grid gap-2 shrink-0" style="grid-template-columns:1fr 1fr 1fr 2fr">
+
+        <div class="rounded-xl p-3" style="background:rgba(255,255,255,0.07)">
+          <div class="text-[8px] font-extrabold uppercase tracking-widest mb-2" style="color:rgba(255,255,255,0.35)">Langkah Saat Ini</div>
+          <div class="space-y-1.5 text-[10px]">
+            <div class="flex justify-between gap-2"><span style="color:rgba(255,255,255,0.5)">Waktu</span><span id="fc-sim-md-time" class="font-mono text-white font-bold">—</span></div>
+            <div class="flex justify-between gap-2"><span style="color:rgba(255,255,255,0.5)">Forecast</span><span id="fc-sim-md-fc" class="font-mono font-bold text-emerald-400">—</span></div>
+            <div class="flex justify-between gap-2"><span style="color:rgba(255,255,255,0.5)">Aktual</span><span id="fc-sim-md-act" class="font-mono text-white font-bold">—</span></div>
+            <div class="flex justify-between gap-2"><span style="color:rgba(255,255,255,0.5)">Error</span><span id="fc-sim-md-err" class="font-mono font-bold text-amber-400">—</span></div>
+          </div>
+        </div>
+
+        <div class="rounded-xl p-3" style="background:rgba(255,255,255,0.07)">
+          <div class="text-[8px] font-extrabold uppercase tracking-widest mb-2" style="color:rgba(255,255,255,0.35)">Akumulasi Metrik</div>
+          <div class="space-y-1.5 text-[10px]">
+            <div class="flex justify-between gap-2"><span style="color:rgba(255,255,255,0.5)">MAE</span><span id="fc-sim-md-mae" class="font-mono text-white font-bold">—</span></div>
+            <div class="flex justify-between gap-2"><span style="color:rgba(255,255,255,0.5)">RMSE</span><span id="fc-sim-md-rmse" class="font-mono text-white font-bold">—</span></div>
+            <div class="flex justify-between gap-2"><span style="color:rgba(255,255,255,0.5)">MAPE</span><span id="fc-sim-md-mape" class="font-mono text-white font-bold">—</span></div>
+            <div class="flex justify-between gap-2"><span style="color:rgba(255,255,255,0.5)">Akurasi</span><span id="fc-sim-md-acc" class="font-mono font-bold text-emerald-400">—</span></div>
+          </div>
+        </div>
+
+        <div class="rounded-xl p-3" style="background:rgba(255,255,255,0.07)">
+          <div class="text-[8px] font-extrabold uppercase tracking-widest mb-2" style="color:rgba(255,255,255,0.35)">Info Model</div>
+          <div class="space-y-1.5 text-[10px]" style="color:rgba(255,255,255,0.6)">
+            <div class="flex justify-between gap-2"><span>N historis</span><span id="fc-sim-md-nh" class="font-mono text-white">—</span></div>
+            <div class="flex justify-between gap-2"><span>N forecast</span><span id="fc-sim-md-nf" class="font-mono text-white">—</span></div>
+            <div class="flex justify-between gap-2"><span>Total step</span><span id="fc-sim-md-nt" class="font-mono text-white">—</span></div>
+            <div class="flex justify-between gap-2"><span>Status</span><span id="fc-sim-md-status" class="font-mono font-bold" style="color:rgba(255,255,255,0.4)">Siap</span></div>
+          </div>
+        </div>
+
+        <div class="rounded-xl p-3 overflow-hidden" style="background:rgba(255,255,255,0.07)">
+          <div class="text-[8px] font-extrabold uppercase tracking-widest mb-1" style="color:rgba(255,255,255,0.35)">Log Perbandingan Real-Time</div>
+          <div class="flex gap-2 text-[7.5px] font-extrabold uppercase tracking-widest border-b pb-1 mb-1"
+            style="color:rgba(255,255,255,0.25);border-color:rgba(255,255,255,0.1)">
+            <span class="w-12 shrink-0">Waktu</span><span class="w-14 shrink-0">Forecast</span>
+            <span class="w-14 shrink-0">Aktual</span><span class="w-12 shrink-0">Error</span>
+            <span class="flex-1 text-right">Status</span>
+          </div>
+          <div id="fc-sim-md-log" class="overflow-y-auto" style="max-height:78px"></div>
+        </div>
+
+      </div>
+    </div>
+    <!-- /SIMULATION FULLSCREEN MODAL -->
 
 </body>
 </html>
