@@ -198,11 +198,15 @@
 
     <!-- Sidebar Menu Navigasi -->
     <aside id="sidebar" class="w-64 flex-col hidden">
-        <div class="p-6 border-b border-white/10 flex items-center gap-3">
-            <div class="bg-white p-2 rounded-lg shadow-md"><i data-lucide="shield" class="text-[#0d9488] w-6 h-6 fill-current"></i></div>
-            <div class="flex flex-col">
-                <span class="text-xl font-extrabold tracking-tight text-white">SHIELD</span>
-                <span class="text-[9px] text-teal-200 font-bold uppercase tracking-widest">Smart Hotspot Identification and Early Warning Device</span>
+        <div class="px-5 py-4 border-b border-white/10 flex items-center gap-3">
+            <svg width="40" height="46" viewBox="0 0 100 114" fill="none" xmlns="http://www.w3.org/2000/svg" class="shrink-0 drop-shadow-md">
+                <path fill="white" d="M4,4 L40,4 L40,17 L16,17 L16,72 C16,90 33,103 50,111 C28,101 22,88 22,72 L22,11 L4,11 Z"/>
+                <path fill="white" d="M40,4 L96,4 L96,17 L40,17 Z"/>
+                <path fill="white" d="M62,9 L42,54 L57,54 L44,105 L77,46 L61,46 Z"/>
+            </svg>
+            <div class="min-w-0">
+                <div class="text-xl font-black tracking-widest text-white leading-none">SHIELD</div>
+                <div class="text-[8px] font-bold uppercase tracking-wider leading-snug mt-0.5" style="color:#7dd9e0">Smart Hotspot<br>Identification & Early<br>Warning Device</div>
             </div>
         </div>
         <nav class="flex-1 p-4 space-y-1 mt-4 overflow-y-auto">
@@ -2203,10 +2207,17 @@
     <div id="login-overlay" class="fixed inset-0 z-[100] flex items-center justify-center p-6 login-screen">
         <div class="bg-white/95 backdrop-blur-md w-full max-w-md rounded-3xl p-8 shadow-2xl border border-white">
             <div class="text-center mb-8">
-                <div class="bg-gradient-to-br from-[#0d9488] to-[#0f766e] w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-5 shadow-lg"><i data-lucide="shield" class="text-white w-9 h-9 fill-current"></i></div>
-                <h1 class="text-3xl font-black text-[#1e293b] uppercase">SHIELD</h1>
-                <p class="text-[11px] text-slate-400 font-bold uppercase mt-2 tracking-widest">Whitelist Access Only</p>
-                <p class="text-[10px] text-teal-600 font-semibold mt-1">Smart Hotspot Identification and Early Warning Device</p>
+                <div class="w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-xl"
+                     style="background:linear-gradient(135deg,#0a4f5e 0%,#083d4b 100%)">
+                    <svg width="46" height="52" viewBox="0 0 100 114" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path fill="white" d="M4,4 L40,4 L40,17 L16,17 L16,72 C16,90 33,103 50,111 C28,101 22,88 22,72 L22,11 L4,11 Z"/>
+                        <path fill="white" d="M40,4 L96,4 L96,17 L40,17 Z"/>
+                        <path fill="white" d="M62,9 L42,54 L57,54 L44,105 L77,46 L61,46 Z"/>
+                    </svg>
+                </div>
+                <h1 class="text-3xl font-black text-[#0a4f5e] uppercase tracking-widest">SHIELD</h1>
+                <p class="text-[11px] text-slate-400 font-bold uppercase mt-1.5 tracking-widest">Whitelist Access Only</p>
+                <p class="text-[10px] font-semibold mt-1" style="color:#1a7a8c">Smart Hotspot Identification and Early Warning Device</p>
             </div>
             <form onsubmit="event.preventDefault(); handleSignIn(this.email.value, this.password.value)" class="space-y-4">
                 <div>
