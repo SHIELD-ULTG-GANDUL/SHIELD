@@ -104,7 +104,15 @@
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap');
-        body { font-family: 'Inter', sans-serif; background-color: #f4f7f9; color: #1e293b; overflow: hidden; }
+        /* ── PLN Theme ── */
+        :root {
+            --pln-blue:   #1a7a8c;
+            --pln-teal:   #0d9488;
+            --pln-green:  #4caf50;
+            --pln-green-d:#388e3c;
+            --pln-cyan:   #5bc8d3;
+        }
+        body { font-family: 'Inter', sans-serif; background: linear-gradient(135deg, #1b6b7c 0%, #2596a8 55%, #68c9d4 100%) fixed; color: #1e293b; overflow: hidden; }
         .login-screen {
             background:
                 linear-gradient(135deg, rgba(4, 11, 30, 0.91) 0%, rgba(168, 14, 14, 0.28) 42%, rgba(5, 72, 90, 0.62) 100%),
@@ -113,31 +121,31 @@
             background-position: center 35%;
             background-attachment: fixed;
         }
-        #sidebar { background: linear-gradient(180deg, #0d9488 0%, #0f766e 100%); border-right: 1px solid rgba(255,255,255,0.1); }
+        #sidebar { background: linear-gradient(180deg, #0a4f5e 0%, #083d4b 100%); border-right: 1px solid rgba(255,255,255,0.08); }
         .sidebar-item { transition: all 0.2s ease; cursor: pointer; color: rgba(255,255,255,0.8); position: relative; }
         .sidebar-item:hover { background: rgba(255,255,255,0.1); color: white; }
-        .sidebar-item.active { background: rgba(255,255,255,0.15); color: #fff; border-left: 4px solid #facc15; }
+        .sidebar-item.active { background: rgba(76,175,80,0.18); color: #fff; border-left: 4px solid #4caf50; }
         .sidebar-arrow { transition: transform 0.25s ease; display:inline-block; }
         .sidebar-item.open .sidebar-arrow { transform: rotate(90deg); }
         .sidebar-submenu { overflow: hidden; max-height: 0; transition: max-height 0.3s ease, opacity 0.25s ease; opacity: 0; }
         .sidebar-submenu.open { opacity: 1; }
         .sidebar-sub-item { display:flex; align-items:center; gap:8px; padding:7px 16px 7px 44px; font-size:0.75rem; font-weight:600; color:rgba(255,255,255,0.65); cursor:pointer; border-radius:10px; transition:all 0.15s; }
         .sidebar-sub-item:hover { background:rgba(255,255,255,0.12); color:#fff; }
-        .sidebar-sub-item.active { color:#facc15; background:rgba(250,204,21,0.12); }
-        .glass-card { background: white; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); border-radius: 1rem; display: flex; flex-direction: column; overflow: hidden; }
-        .status-badge-teal { background: linear-gradient(90deg, #2dd4bf 0%, #0d9488 100%); height: 3px; width: 30px; display: inline-block; margin-right: 8px; border-radius: 2px;}
+        .sidebar-sub-item.active { color:#4caf50; background:rgba(76,175,80,0.15); }
+        .glass-card { background: rgba(255,255,255,0.97); border: 1px solid rgba(255,255,255,0.6); box-shadow: 0 4px 20px rgba(0,0,0,0.08); border-radius: 1rem; display: flex; flex-direction: column; overflow: hidden; }
+        .status-badge-teal { background: linear-gradient(90deg, #4caf50 0%, #388e3c 100%); height: 3px; width: 30px; display: inline-block; margin-right: 8px; border-radius: 2px;}
         .compact-table td { padding: 12px 14px; border-bottom: 1px solid #f1f5f9; }
         .label-cell { color: #64748b; width: 50%; font-weight: 500; font-size: 0.8rem; }
-        .value-cell { font-weight: 700; text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 1.1rem; width: 50%; color: #0f766e; }
-        header { background: white; border-bottom: 1px solid #e2e8f0; }
-        #main-content { height: calc(100vh - 80px); overflow-y: auto; background-color: #f8fafc; }
-        
-        .btn-action { background: linear-gradient(90deg, #0d9488 0%, #0f766e 100%); color: white; font-weight: 600; border-radius: 8px; transition: all 0.3s; }
+        .value-cell { font-weight: 700; text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 1.1rem; width: 50%; color: #388e3c; }
+        header { background: rgba(255,255,255,0.97); border-bottom: 2px solid rgba(76,175,80,0.25); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+        #main-content { height: calc(100vh - 80px); overflow-y: auto; background: transparent; }
+
+        .btn-action { background: linear-gradient(90deg, #4caf50 0%, #388e3c 100%); color: white; font-weight: 600; border-radius: 8px; transition: all 0.3s; }
         .btn-logout-small { background: #e11d48; color: white; padding: 10px; border-radius: 8px; transition: all 0.2s; display: flex; align-items: center; justify-content: center; }
         .btn-logout-small:hover { background: #be123c; transform: scale(1.05); }
 
         /* Status Warna Suhu */
-        .temp-normal { color: #0d9488; }
+        .temp-normal { color: #388e3c; }
         .temp-warning { color: #f59e0b; }
         .temp-danger { color: #ef4444; }
 
@@ -146,11 +154,11 @@
         .status-badge-violet { background: linear-gradient(90deg, #a78bfa 0%, #7c3aed 100%); height: 3px; width: 30px; display: inline-block; margin-right: 8px; border-radius: 2px; }
         .status-badge-blue { background: linear-gradient(90deg, #60a5fa 0%, #2563eb 100%); height: 3px; width: 30px; display: inline-block; margin-right: 8px; border-radius: 2px; }
 
-        /* Chart Filter Saham */
+        /* Chart Filter */
         .chart-filter-btn { padding: 5px 13px; border-radius: 7px; font-size: 11px; font-weight: 800; color: #64748b; transition: all 0.18s; cursor: pointer; background: transparent; border: none; letter-spacing: 0.03em; }
-        .chart-filter-btn:hover { background: rgba(255,255,255,0.8); color: #0d9488; }
-        .chart-filter-btn.active { background: white; color: #0f766e; box-shadow: 0 1px 6px rgba(0,0,0,0.12); }
-        .chart-filter-btn.live.active { color: #10b981; }
+        .chart-filter-btn:hover { background: rgba(255,255,255,0.8); color: #388e3c; }
+        .chart-filter-btn.active { background: white; color: #388e3c; box-shadow: 0 1px 6px rgba(0,0,0,0.12); }
+        .chart-filter-btn.live.active { color: #4caf50; }
         .chart-filter-sep { width: 1px; height: 18px; background: #e2e8f0; display: inline-block; margin: 0 2px; }
         /* Parameter Filter Beban */
         .param-filter-btn { padding: 5px 14px; border-radius: 7px; font-size: 11px; font-weight: 800; color: #6d28d9; transition: all 0.18s; cursor: pointer; background: transparent; border: none; }
@@ -160,25 +168,25 @@
         .hotspot-normal  { background: linear-gradient(135deg,#d1fae5,#ecfdf5); border-color: #6ee7b7; }
         .hotspot-warning { background: linear-gradient(135deg,#fef3c7,#fffbeb); border-color: #fbbf24; }
         .hotspot-critical{ background: linear-gradient(135deg,#fee2e2,#fff5f5); border-color: #f87171; }
-        .kpi-delta-normal  { color: #0d9488; }
+        .kpi-delta-normal  { color: #388e3c; }
         .kpi-delta-warning { color: #d97706; }
         .kpi-delta-critical{ color: #dc2626; }
         /* Drag-Zoom Mode */
         .drag-zoom-canvas { cursor: crosshair !important; }
         .btn-drag-zoom { display:flex; align-items:center; gap:6px; background:white; border:1.5px solid #e2e8f0; color:#475569; font-size:11px; font-weight:800; padding:6px 12px; border-radius:8px; cursor:pointer; transition:all 0.18s; }
-        .btn-drag-zoom:hover { border-color:#0d9488; color:#0d9488; background:#f0fdfa; }
-        .btn-drag-zoom.active { background:#0d9488; border-color:#0d9488; color:white; box-shadow:0 0 0 3px rgba(13,148,136,0.2); }
+        .btn-drag-zoom:hover { border-color:#4caf50; color:#388e3c; background:#f0fdf4; }
+        .btn-drag-zoom.active { background:#4caf50; border-color:#4caf50; color:white; box-shadow:0 0 0 3px rgba(76,175,80,0.2); }
         .btn-drag-zoom.active-beban { background:#7c3aed; border-color:#7c3aed; color:white; box-shadow:0 0 0 3px rgba(124,58,237,0.2); }
         /* Filter Panel Logger */
         .filter-input { width:100%; border:1px solid #e2e8f0; border-radius:8px; padding:7px 10px; font-size:11px; font-family:'JetBrains Mono',monospace; color:#374151; outline:none; background:white; }
-        .filter-input:focus { border-color:#0d9488; }
+        .filter-input:focus { border-color:#4caf50; box-shadow:0 0 0 2px rgba(76,175,80,0.15); }
         .filter-label { display:block; font-size:9px; font-weight:800; text-transform:uppercase; letter-spacing:0.06em; color:#94a3b8; margin-bottom:4px; }
         /* Inner Tabs */
         .inner-tab-nav { display:flex; border-bottom:2px solid #e2e8f0; margin-bottom:1.5rem; gap:2px; overflow-x:auto; flex-wrap:nowrap; scroll-behavior:smooth; -webkit-overflow-scrolling:touch; }
         .inner-tab-nav::-webkit-scrollbar { height:3px; } .inner-tab-nav::-webkit-scrollbar-thumb { background:#e2e8f0; border-radius:2px; }
         .inner-tab-btn { padding:10px 18px; font-size:11.5px; font-weight:800; border:none; border-bottom:3px solid transparent; color:#64748b; cursor:pointer; background:transparent; transition:all 0.18s; margin-bottom:-2px; border-radius:8px 8px 0 0; display:flex; align-items:center; gap:6px; white-space:nowrap; flex-shrink:0; }
-        .inner-tab-btn:hover { color:#0d9488; background:#f0fdfa; }
-        .inner-tab-btn.active { color:#0d9488; border-bottom-color:#0d9488; background:#f0fdfa; }
+        .inner-tab-btn:hover { color:#388e3c; background:#f0fdf4; }
+        .inner-tab-btn.active { color:#388e3c; border-bottom-color:#4caf50; background:#f0fdf4; }
         .inner-tab-btn.v-beban:hover { color:#7c3aed; background:#faf5ff; }
         .inner-tab-btn.v-beban.active { color:#7c3aed; border-bottom-color:#7c3aed; background:#faf5ff; }
 
@@ -188,8 +196,8 @@
         .fv-ds-btn.active-temp { background:#ef4444; border-color:#ef4444; color:white; }
         .fv-ds-btn.active-load { background:#7c3aed; border-color:#7c3aed; color:white; }
         .fv-tool-btn { display:flex; align-items:center; gap:4px; padding:6px 10px; border-radius:8px; font-size:11px; font-weight:800; cursor:pointer; transition:all 0.15s; border:1.5px solid #e2e8f0; background:white; color:#475569; }
-        .fv-tool-btn:hover { border-color:#0d9488; color:#0d9488; background:#f0fdfa; }
-        .fv-tool-btn.active { background:#0d9488; border-color:#0d9488; color:white; box-shadow:0 0 0 3px rgba(13,148,136,0.2); }
+        .fv-tool-btn:hover { border-color:#4caf50; color:#388e3c; background:#f0fdf4; }
+        .fv-tool-btn.active { background:#4caf50; border-color:#4caf50; color:white; box-shadow:0 0 0 3px rgba(76,175,80,0.2); }
         .fv-save-btn { display:flex; align-items:center; gap:4px; padding:6px 10px; border-radius:8px; font-size:11px; font-weight:800; cursor:pointer; transition:all 0.15s; border:1.5px solid #bfdbfe; background:#eff6ff; color:#2563eb; }
         .fv-save-btn:hover { background:#2563eb; color:white; border-color:#2563eb; }
         .fv-share-btn { display:flex; align-items:center; gap:4px; padding:6px 10px; border-radius:8px; font-size:11px; font-weight:800; cursor:pointer; transition:all 0.15s; border:1.5px solid #bbf7d0; background:#f0fdf4; color:#16a34a; }
@@ -197,12 +205,17 @@
         .fv-close-btn { display:flex; align-items:center; justify-content:center; width:34px; height:34px; border-radius:8px; cursor:pointer; transition:all 0.15s; border:1.5px solid #fecaca; background:#fff5f5; color:#dc2626; }
         .fv-close-btn:hover { background:#dc2626; color:white; border-color:#dc2626; }
         .fc-expand-btn { display:flex; align-items:center; gap:4px; padding:4px 9px; border-radius:7px; font-size:10px; font-weight:800; cursor:pointer; transition:all 0.15s; border:1.5px solid #e2e8f0; background:white; color:#64748b; }
-        .fc-expand-btn:hover { border-color:#0d9488; color:#0d9488; background:#f0fdfa; }
+        .fc-expand-btn:hover { border-color:#4caf50; color:#388e3c; background:#f0fdf4; }
         .fc-time-btn { padding:3px 8px; border-radius:5px; font-size:9px; font-weight:800; cursor:pointer; transition:all 0.15s; border:1.5px solid #e2e8f0; background:white; color:#94a3b8; letter-spacing:0.02em; }
         .fc-time-btn:hover { border-color:#94a3b8; color:#475569; }
         .f-active-temp { background:#ef4444 !important; border-color:#ef4444 !important; color:white !important; }
         .f-active-load { background:#7c3aed !important; border-color:#7c3aed !important; color:white !important; }
-        .f-active-fv   { background:#0d9488 !important; border-color:#0d9488 !important; color:white !important; }
+        .f-active-fv   { background:#4caf50 !important; border-color:#4caf50 !important; color:white !important; }
+
+        /* ── PLN Lokasi warning ── */
+        #lokasi-warning-modal { background: rgba(15,23,42,0.7); backdrop-filter: blur(6px); }
+        .pln-selector { background: white; border: 1.5px solid rgba(76,175,80,0.3); border-radius: 12px; padding: 6px 12px; display:flex; align-items:center; gap:8px; transition: border-color 0.2s; }
+        .pln-selector:hover { border-color: #4caf50; }
     </style>
 </head>
 <body class="flex min-h-screen">
@@ -319,25 +332,39 @@
 
     <!-- Konten Utama -->
     <div class="flex-1 flex flex-col overflow-hidden">
-        <header class="h-20 px-8 flex items-center justify-between shadow-sm z-10">
-            <div class="flex items-center gap-8">
+        <header class="h-20 px-6 flex items-center justify-between z-10">
+            <div class="flex items-center gap-5 flex-wrap">
                 <div>
                     <h2 id="page-title" class="text-xl font-extrabold text-[#1e293b]">Dashboard Suhu</h2>
                     <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Acrel ATP007 Temperature Monitor</p>
                 </div>
-                <div class="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2">
-                    <span class="text-[10px] font-bold text-slate-500 uppercase">Pilih Trafo:</span>
-                    <select id="trafo-selector" onchange="handleTrafoChange()" class="bg-transparent text-sm font-extrabold outline-none cursor-pointer text-[#0d9488]">
+                <!-- Pilih Lokasi -->
+                <div class="pln-selector">
+                    <i data-lucide="map-pin" class="w-4 h-4 text-[#4caf50] shrink-0"></i>
+                    <span class="text-[10px] font-bold text-slate-500 uppercase">Lokasi:</span>
+                    <select id="lokasi-selector" onchange="handleLokasiChange()" class="bg-transparent text-sm font-extrabold outline-none cursor-pointer text-[#388e3c]">
+                        <option value="gi-gandul">GI Gandul</option>
+                        <option value="gi-cimanggis">GI Cimanggis</option>
+                        <option value="gi-depok">GI Depok</option>
+                        <option value="gis-depok-baru">GIS Depok Baru</option>
+                        <option value="gis-ragunan">GIS Ragunan</option>
+                    </select>
+                </div>
+                <!-- Pilih Trafo -->
+                <div class="pln-selector">
+                    <i data-lucide="zap" class="w-4 h-4 text-[#4caf50] shrink-0"></i>
+                    <span class="text-[10px] font-bold text-slate-500 uppercase">Trafo:</span>
+                    <select id="trafo-selector" onchange="handleTrafoChange()" class="bg-transparent text-sm font-extrabold outline-none cursor-pointer text-[#388e3c]">
                         <option value="2" selected>Trafo 2</option>
                         <option value="3">Trafo 3</option>
                         <option value="4">Trafo 4</option>
                     </select>
                 </div>
             </div>
-            
+
             <div class="flex items-center gap-6">
                 <div class="text-right">
-                    <div id="live-clock" class="text-sm font-bold font-mono text-[#0f766e]">00:00:00</div>
+                    <div id="live-clock" class="text-sm font-bold font-mono text-[#388e3c]">00:00:00</div>
                     <div class="flex items-center gap-2 justify-end">
                         <div id="conn-dot" class="w-2.5 h-2.5 rounded-full bg-red-500"></div>
                         <span id="conn-text" class="text-[9px] font-black uppercase text-slate-400">Offline</span>
@@ -2528,6 +2555,29 @@
         }
 
         // Ubah Trafo Dropdown
+        const _lokasiLabels = {
+            'gi-gandul':     'GI Gandul',
+            'gi-cimanggis':  'GI Cimanggis',
+            'gi-depok':      'GI Depok',
+            'gis-depok-baru':'GIS Depok Baru',
+            'gis-ragunan':   'GIS Ragunan'
+        };
+
+        function handleLokasiChange() {
+            const sel = document.getElementById('lokasi-selector');
+            if (sel.value !== 'gi-gandul') {
+                const label = _lokasiLabels[sel.value] || sel.value;
+                document.getElementById('lokasi-warning-name').textContent = label;
+                document.getElementById('lokasi-warning-modal').classList.remove('hidden');
+                sel.value = 'gi-gandul'; // reset immediately
+                lucide.createIcons();
+            }
+        }
+
+        function closeLokasWarning() {
+            document.getElementById('lokasi-warning-modal').classList.add('hidden');
+        }
+
         function handleTrafoChange() {
             selectedTrafo = document.getElementById('trafo-selector').value;
 
@@ -7520,6 +7570,26 @@
       </div>
     </div>
     <!-- /SIMULATION FULLSCREEN MODAL -->
+
+    <!-- ── LOKASI WARNING MODAL ─────────────────────────────────────── -->
+    <div id="lokasi-warning-modal" class="hidden fixed inset-0 z-[9999] flex items-center justify-center" id="lokasi-warning-modal">
+      <div class="absolute inset-0" style="background:rgba(15,23,42,0.65);backdrop-filter:blur(6px)" onclick="closeLokasWarning()"></div>
+      <div class="relative bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full mx-4 text-center">
+        <div class="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style="background:linear-gradient(135deg,#fef3c7,#fde68a)">
+          <i data-lucide="map-pin-off" class="w-8 h-8 text-amber-500"></i>
+        </div>
+        <h3 class="text-lg font-extrabold text-slate-800 mb-1">Device Belum Terpasang</h3>
+        <p class="text-sm text-slate-500 mb-1">Lokasi yang dipilih:</p>
+        <p id="lokasi-warning-name" class="text-base font-extrabold text-amber-600 mb-4">—</p>
+        <p class="text-sm text-slate-500 mb-6">Perangkat SHIELD belum terpasang di lokasi ini. Saat ini hanya tersedia di <span class="font-bold text-emerald-600">GI Gandul</span>.</p>
+        <button onclick="closeLokasWarning()"
+          class="w-full py-2.5 rounded-xl font-bold text-white text-sm transition-all"
+          style="background:linear-gradient(90deg,#4caf50,#388e3c)">
+          Kembali ke GI Gandul
+        </button>
+      </div>
+    </div>
+    <!-- /LOKASI WARNING MODAL -->
 
 </body>
 </html>
