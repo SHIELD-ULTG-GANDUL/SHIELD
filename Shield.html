@@ -2453,14 +2453,12 @@
         }
 
         function goToTab(page, tab) {
-            // Switch to page first if needed
             if (activePage !== page) switchPage(page);
-            // Open the submenu for this page
             _subMenuOpen[page] = true;
             _applySubMenuState(page);
-            // Switch inner tab
-            switchInnerTab(page, tab);
-            // Extra triggers for logger/graphs that need data loading
+            // Dashboard inner-tab group is named 'dash', all others match the page name
+            const tabGroup = page === 'dashboard' ? 'dash' : page;
+            switchInnerTab(tabGroup, tab);
             if (page === 'logger' && tab === 'beban') loadBebanLogs();
             if (page === 'graphs' && tab === 'suhu')  setTimeFilter(activeTimeFilter);
             if (page === 'graphs' && tab === 'beban') setBebanTimeFilter(activeBebanTimeFilter);
