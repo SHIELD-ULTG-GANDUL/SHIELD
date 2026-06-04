@@ -198,17 +198,15 @@
 
     <!-- Sidebar Menu Navigasi -->
     <aside id="sidebar" class="w-64 flex-col hidden">
-        <div class="px-5 py-4 border-b border-white/10 flex items-center gap-3">
-            <div class="shrink-0 rounded-xl p-1.5" style="background:rgba(255,255,255,0.15)">
-                <svg width="38" height="44" viewBox="0 0 100 114" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path fill="white" d="M4,4 L40,4 L40,17 L16,17 L16,72 C16,90 33,103 50,111 C28,101 22,88 22,72 L22,11 L4,11 Z"/>
-                    <path fill="white" d="M40,4 L96,4 L96,17 L40,17 Z"/>
-                    <path fill="white" d="M62,9 L42,54 L57,54 L44,105 L77,46 L61,46 Z"/>
-                </svg>
-            </div>
+        <div class="px-5 py-5 border-b border-white/10 flex items-center gap-4">
+            <svg width="48" height="56" viewBox="0 0 100 116" fill="none" xmlns="http://www.w3.org/2000/svg" class="shrink-0">
+                <path fill="white" d="M4,4 L42,4 L42,18 L17,18 L17,74 C17,93 35,106 50,113 C26,103 23,91 23,74 L23,12 L4,12 Z"/>
+                <path fill="white" d="M42,4 L96,4 L96,18 L42,18 Z"/>
+                <path fill="white" d="M67,11 L44,59 L61,59 L47,109 L83,51 L65,51 Z"/>
+            </svg>
             <div class="min-w-0">
-                <div class="text-xl font-black tracking-widest text-white leading-none">SHIELD</div>
-                <div class="text-[8px] font-bold uppercase tracking-wider leading-snug mt-0.5" style="color:#7dd9e0">Smart Hotspot<br>Identification & Early<br>Warning Device</div>
+                <div class="text-[22px] font-black tracking-[0.15em] text-white leading-none">SHIELD</div>
+                <div class="text-[8px] font-bold uppercase tracking-wider leading-snug mt-1" style="color:#7dd9e0">Smart Hotspot<br>Identification & Early<br>Warning Device</div>
             </div>
         </div>
         <nav class="flex-1 p-4 space-y-1 mt-4 overflow-y-auto">
@@ -2207,31 +2205,39 @@
 
     <!-- Login Dialog / Whitelist Access Only -->
     <div id="login-overlay" class="fixed inset-0 z-[100] flex items-center justify-center p-6 login-screen">
-        <div class="bg-white/95 backdrop-blur-md w-full max-w-md rounded-3xl p-8 shadow-2xl border border-white">
-            <div class="text-center mb-8">
-                <div class="w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-xl"
-                     style="background:linear-gradient(135deg,#0a4f5e 0%,#083d4b 100%)">
-                    <svg width="46" height="52" viewBox="0 0 100 114" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path fill="white" d="M4,4 L40,4 L40,17 L16,17 L16,72 C16,90 33,103 50,111 C28,101 22,88 22,72 L22,11 L4,11 Z"/>
-                        <path fill="white" d="M40,4 L96,4 L96,17 L40,17 Z"/>
-                        <path fill="white" d="M62,9 L42,54 L57,54 L44,105 L77,46 L61,46 Z"/>
-                    </svg>
+        <div class="w-full max-w-md rounded-3xl shadow-2xl overflow-hidden" style="border:1px solid rgba(255,255,255,0.15)">
+
+            <!-- ── Dark navy logo header (matches reference) ── -->
+            <div class="flex items-center gap-6 px-8 py-7" style="background:#0d1f2d">
+                <svg width="78" height="90" viewBox="0 0 100 116" fill="none" xmlns="http://www.w3.org/2000/svg" class="shrink-0">
+                    <path fill="white" d="M4,4 L42,4 L42,18 L17,18 L17,74 C17,93 35,106 50,113 C26,103 23,91 23,74 L23,12 L4,12 Z"/>
+                    <path fill="white" d="M42,4 L96,4 L96,18 L42,18 Z"/>
+                    <path fill="white" d="M67,11 L44,59 L61,59 L47,109 L83,51 L65,51 Z"/>
+                </svg>
+                <div>
+                    <div class="text-4xl font-black text-white tracking-[0.12em] leading-none">SHIELD</div>
+                    <div class="text-[11px] font-bold uppercase tracking-wider mt-2 leading-relaxed" style="color:#6ecbd4">
+                        Smart Hotspot<br>Identification and<br>Early Warning Device
+                    </div>
                 </div>
-                <h1 class="text-3xl font-black text-[#0a4f5e] uppercase tracking-widest">SHIELD</h1>
-                <p class="text-[11px] text-slate-400 font-bold uppercase mt-1.5 tracking-widest">Whitelist Access Only</p>
-                <p class="text-[10px] font-semibold mt-1" style="color:#1a7a8c">Smart Hotspot Identification and Early Warning Device</p>
             </div>
-            <form onsubmit="event.preventDefault(); handleSignIn(this.email.value, this.password.value)" class="space-y-4">
-                <div>
-                    <label class="block text-[11px] font-extrabold uppercase text-slate-400 mb-2">Kredensial Email</label>
-                    <input type="email" name="email" value="shieldgandul@gmail.com" required class="w-full border border-slate-300 p-4 rounded-xl text-sm outline-none focus:border-[#0d9488]" placeholder="Email Terdaftar">
-                </div>
-                <div>
-                    <label class="block text-[11px] font-extrabold uppercase text-slate-400 mb-2">Password Akses</label>
-                    <input type="password" name="password" value="shieldgandul123" required class="w-full border border-slate-300 p-4 rounded-xl text-sm outline-none focus:border-[#0d9488]" placeholder="Password">
-                </div>
-                <button type="submit" id="connect-btn-ui" class="btn-action w-full p-4 mt-2 shadow-lg active:scale-[0.98]">Masuk Sistem</button>
-            </form>
+
+            <!-- ── White form section ── -->
+            <div class="bg-white p-8">
+                <p class="text-center text-[11px] text-slate-400 font-bold uppercase tracking-widest mb-6">Whitelist Access Only</p>
+                <form onsubmit="event.preventDefault(); handleSignIn(this.email.value, this.password.value)" class="space-y-4">
+                    <div>
+                        <label class="block text-[11px] font-extrabold uppercase text-slate-400 mb-2">Kredensial Email</label>
+                        <input type="email" name="email" value="shieldgandul@gmail.com" required class="w-full border border-slate-300 p-4 rounded-xl text-sm outline-none focus:border-[#4caf50]" placeholder="Email Terdaftar">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-extrabold uppercase text-slate-400 mb-2">Password Akses</label>
+                        <input type="password" name="password" value="shieldgandul123" required class="w-full border border-slate-300 p-4 rounded-xl text-sm outline-none focus:border-[#4caf50]" placeholder="Password">
+                    </div>
+                    <button type="submit" id="connect-btn-ui" class="btn-action w-full p-4 mt-2 shadow-lg active:scale-[0.98]">Masuk Sistem</button>
+                </form>
+            </div>
+
         </div>
     </div>
 
