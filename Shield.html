@@ -117,6 +117,13 @@
         .sidebar-item { transition: all 0.2s ease; cursor: pointer; color: rgba(255,255,255,0.8); position: relative; }
         .sidebar-item:hover { background: rgba(255,255,255,0.1); color: white; }
         .sidebar-item.active { background: rgba(255,255,255,0.15); color: #fff; border-left: 4px solid #facc15; }
+        .sidebar-arrow { transition: transform 0.25s ease; display:inline-block; }
+        .sidebar-item.open .sidebar-arrow { transform: rotate(90deg); }
+        .sidebar-submenu { overflow: hidden; max-height: 0; transition: max-height 0.3s ease, opacity 0.25s ease; opacity: 0; }
+        .sidebar-submenu.open { opacity: 1; }
+        .sidebar-sub-item { display:flex; align-items:center; gap:8px; padding:7px 16px 7px 44px; font-size:0.75rem; font-weight:600; color:rgba(255,255,255,0.65); cursor:pointer; border-radius:10px; transition:all 0.15s; }
+        .sidebar-sub-item:hover { background:rgba(255,255,255,0.12); color:#fff; }
+        .sidebar-sub-item.active { color:#facc15; background:rgba(250,204,21,0.12); }
         .glass-card { background: white; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); border-radius: 1rem; display: flex; flex-direction: column; overflow: hidden; }
         .status-badge-teal { background: linear-gradient(90deg, #2dd4bf 0%, #0d9488 100%); height: 3px; width: 30px; display: inline-block; margin-right: 8px; border-radius: 2px;}
         .compact-table td { padding: 12px 14px; border-bottom: 1px solid #f1f5f9; }
@@ -209,11 +216,101 @@
                 <span class="text-[9px] text-teal-200 font-bold uppercase tracking-widest">Smart Hotspot Identification and Early Warning Device</span>
             </div>
         </div>
-        <nav class="flex-1 p-4 space-y-2 mt-4">
-            <div onclick="switchPage('dashboard')" id="menu-dashboard" class="sidebar-item active flex items-center gap-3 px-4 py-3.5 text-sm font-bold rounded-xl"><i data-lucide="layout-dashboard" class="w-5 h-5"></i> Dashboard</div>
-            <div onclick="switchPage('logger')" id="menu-logger" class="sidebar-item flex items-center gap-3 px-4 py-3.5 text-sm font-bold rounded-xl"><i data-lucide="database" class="w-5 h-5"></i> Data Logger</div>
-            <div onclick="switchPage('graphs')" id="menu-graphs" class="sidebar-item flex items-center gap-3 px-4 py-3.5 text-sm font-bold rounded-xl"><i data-lucide="line-chart" class="w-5 h-5"></i> Grafik Tren</div>
-            <div onclick="switchPage('ml')" id="menu-ml" class="sidebar-item flex items-center gap-3 px-4 py-3.5 text-sm font-bold rounded-xl"><i data-lucide="brain-circuit" class="w-5 h-5"></i> Machine Learning</div>
+        <nav class="flex-1 p-4 space-y-1 mt-4 overflow-y-auto">
+
+          <!-- Dashboard -->
+          <div>
+            <div id="menu-dashboard" onclick="toggleSubMenu('dashboard')"
+              class="sidebar-item active flex items-center gap-3 px-4 py-3.5 text-sm font-bold rounded-xl">
+              <i data-lucide="layout-dashboard" class="w-5 h-5 shrink-0"></i>
+              <span class="flex-1">Dashboard</span>
+              <span class="sidebar-arrow text-white/60 text-xs">▶</span>
+            </div>
+            <div id="submenu-dashboard" class="sidebar-submenu">
+              <div onclick="goToTab('dashboard','suhu')" id="sub-dashboard-suhu" class="sidebar-sub-item active">
+                <i data-lucide="thermometer" class="w-3.5 h-3.5 shrink-0"></i> Suhu
+              </div>
+              <div onclick="goToTab('dashboard','beban')" id="sub-dashboard-beban" class="sidebar-sub-item">
+                <i data-lucide="zap" class="w-3.5 h-3.5 shrink-0"></i> Beban
+              </div>
+            </div>
+          </div>
+
+          <!-- Data Logger -->
+          <div>
+            <div id="menu-logger" onclick="toggleSubMenu('logger')"
+              class="sidebar-item flex items-center gap-3 px-4 py-3.5 text-sm font-bold rounded-xl">
+              <i data-lucide="database" class="w-5 h-5 shrink-0"></i>
+              <span class="flex-1">Data Logger</span>
+              <span class="sidebar-arrow text-white/60 text-xs">▶</span>
+            </div>
+            <div id="submenu-logger" class="sidebar-submenu">
+              <div onclick="goToTab('logger','suhu')" id="sub-logger-suhu" class="sidebar-sub-item">
+                <i data-lucide="thermometer" class="w-3.5 h-3.5 shrink-0"></i> Log Suhu
+              </div>
+              <div onclick="goToTab('logger','beban')" id="sub-logger-beban" class="sidebar-sub-item">
+                <i data-lucide="zap" class="w-3.5 h-3.5 shrink-0"></i> Log Beban
+              </div>
+            </div>
+          </div>
+
+          <!-- Grafik Tren -->
+          <div>
+            <div id="menu-graphs" onclick="toggleSubMenu('graphs')"
+              class="sidebar-item flex items-center gap-3 px-4 py-3.5 text-sm font-bold rounded-xl">
+              <i data-lucide="line-chart" class="w-5 h-5 shrink-0"></i>
+              <span class="flex-1">Grafik Tren</span>
+              <span class="sidebar-arrow text-white/60 text-xs">▶</span>
+            </div>
+            <div id="submenu-graphs" class="sidebar-submenu">
+              <div onclick="goToTab('graphs','suhu')" id="sub-graphs-suhu" class="sidebar-sub-item">
+                <i data-lucide="thermometer" class="w-3.5 h-3.5 shrink-0"></i> Grafik Suhu
+              </div>
+              <div onclick="goToTab('graphs','beban')" id="sub-graphs-beban" class="sidebar-sub-item">
+                <i data-lucide="zap" class="w-3.5 h-3.5 shrink-0"></i> Grafik Beban
+              </div>
+            </div>
+          </div>
+
+          <!-- Machine Learning -->
+          <div>
+            <div id="menu-ml" onclick="toggleSubMenu('ml')"
+              class="sidebar-item flex items-center gap-3 px-4 py-3.5 text-sm font-bold rounded-xl">
+              <i data-lucide="brain-circuit" class="w-5 h-5 shrink-0"></i>
+              <span class="flex-1">Machine Learning</span>
+              <span class="sidebar-arrow text-white/60 text-xs">▶</span>
+            </div>
+            <div id="submenu-ml" class="sidebar-submenu">
+              <div onclick="goToTab('ml','aex')" id="sub-ml-aex" class="sidebar-sub-item">
+                <i data-lucide="target" class="w-3.5 h-3.5 shrink-0"></i> Executive Summary
+              </div>
+              <div onclick="goToTab('ml','a0')" id="sub-ml-a0" class="sidebar-sub-item">
+                <i data-lucide="activity" class="w-3.5 h-3.5 shrink-0"></i> Forecast Realtime
+              </div>
+              <div onclick="goToTab('ml','a1')" id="sub-ml-a1" class="sidebar-sub-item">
+                <i data-lucide="cpu" class="w-3.5 h-3.5 shrink-0"></i> Physics Model
+              </div>
+              <div onclick="goToTab('ml','a2')" id="sub-ml-a2" class="sidebar-sub-item">
+                <i data-lucide="percent" class="w-3.5 h-3.5 shrink-0"></i> Bayesian RUL
+              </div>
+              <div onclick="goToTab('ml','a3')" id="sub-ml-a3" class="sidebar-sub-item">
+                <i data-lucide="scatter-chart" class="w-3.5 h-3.5 shrink-0"></i> GPR
+              </div>
+              <div onclick="goToTab('ml','a4')" id="sub-ml-a4" class="sidebar-sub-item">
+                <i data-lucide="clock" class="w-3.5 h-3.5 shrink-0"></i> Aging Factor CB
+              </div>
+              <div onclick="goToTab('ml','a5')" id="sub-ml-a5" class="sidebar-sub-item">
+                <i data-lucide="bar-chart-2" class="w-3.5 h-3.5 shrink-0"></i> CUSUM
+              </div>
+              <div onclick="goToTab('ml','a6')" id="sub-ml-a6" class="sidebar-sub-item">
+                <i data-lucide="trending-up" class="w-3.5 h-3.5 shrink-0"></i> OLS Baseline
+              </div>
+              <div onclick="goToTab('ml','a7')" id="sub-ml-a7" class="sidebar-sub-item">
+                <i data-lucide="shuffle" class="w-3.5 h-3.5 shrink-0"></i> Stokastik
+              </div>
+            </div>
+          </div>
+
         </nav>
         <div class="p-4 border-t border-white/10">
             <button onclick="reconnectMQTT()" class="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-white/10 text-white text-xs font-bold hover:bg-white/20 transition-all"><i data-lucide="refresh-cw" class="w-4 h-4"></i> Hubungkan Ulang </button>
@@ -2325,6 +2422,65 @@
             if (pane) pane.classList.remove('hidden');
         }
 
+        // ── Sidebar submenu: open/close state per group ──────────────────────
+        const _subMenuOpen = { dashboard: true, logger: false, graphs: false, ml: false };
+
+        // Max-height values per submenu (px) for smooth CSS transition
+        const _subMenuH = { dashboard: 88, logger: 88, graphs: 88, ml: 368 };
+
+        function _applySubMenuState(group) {
+            const el  = document.getElementById('submenu-' + group);
+            const btn = document.getElementById('menu-' + group);
+            if (!el) return;
+            if (_subMenuOpen[group]) {
+                el.style.maxHeight = _subMenuH[group] + 'px';
+                el.classList.add('open');
+                if (btn) btn.classList.add('open');
+            } else {
+                el.style.maxHeight = '0';
+                el.classList.remove('open');
+                if (btn) btn.classList.remove('open');
+            }
+        }
+
+        function toggleSubMenu(group) {
+            // If clicking a different group: switch page AND open its submenu
+            const pageMap = { dashboard:'dashboard', logger:'logger', graphs:'graphs', ml:'ml' };
+            if (activePage !== pageMap[group]) switchPage(pageMap[group]);
+            // Toggle open/close
+            _subMenuOpen[group] = !_subMenuOpen[group];
+            _applySubMenuState(group);
+        }
+
+        function goToTab(page, tab) {
+            // Switch to page first if needed
+            if (activePage !== page) switchPage(page);
+            // Open the submenu for this page
+            _subMenuOpen[page] = true;
+            _applySubMenuState(page);
+            // Switch inner tab
+            switchInnerTab(page, tab);
+            // Extra triggers for logger/graphs that need data loading
+            if (page === 'logger' && tab === 'beban') loadBebanLogs();
+            if (page === 'graphs' && tab === 'suhu')  setTimeFilter(activeTimeFilter);
+            if (page === 'graphs' && tab === 'beban') setBebanTimeFilter(activeBebanTimeFilter);
+            // Update active sub-item highlight
+            _setActiveSubItem(page, tab);
+        }
+
+        function _setActiveSubItem(page, tab) {
+            document.querySelectorAll('.sidebar-sub-item').forEach(el => {
+                if (el.id && el.id.startsWith('sub-' + page + '-')) el.classList.remove('active');
+            });
+            const target = document.getElementById('sub-' + page + '-' + tab);
+            if (target) target.classList.add('active');
+        }
+
+        // Initialise submenu states on load
+        (function() {
+            Object.keys(_subMenuOpen).forEach(_applySubMenuState);
+        })();
+
         // Beralih Halaman Menu Sidebar
         function switchPage(page) {
             document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
@@ -2332,6 +2488,11 @@
             if(document.getElementById(menuId)) {
                 document.getElementById(menuId).classList.add('active');
             }
+            // Open this page's submenu, close others
+            ['dashboard','logger','graphs','ml'].forEach(g => {
+                _subMenuOpen[g] = (g === page);
+                _applySubMenuState(g);
+            });
             
             ['dashboard', 'logger', 'graphs', 'ml'].forEach(id => {
                 const view = document.getElementById(`view-${id}`);
