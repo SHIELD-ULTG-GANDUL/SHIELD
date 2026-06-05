@@ -2260,6 +2260,8 @@
 
         // Logger Data Array (Khusus memuat data asli dari Firestore)
         let firestoreLogs = [];
+        let tempLogLastWriteAt = { '2': 0, '3': 0, '4': 0 };
+        const TEMP_LOG_WRITE_INTERVAL_MS = 60 * 1000;
 
         // State Data Beban (dari Firestore PM Meter)
         let latestBebanData = { '2': null, '3': null, '4': null };
@@ -2312,8 +2314,36 @@
         const ML_TRAINING_BUFFER_MAX = 600;
 
         function _parseAnyTimestamp(ts) {
-            const t = new Date(ts).getTime();
-            return isNaN(t) ? Date.now() : t;
+            if (!ts) return Date.now();
+            if (ts instanceof Date) {
+                const t = ts.getTime();
+                return isNaN(t) ? Date.now() : t;
+            }
+            if (typeof ts === 'number') return ts < 1e12 ? ts * 1000 : ts;
+            if (typeof ts === 'object') {
+                if (typeof ts.toDate === 'function') {
+                    const t = ts.toDate().getTime();
+                    return isNaN(t) ? Date.now() : t;
+                }
+                if (typeof ts.seconds === 'number') return (ts.seconds * 1000) + Math.floor((ts.nanoseconds || 0) / 1e6);
+                if (ts.timestampValue) return _parseAnyTimestamp(ts.timestampValue);
+                if (ts.stringValue) return _parseAnyTimestamp(ts.stringValue);
+                if (ts.integerValue !== undefined) return _parseAnyTimestamp(Number(ts.integerValue));
+                if (ts.doubleValue !== undefined) return _parseAnyTimestamp(Number(ts.doubleValue));
+            }
+
+            const raw = String(ts).trim();
+            let t = new Date(raw).getTime();
+            if (!isNaN(t)) return t;
+
+            const m = raw.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})(?:,?\s+(\d{1,2})[:.](\d{2})(?:[:.](\d{2}))?)?/);
+            if (m) {
+                const yyyy = m[3].length === 2 ? Number('20' + m[3]) : Number(m[3]);
+                t = new Date(yyyy, Number(m[2]) - 1, Number(m[1]), Number(m[4] || 0), Number(m[5] || 0), Number(m[6] || 0)).getTime();
+                if (!isNaN(t)) return t;
+            }
+
+            return Date.now();
         }
 
         function _trimTrainingBuffer(arr, maxLen = ML_TRAINING_BUFFER_MAX) {
@@ -2335,10 +2365,10 @@
 
         function _syncTempTrainingLog(trafo, mappedData) {
             if (trafo !== selectedTrafo || !mappedData) return;
-            const docSortTime = _parseAnyTimestamp(mappedData.ts || mappedData.timestamp);
+            const docSortTime = _parseAnyTimestamp(mappedData.receivedAt || mappedData.timestamp || mappedData.ts);
             const log = {
                 ...mappedData,
-                timestamp: mappedData.ts || mappedData.timestamp || new Date(docSortTime).toLocaleString('id-ID'),
+                timestamp: mappedData.receivedAt || mappedData.timestamp || mappedData.ts || new Date(docSortTime).toISOString(),
                 docSortTime,
                 formattedTime: new Date(docSortTime).toLocaleString('id-ID'),
                 trafo: `Trafo ${trafo}`
@@ -2349,12 +2379,46 @@
                 firestoreLogs.unshift(log);
                 firestoreLogs.sort((a, b) => b.docSortTime - a.docSortTime);
                 _trimTrainingBuffer(firestoreLogs);
+                if (activePage === 'logger') renderLoggerTable();
             }
 
             Object.keys(chartHistoricalData).forEach(k => {
                 if (k.startsWith(trafo + '_')) delete chartHistoricalData[k];
             });
             _scheduleMLRealtimeUpdate('update suhu');
+        }
+
+        async function _persistTempLogToFirestore(trafo, mappedData) {
+            if (!window.isAuthReady || !window.db || !window.fs || !mappedData) return;
+            const now = Date.now();
+            if (now - (tempLogLastWriteAt[trafo] || 0) < TEMP_LOG_WRITE_INTERVAL_MS) return;
+            tempLogLastWriteAt[trafo] = now;
+
+            const receivedAt = mappedData.receivedAt || new Date(now).toISOString();
+            const docId = `web_${trafo}_${now}`;
+            const payload = {
+                R_Atas: Number(mappedData.R_Atas) || 0,
+                R_Bawah: Number(mappedData.R_Bawah) || 0,
+                S_Atas: Number(mappedData.S_Atas) || 0,
+                S_Bawah: Number(mappedData.S_Bawah) || 0,
+                T_Atas: Number(mappedData.T_Atas) || 0,
+                T_Bawah: Number(mappedData.T_Bawah) || 0,
+                timestamp: receivedAt,
+                ts: new Date(_parseAnyTimestamp(receivedAt)).toLocaleString('id-ID'),
+                deviceTimestamp: mappedData.deviceTimestamp || mappedData.ts || null,
+                source: 'mqtt_web'
+            };
+
+            try {
+                const ref = window.fs.doc(window.db, 'devices', 'acrel_atp007', `trafo_${trafo}_temperature_logs`, docId);
+                await window.fs.setDoc(ref, payload);
+                Object.keys(chartHistoricalData).forEach(k => {
+                    if (k.startsWith(trafo + '_')) delete chartHistoricalData[k];
+                });
+            } catch (err) {
+                console.error('[SHIELD LOGGER] Gagal menyimpan log suhu ke Firestore:', err);
+                tempLogLastWriteAt[trafo] = 0;
+            }
         }
 
         function _syncBebanTrainingLogs(trafo, logsAsc) {
@@ -2666,6 +2730,7 @@
             if (!trafoIdx) return;
 
             // Mapping sensor ATP007 dari data MQTT JSON
+            const receivedAt = new Date().toISOString();
             const mappedData = {
                 R_Atas: typeof data.R_Atas === 'number' ? data.R_Atas : (typeof data.fields?.R_Atas?.doubleValue === 'number' ? data.fields.R_Atas.doubleValue : 0),
                 R_Bawah: typeof data.R_Bawah === 'number' ? data.R_Bawah : (typeof data.fields?.R_Bawah?.doubleValue === 'number' ? data.fields.R_Bawah.doubleValue : 0),
@@ -2673,12 +2738,16 @@
                 S_Bawah: typeof data.S_Bawah === 'number' ? data.S_Bawah : (typeof data.fields?.S_Bawah?.doubleValue === 'number' ? data.fields.S_Bawah.doubleValue : 0),
                 T_Atas: typeof data.T_Atas === 'number' ? data.T_Atas : (typeof data.fields?.T_Atas?.doubleValue === 'number' ? data.fields.T_Atas.doubleValue : 0),
                 T_Bawah: typeof data.T_Bawah === 'number' ? data.T_Bawah : (typeof data.fields?.T_Bawah?.doubleValue === 'number' ? data.fields.T_Bawah.doubleValue : 0),
-                ts: data.timestamp || new Date().toLocaleString('id-ID')
+                ts: new Date(receivedAt).toLocaleString('id-ID'),
+                timestamp: receivedAt,
+                receivedAt,
+                deviceTimestamp: data.timestamp || data.ts || null
             };
 
             // Simpan paket terbaru ke memori untuk Dashboard
             temperatureData[trafoIdx] = mappedData;
             _syncTempTrainingLog(trafoIdx, mappedData);
+            _persistTempLogToFirestore(trafoIdx, mappedData);
 
             // Jika Trafo yang diperbarui saat ini sedang dipilih di dropdown, render perubahan UI secara real-time
             if (trafoIdx === selectedTrafo) {
@@ -2700,11 +2769,14 @@
                     const valObj = docData.fields[key];
                     if (valObj.doubleValue !== undefined) return parseFloat(valObj.doubleValue);
                     if (valObj.integerValue !== undefined) return parseInt(valObj.integerValue);
+                    if (valObj.timestampValue !== undefined) return valObj.timestampValue;
                     if (valObj.stringValue !== undefined) return valObj.stringValue;
                 }
                 if (docData && docData[key] !== undefined) {
                     if (typeof docData[key] === 'object' && docData[key] !== null) {
-                        return docData[key].doubleValue !== undefined ? parseFloat(docData[key].doubleValue) : (docData[key].integerValue !== undefined ? parseInt(docData[key].integerValue) : docData[key].stringValue);
+                        if (typeof docData[key].toDate === 'function') return docData[key];
+                        if (docData[key].seconds !== undefined) return docData[key];
+                        return docData[key].doubleValue !== undefined ? parseFloat(docData[key].doubleValue) : (docData[key].integerValue !== undefined ? parseInt(docData[key].integerValue) : (docData[key].timestampValue !== undefined ? docData[key].timestampValue : docData[key].stringValue));
                     }
                     return docData[key];
                 }
@@ -2718,7 +2790,7 @@
                 S_Bawah: parseFloat(extract('S_Bawah') || 0),
                 T_Atas: parseFloat(extract('T_Atas') || 0),
                 T_Bawah: parseFloat(extract('T_Bawah') || 0),
-                timestamp: extract('timestamp') || extract('ts') || new Date().toLocaleString('id-ID')
+                timestamp: extract('receivedAt') || extract('timestamp') || extract('ts') || new Date().toISOString()
             };
         }
 
@@ -3003,7 +3075,7 @@
 
                 // Parse, tambahkan _time numerik, filter invalid, sortir ascending
                 let parsed = docs
-                    .map(d => { const p = parseFirestoreDoc(d); const t = new Date(p.timestamp).getTime(); return { ...p, _time: isNaN(t) ? 0 : t }; })
+                    .map(d => { const p = parseFirestoreDoc(d); const t = _parseAnyTimestamp(p.timestamp); return { ...p, _time: t }; })
                     .filter(d => d._time > 0)
                     .sort((a, b) => a._time - b._time);
 
@@ -3205,18 +3277,8 @@
                 const mappedDocs = docsArray.map(docData => {
                     const parsed = parseFirestoreDoc(docData);
                     
-                    let docTime = new Date(parsed.timestamp).getTime();
-                    let formattedTime = parsed.timestamp;
-                    if (isNaN(docTime)) {
-                        if (parsed.timestamp && parsed.timestamp.includes('millis_')) {
-                            formattedTime = new Date().toLocaleDateString('id-ID') + " (Millis: " + parsed.timestamp + ")";
-                        } else {
-                            formattedTime = parsed.timestamp || new Date().toLocaleString('id-ID');
-                        }
-                        docTime = Date.now(); // Fallback timestamp untuk pengurutan
-                    } else {
-                        formattedTime = new Date(docTime).toLocaleString('id-ID');
-                    }
+                    let docTime = _parseAnyTimestamp(parsed.timestamp);
+                    let formattedTime = new Date(docTime).toLocaleString('id-ID');
 
                     return {
                         ...parsed,
@@ -3454,7 +3516,7 @@
 
                         const ascDocs = docs.map(d => {
                             const p = parseBebanDoc(d);
-                            const t = new Date(p.timestamp).getTime();
+                            const t = _parseAnyTimestamp(p.timestamp);
                             p._time = isNaN(t) ? 0 : t;
                             return p;
                         }).filter(d => d._time > 0).sort((a, b) => a._time - b._time);
@@ -3533,7 +3595,7 @@
             // Timestamp update terakhir
             const updateEl = document.getElementById('beban-update-time');
             if (updateEl) {
-                const d = new Date(data.timestamp);
+                const d = new Date(_parseAnyTimestamp(data.timestamp));
                 updateEl.textContent = 'Update: ' + (isNaN(d.getTime()) ? data.timestamp : d.toLocaleTimeString('id-ID', { hour12: false }));
             }
         }
@@ -3632,11 +3694,8 @@
 
                 const mapped = docs.map(docData => {
                     const parsed = parseBebanDoc(docData);
-                    let docTime = new Date(parsed.timestamp).getTime();
-                    const formattedTime = isNaN(docTime)
-                        ? (parsed.timestamp || new Date().toLocaleString('id-ID'))
-                        : new Date(docTime).toLocaleString('id-ID');
-                    if (isNaN(docTime)) docTime = Date.now();
+                    let docTime = _parseAnyTimestamp(parsed.timestamp);
+                    const formattedTime = new Date(docTime).toLocaleString('id-ID');
                     return { ...parsed, docSortTime: docTime, formattedTime, trafo: `Trafo ${selectedTrafo}` };
                 });
 
@@ -4002,7 +4061,7 @@
 
                 let parsed = docs.map(d => {
                     const p = parseBebanDoc(d);
-                    const t = new Date(p.timestamp).getTime();
+                    const t = _parseAnyTimestamp(p.timestamp);
                     p._time = isNaN(t) ? 0 : t;
                     return p;
                 }).filter(d => d._time > 0).sort((a, b) => a._time - b._time);
