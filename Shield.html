@@ -2289,6 +2289,7 @@
 
         // Logger Data Array (Khusus memuat data asli dari Firestore)
         let firestoreLogs = [];
+        let tempLogsUnsubscribe = null;
         let tempLogLastWriteAt = { '2': 0, '3': 0, '4': 0 };
         const TEMP_LOG_WRITE_INTERVAL_MS = 60 * 1000;
 
@@ -2415,6 +2416,112 @@
                 if (k.startsWith(trafo + '_')) delete chartHistoricalData[k];
             });
             _scheduleMLRealtimeUpdate('update suhu');
+        }
+
+        function _getTempLogCollectionCandidates(trafo) {
+            return [
+                {
+                    label: `devices/acrel_atp007/trafo_${trafo}_temperature_logs`,
+                    ref: window.fs.collection(window.db, 'devices', 'acrel_atp007', `trafo_${trafo}_temperature_logs`)
+                },
+                {
+                    label: `acrel_atp007/trafo_${trafo}/temperature_logs`,
+                    ref: window.fs.collection(window.db, 'acrel_atp007', `trafo_${trafo}`, 'temperature_logs')
+                },
+                {
+                    label: `acrel_atp007_trafo_${trafo}`,
+                    ref: window.fs.collection(window.db, `acrel_atp007_trafo_${trafo}`)
+                },
+                {
+                    label: 'acrel_atp007',
+                    ref: window.fs.collection(window.db, 'acrel_atp007')
+                }
+            ];
+        }
+
+        function _mapTempDocsSnapshot(snapshot, sourcePath) {
+            const docsArray = [];
+            snapshot.forEach((docSnap) => {
+                const raw = docSnap.data();
+                const parsed = parseFirestoreDoc(raw);
+                const rawTrafo = raw?.trafo ?? raw?.Trafo ?? raw?.transformer ?? raw?.id_trafo ?? raw?.device;
+                const rawTrafoText = rawTrafo == null ? '' : String(rawTrafo).toLowerCase();
+                const docIdText = String(docSnap.id || '').toLowerCase();
+                const belongsToSelectedTrafo =
+                    sourcePath.includes(`trafo_${selectedTrafo}`) ||
+                    rawTrafoText === selectedTrafo ||
+                    rawTrafoText === `trafo ${selectedTrafo}` ||
+                    rawTrafoText === `trafo_${selectedTrafo}` ||
+                    rawTrafoText === `trafo${selectedTrafo}` ||
+                    docIdText === selectedTrafo ||
+                    docIdText.includes(`trafo_${selectedTrafo}`) ||
+                    docIdText.includes(`trafo${selectedTrafo}`);
+
+                if (!belongsToSelectedTrafo) return;
+
+                const docTime = _parseAnyTimestamp(parsed.timestamp);
+                docsArray.push({
+                    ...parsed,
+                    docSortTime: docTime,
+                    formattedTime: new Date(docTime).toLocaleString('id-ID'),
+                    trafo: `Trafo ${selectedTrafo}`,
+                    sourcePath
+                });
+            });
+
+            docsArray.sort((a, b) => b.docSortTime - a.docSortTime);
+            return docsArray;
+        }
+
+        function _applyTempLoggerDocs(mappedDocs, sourcePath = '') {
+            firestoreLogs = mappedDocs;
+            _trimTrainingBuffer(firestoreLogs);
+            Object.keys(chartHistoricalData).forEach(k => {
+                if (k.startsWith(selectedTrafo + '_')) delete chartHistoricalData[k];
+            });
+            _scheduleMLRealtimeUpdate('muat ulang histori suhu');
+            console.log(`[SHIELD LOGGER] ${mappedDocs.length} log suhu dari ${sourcePath || 'Firestore'}`);
+            renderLoggerTable();
+        }
+
+        async function _fetchFirstAvailableTempLogs() {
+            const candidates = _getTempLogCollectionCandidates(selectedTrafo);
+            let firstEmpty = null;
+            for (const c of candidates) {
+                try {
+                    const snap = await window.fs.getDocs(window.fs.query(c.ref));
+                    const mapped = _mapTempDocsSnapshot(snap, c.label);
+                    if (!firstEmpty) firstEmpty = { mapped, label: c.label };
+                    if (mapped.length > 0) return { mapped, label: c.label };
+                } catch (err) {
+                    console.warn(`[SHIELD LOGGER] Gagal membaca ${c.label}:`, err.message);
+                }
+            }
+            return firstEmpty || { mapped: [], label: candidates[0]?.label || 'Firestore' };
+        }
+
+        async function subscribeTemperatureLogs() {
+            if (!window.isAuthReady || !window.db || !window.fs) return;
+            if (typeof tempLogsUnsubscribe === 'function') {
+                tempLogsUnsubscribe();
+                tempLogsUnsubscribe = null;
+            }
+
+            const initial = await _fetchFirstAvailableTempLogs();
+            _applyTempLoggerDocs(initial.mapped, initial.label);
+
+            const candidates = _getTempLogCollectionCandidates(selectedTrafo);
+            const liveCandidate = candidates.find(c => c.label === initial.label) || candidates[0];
+            try {
+                tempLogsUnsubscribe = window.fs.onSnapshot(window.fs.query(liveCandidate.ref), (snapshot) => {
+                    const mapped = _mapTempDocsSnapshot(snapshot, liveCandidate.label);
+                    _applyTempLoggerDocs(mapped, liveCandidate.label);
+                }, (err) => {
+                    console.error(`[SHIELD LOGGER] onSnapshot ${liveCandidate.label}:`, err.message);
+                });
+            } catch (err) {
+                console.error(`[SHIELD LOGGER] Gagal memasang listener ${liveCandidate.label}:`, err.message);
+            }
         }
 
         async function _persistTempLogToFirestore(trafo, mappedData) {
@@ -3306,47 +3413,7 @@
             }
 
             try {
-                // Gunakan kueri sederhana dan lakukan pengurutan di memori lokal javascript (Kepatuhan Terhadap Aturan)
-                const q = window.fs.query(
-                    window.fs.collection(window.db, "devices", "acrel_atp007", `trafo_${selectedTrafo}_temperature_logs`)
-                );
-                
-                const querySnapshot = await window.fs.getDocs(q);
-                
-                let docsArray = [];
-                querySnapshot.forEach((doc) => {
-                    docsArray.push(doc.data());
-                });
-
-                // Memetakan data dari dokumen firestore asli
-                const mappedDocs = docsArray.map(docData => {
-                    const parsed = parseFirestoreDoc(docData);
-                    
-                    let docTime = _parseAnyTimestamp(parsed.timestamp);
-                    let formattedTime = new Date(docTime).toLocaleString('id-ID');
-
-                    return {
-                        ...parsed,
-                        docSortTime: docTime,
-                        formattedTime: formattedTime,
-                        trafo: `Trafo ${selectedTrafo}`
-                    };
-                });
-
-                // Sortir data secara descending (terbaru di atas) berdasarkan waktu log di memori lokal
-                mappedDocs.sort((a, b) => b.docSortTime - a.docSortTime);
-
-                // Masukkan ke state global logger
-                firestoreLogs = mappedDocs;
-                _trimTrainingBuffer(firestoreLogs);
-                Object.keys(chartHistoricalData).forEach(k => {
-                    if (k.startsWith(selectedTrafo + '_')) delete chartHistoricalData[k];
-                });
-                _scheduleMLRealtimeUpdate('muat ulang histori suhu');
-
-                // Render ke tabel logger
-                renderLoggerTable();
-                
+                await subscribeTemperatureLogs();
             } catch (err) {
                 console.error("Kesalahan saat mengambil data dari Firestore:", err);
                 if (tableBody) {
