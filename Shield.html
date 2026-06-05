@@ -3454,9 +3454,33 @@
         // Parse dokumen beban — mendukung banyak variasi nama field ION8650 / PM Meter
         function parseBebanDoc(docData) {
             if (!docData) return null;
+            const flatDocData = {};
+            const flatten = (obj, prefix = '') => {
+                if (!obj || typeof obj !== 'object') return;
+                Object.entries(obj).forEach(([k, v]) => {
+                    const path = prefix ? `${prefix}.${k}` : k;
+                    if (v && typeof v === 'object' && typeof v.toDate !== 'function' && v.seconds === undefined && v.doubleValue === undefined && v.integerValue === undefined && v.stringValue === undefined && v.timestampValue === undefined) {
+                        flatten(v, path);
+                    } else {
+                        flatDocData[path] = v;
+                    }
+                });
+            };
+            flatten(docData);
 
             // Extractor multi-key: coba semua alias sampai ada yang ada nilainya
             const extract = (keys) => {
+                const unwrap = (v) => {
+                    if (typeof v === 'object' && v !== null) {
+                        if (typeof v.toDate === 'function') return v;
+                        if (v.seconds !== undefined) return v;
+                        if (v.timestampValue !== undefined) return v.timestampValue;
+                        if (v.doubleValue  !== undefined) return parseFloat(v.doubleValue);
+                        if (v.integerValue !== undefined) return parseInt(v.integerValue);
+                        if (v.stringValue  !== undefined) return v.stringValue;
+                    }
+                    return v;
+                };
                 const keyArr = Array.isArray(keys) ? keys : [keys];
                 for (const key of keyArr) {
                     // Format Firestore REST (fields wrapper)
@@ -3469,16 +3493,15 @@
                     }
                     // Format dokumen biasa
                     if (docData[key] !== undefined) {
-                        const v = docData[key];
-                        if (typeof v === 'object' && v !== null) {
-                            if (typeof v.toDate === 'function') return v;
-                            if (v.seconds !== undefined) return v;
-                            if (v.timestampValue !== undefined) return v.timestampValue;
-                            if (v.doubleValue  !== undefined) return parseFloat(v.doubleValue);
-                            if (v.integerValue !== undefined) return parseInt(v.integerValue);
-                            if (v.stringValue  !== undefined) return v.stringValue;
-                        }
-                        return v;
+                        return unwrap(docData[key]);
+                    }
+                    const lowerKey = String(key).toLowerCase();
+                    const nestedKey = Object.keys(flatDocData).find(k => {
+                        const lk = k.toLowerCase();
+                        return lk === lowerKey || lk.endsWith('.' + lowerKey);
+                    });
+                    if (nestedKey) {
+                        return unwrap(flatDocData[nestedKey]);
                     }
                 }
                 return null;
@@ -3671,6 +3694,19 @@
             ].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i);
         }
 
+        function _getBebanRootCollectionCandidates() {
+            return [
+                'beban_realtime',
+                'beban',
+                'beban_logs',
+                'logger_beban',
+                'ion8650',
+                'pm_meter',
+                'power_meter',
+                'load_realtime'
+            ];
+        }
+
         function _isBebanDocForTrafo(docId, raw, trafo) {
             const rawTrafo = raw?.trafo ?? raw?.Trafo ?? raw?.transformer ?? raw?.id_trafo ?? raw?.device;
             const rawTrafoText = rawTrafo == null ? '' : String(rawTrafo).toLowerCase();
@@ -3717,32 +3753,40 @@
 
         async function _fetchFirstAvailableBebanLogs() {
             const docIds = _getBebanDocIdCandidates(selectedTrafo);
+            const rootCollections = _getBebanRootCollectionCandidates();
             let firstEmpty = null;
 
-            for (const id of docIds) {
-                const sourcePath = `beban_realtime/${id}/logs`;
-                try {
-                    const snap = await window.fs.getDocs(window.fs.collection(window.db, 'beban_realtime', id, 'logs'));
-                    const mapped = _mapBebanDocsSnapshot(snap, sourcePath, false);
-                    if (!firstEmpty) firstEmpty = { mapped, sourcePath, kind: 'logs', docId: id };
-                    console.log(`[BEBAN LOGGER] ${sourcePath} -> ${snap.size} dokumen`);
-                    if (mapped.length > 0) {
-                        bebanDocIdMap[selectedTrafo] = id;
-                        return { mapped, sourcePath, kind: 'logs', docId: id };
+            for (const root of rootCollections) {
+                for (const id of docIds) {
+                    const sourcePath = `${root}/${id}/logs`;
+                    try {
+                        const snap = await window.fs.getDocs(window.fs.collection(window.db, root, id, 'logs'));
+                        const mapped = _mapBebanDocsSnapshot(snap, sourcePath, false);
+                        if (!firstEmpty) firstEmpty = { mapped, sourcePath, kind: 'logs', root, docId: id };
+                        console.log(`[BEBAN LOGGER] ${sourcePath} -> ${snap.size} dokumen`);
+                        if (mapped.length > 0) {
+                            bebanDocIdMap[selectedTrafo] = id;
+                            return { mapped, sourcePath, kind: 'logs', root, docId: id };
+                        }
+                    } catch (err) {
+                        console.warn(`[BEBAN LOGGER] Gagal membaca ${sourcePath}:`, err.message);
                     }
-                } catch (err) {
-                    console.warn(`[BEBAN LOGGER] Gagal membaca ${sourcePath}:`, err.message);
                 }
             }
 
-            try {
-                const sourcePath = 'beban_realtime';
-                const snap = await window.fs.getDocs(window.fs.collection(window.db, 'beban_realtime'));
-                const mapped = _mapBebanDocsSnapshot(snap, sourcePath, true);
-                if (!firstEmpty) firstEmpty = { mapped, sourcePath, kind: 'root' };
-                if (mapped.length > 0) return { mapped, sourcePath, kind: 'root' };
-            } catch (err) {
-                console.warn('[BEBAN LOGGER] Gagal membaca beban_realtime:', err.message);
+            for (const root of rootCollections) {
+                try {
+                    const sourcePath = root;
+                    const snap = await window.fs.getDocs(window.fs.collection(window.db, root));
+                    let mapped = _mapBebanDocsSnapshot(snap, sourcePath, true);
+                    if (mapped.length === 0 && snap.size > 0) {
+                        mapped = _mapBebanDocsSnapshot(snap, `${sourcePath} (fallback semua dokumen)`, false);
+                    }
+                    if (!firstEmpty) firstEmpty = { mapped, sourcePath, kind: 'root', root };
+                    if (mapped.length > 0) return { mapped, sourcePath, kind: 'root', root };
+                } catch (err) {
+                    console.warn(`[BEBAN LOGGER] Gagal membaca ${root}:`, err.message);
+                }
             }
 
             return firstEmpty || { mapped: [], sourcePath: 'beban_realtime', kind: 'root' };
@@ -3760,17 +3804,20 @@
 
             try {
                 if (initial.kind === 'logs' && initial.docId) {
-                    const ref = window.fs.collection(window.db, 'beban_realtime', initial.docId, 'logs');
+                    const ref = window.fs.collection(window.db, initial.root || 'beban_realtime', initial.docId, 'logs');
                     bebanLogsUnsubscribe = window.fs.onSnapshot(ref, (snapshot) => {
                         const mapped = _mapBebanDocsSnapshot(snapshot, initial.sourcePath, false);
                         _applyBebanLoggerDocs(mapped, initial.sourcePath);
                     }, err => console.error(`[BEBAN LOGGER] onSnapshot ${initial.sourcePath}:`, err.message));
                 } else {
-                    const ref = window.fs.collection(window.db, 'beban_realtime');
+                    const ref = window.fs.collection(window.db, initial.root || 'beban_realtime');
                     bebanLogsUnsubscribe = window.fs.onSnapshot(ref, (snapshot) => {
-                        const mapped = _mapBebanDocsSnapshot(snapshot, 'beban_realtime', true);
-                        _applyBebanLoggerDocs(mapped, 'beban_realtime');
-                    }, err => console.error('[BEBAN LOGGER] onSnapshot beban_realtime:', err.message));
+                        let mapped = _mapBebanDocsSnapshot(snapshot, initial.sourcePath, true);
+                        if (mapped.length === 0 && snapshot.size > 0) {
+                            mapped = _mapBebanDocsSnapshot(snapshot, `${initial.sourcePath} (fallback semua dokumen)`, false);
+                        }
+                        _applyBebanLoggerDocs(mapped, initial.sourcePath);
+                    }, err => console.error(`[BEBAN LOGGER] onSnapshot ${initial.sourcePath}:`, err.message));
                 }
             } catch (err) {
                 console.error('[BEBAN LOGGER] Gagal memasang listener:', err.message);
