@@ -2261,6 +2261,7 @@
         // Logger Data Array (Khusus memuat data asli dari Firestore)
         let firestoreLogs = [];
         let tempLogsUnsubscribe = null;
+        let tempLogSnapshots = {};
         let tempLogLastWriteAt = { '2': 0, '3': 0, '4': 0 };
         const TEMP_LOG_WRITE_INTERVAL_MS = 60 * 1000;
 
@@ -2407,11 +2408,19 @@
                 {
                     label: 'acrel_atp007',
                     ref: window.fs.collection(window.db, 'acrel_atp007')
+                },
+                {
+                    label: 'suhu_realtime',
+                    ref: window.fs.collection(window.db, 'suhu_realtime')
+                },
+                {
+                    label: 'temperature_realtime',
+                    ref: window.fs.collection(window.db, 'temperature_realtime')
                 }
             ];
         }
 
-        function _mapTempDocsSnapshot(snapshot, sourcePath) {
+        function _mapTempDocsSnapshot(snapshot, sourcePath, filterByTrafo = true) {
             const docsArray = [];
             snapshot.forEach((docSnap) => {
                 const raw = docSnap.data();
@@ -2429,7 +2438,7 @@
                     docIdText.includes(`trafo_${selectedTrafo}`) ||
                     docIdText.includes(`trafo${selectedTrafo}`);
 
-                if (!belongsToSelectedTrafo) return;
+                if (filterByTrafo && !belongsToSelectedTrafo) return;
 
                 const docTime = _parseAnyTimestamp(parsed.timestamp);
                 docsArray.push({
@@ -2456,20 +2465,46 @@
             renderLoggerTable();
         }
 
-        async function _fetchFirstAvailableTempLogs() {
+        function _mergeTempLoggerSources() {
+            const merged = Object.values(tempLogSnapshots).flat();
+            const seen = new Set();
+            const deduped = [];
+            merged
+                .sort((a, b) => b.docSortTime - a.docSortTime)
+                .forEach(row => {
+                    const key = [
+                        Math.round((row.docSortTime || 0) / 1000),
+                        row.trafo,
+                        row.R_Atas,
+                        row.R_Bawah,
+                        row.S_Atas,
+                        row.S_Bawah,
+                        row.T_Atas,
+                        row.T_Bawah
+                    ].join('|');
+                    if (seen.has(key)) return;
+                    seen.add(key);
+                    deduped.push(row);
+                });
+            _applyTempLoggerDocs(deduped, 'gabungan Firestore realtime');
+        }
+
+        async function _fetchAllAvailableTempLogs() {
             const candidates = _getTempLogCollectionCandidates(selectedTrafo);
-            let firstEmpty = null;
+            tempLogSnapshots = {};
             for (const c of candidates) {
                 try {
                     const snap = await window.fs.getDocs(window.fs.query(c.ref));
-                    const mapped = _mapTempDocsSnapshot(snap, c.label);
-                    if (!firstEmpty) firstEmpty = { mapped, label: c.label };
-                    if (mapped.length > 0) return { mapped, label: c.label };
+                    let mapped = _mapTempDocsSnapshot(snap, c.label, true);
+                    if (mapped.length === 0 && snap.size > 0) {
+                        mapped = _mapTempDocsSnapshot(snap, `${c.label} (fallback semua dokumen)`, false);
+                    }
+                    tempLogSnapshots[c.label] = mapped;
                 } catch (err) {
                     console.warn(`[SHIELD LOGGER] Gagal membaca ${c.label}:`, err.message);
                 }
             }
-            return firstEmpty || { mapped: [], label: candidates[0]?.label || 'Firestore' };
+            _mergeTempLoggerSources();
         }
 
         async function subscribeTemperatureLogs() {
@@ -2477,22 +2512,32 @@
             if (typeof tempLogsUnsubscribe === 'function') {
                 tempLogsUnsubscribe();
                 tempLogsUnsubscribe = null;
+            } else if (Array.isArray(tempLogsUnsubscribe)) {
+                tempLogsUnsubscribe.forEach(u => { if (typeof u === 'function') u(); });
+                tempLogsUnsubscribe = null;
             }
 
-            const initial = await _fetchFirstAvailableTempLogs();
-            _applyTempLoggerDocs(initial.mapped, initial.label);
+            await _fetchAllAvailableTempLogs();
 
             const candidates = _getTempLogCollectionCandidates(selectedTrafo);
-            const liveCandidate = candidates.find(c => c.label === initial.label) || candidates[0];
+            const unsubscribes = [];
             try {
-                tempLogsUnsubscribe = window.fs.onSnapshot(window.fs.query(liveCandidate.ref), (snapshot) => {
-                    const mapped = _mapTempDocsSnapshot(snapshot, liveCandidate.label);
-                    _applyTempLoggerDocs(mapped, liveCandidate.label);
-                }, (err) => {
-                    console.error(`[SHIELD LOGGER] onSnapshot ${liveCandidate.label}:`, err.message);
+                candidates.forEach(c => {
+                    const unsub = window.fs.onSnapshot(window.fs.query(c.ref), (snapshot) => {
+                        let mapped = _mapTempDocsSnapshot(snapshot, c.label, true);
+                        if (mapped.length === 0 && snapshot.size > 0) {
+                            mapped = _mapTempDocsSnapshot(snapshot, `${c.label} (fallback semua dokumen)`, false);
+                        }
+                        tempLogSnapshots[c.label] = mapped;
+                        _mergeTempLoggerSources();
+                    }, (err) => {
+                        console.error(`[SHIELD LOGGER] onSnapshot ${c.label}:`, err.message);
+                    });
+                    unsubscribes.push(unsub);
                 });
+                tempLogsUnsubscribe = unsubscribes;
             } catch (err) {
-                console.error(`[SHIELD LOGGER] Gagal memasang listener ${liveCandidate.label}:`, err.message);
+                console.error('[SHIELD LOGGER] Gagal memasang listener suhu:', err.message);
             }
         }
 
@@ -2872,33 +2917,36 @@
 
         // Mengekstrak struktur document dari REST atau client SDK Firestore secara serbaguna
         function parseFirestoreDoc(docData) {
-            const extract = (key) => {
-                if (docData && docData.fields && docData.fields[key]) {
-                    const valObj = docData.fields[key];
-                    if (valObj.doubleValue !== undefined) return parseFloat(valObj.doubleValue);
-                    if (valObj.integerValue !== undefined) return parseInt(valObj.integerValue);
-                    if (valObj.timestampValue !== undefined) return valObj.timestampValue;
-                    if (valObj.stringValue !== undefined) return valObj.stringValue;
-                }
-                if (docData && docData[key] !== undefined) {
-                    if (typeof docData[key] === 'object' && docData[key] !== null) {
-                        if (typeof docData[key].toDate === 'function') return docData[key];
-                        if (docData[key].seconds !== undefined) return docData[key];
-                        return docData[key].doubleValue !== undefined ? parseFloat(docData[key].doubleValue) : (docData[key].integerValue !== undefined ? parseInt(docData[key].integerValue) : (docData[key].timestampValue !== undefined ? docData[key].timestampValue : docData[key].stringValue));
+            const extract = (keys) => {
+                const keyArr = Array.isArray(keys) ? keys : [keys];
+                for (const key of keyArr) {
+                    if (docData && docData.fields && docData.fields[key]) {
+                        const valObj = docData.fields[key];
+                        if (valObj.doubleValue !== undefined) return parseFloat(valObj.doubleValue);
+                        if (valObj.integerValue !== undefined) return parseInt(valObj.integerValue);
+                        if (valObj.timestampValue !== undefined) return valObj.timestampValue;
+                        if (valObj.stringValue !== undefined) return valObj.stringValue;
                     }
-                    return docData[key];
+                    if (docData && docData[key] !== undefined) {
+                        if (typeof docData[key] === 'object' && docData[key] !== null) {
+                            if (typeof docData[key].toDate === 'function') return docData[key];
+                            if (docData[key].seconds !== undefined) return docData[key];
+                            return docData[key].doubleValue !== undefined ? parseFloat(docData[key].doubleValue) : (docData[key].integerValue !== undefined ? parseInt(docData[key].integerValue) : (docData[key].timestampValue !== undefined ? docData[key].timestampValue : docData[key].stringValue));
+                        }
+                        return docData[key];
+                    }
                 }
-                return 0;
+                return null;
             };
 
             return {
-                R_Atas: parseFloat(extract('R_Atas') || 0),
-                R_Bawah: parseFloat(extract('R_Bawah') || 0),
-                S_Atas: parseFloat(extract('S_Atas') || 0),
-                S_Bawah: parseFloat(extract('S_Bawah') || 0),
-                T_Atas: parseFloat(extract('T_Atas') || 0),
-                T_Bawah: parseFloat(extract('T_Bawah') || 0),
-                timestamp: extract('receivedAt') || extract('timestamp') || extract('ts') || new Date().toISOString()
+                R_Atas: parseFloat(extract(['R_Atas','RAtas','R_atas','r_atas','R1','temp_R_atas','R_top']) || 0),
+                R_Bawah: parseFloat(extract(['R_Bawah','RBawah','R_bawah','r_bawah','R2','temp_R_bawah','R_bottom']) || 0),
+                S_Atas: parseFloat(extract(['S_Atas','SAtas','S_atas','s_atas','S1','temp_S_atas','S_top']) || 0),
+                S_Bawah: parseFloat(extract(['S_Bawah','SBawah','S_bawah','s_bawah','S2','temp_S_bawah','S_bottom']) || 0),
+                T_Atas: parseFloat(extract(['T_Atas','TAtas','T_atas','t_atas','T1','temp_T_atas','T_top']) || 0),
+                T_Bawah: parseFloat(extract(['T_Bawah','TBawah','T_bawah','t_bawah','T2','temp_T_bawah','T_bottom']) || 0),
+                timestamp: extract(['receivedAt','received_at','updatedAt','updated_at','lastUpdate','last_update','timestamp','Timestamp','ts','time','datetime','created_at','waktu']) || new Date().toISOString()
             };
         }
 
