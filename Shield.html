@@ -2438,6 +2438,7 @@
         let bebanUnsubscribes = {};
         let firestoreBebanLogs = [];
         let bebanLogsUnsubscribe = null;
+        let bebanLogSnapshots = {};
 
         // Inisialisasi Chart Object
         let realtimeChart = null;
@@ -2744,19 +2745,19 @@
 
         function _syncBebanTrainingLogs(trafo, logsAsc) {
             if (trafo !== selectedTrafo || !Array.isArray(logsAsc) || logsAsc.length === 0) return;
-            firestoreBebanLogs = logsAsc.map(p => ({
+            const mapped = logsAsc.map(p => ({
                 ...p,
                 docSortTime: p._time || _parseAnyTimestamp(p.timestamp),
                 formattedTime: new Date(p._time || _parseAnyTimestamp(p.timestamp)).toLocaleString('id-ID'),
                 trafo: `Trafo ${trafo}`
             })).sort((a, b) => b.docSortTime - a.docSortTime);
-            _trimTrainingBuffer(firestoreBebanLogs);
+            bebanLogSnapshots[`realtime_logs_trafo_${trafo}`] = mapped;
+            _mergeBebanLoggerSources();
 
             Object.keys(bebanChartHistoricalData).forEach(k => {
                 if (k.startsWith(trafo + '_')) delete bebanChartHistoricalData[k];
             });
             _scheduleMLRealtimeUpdate('update log beban');
-            if (activePage === 'logger') renderBebanLoggerTable();
         }
 
         function _syncBebanRealtimeTrainingLog(trafo, parsedData) {
@@ -2769,19 +2770,22 @@
                 trafo: `Trafo ${trafo}`
             };
 
-            const existingIdx = firestoreBebanLogs.findIndex(r => Math.abs((r.docSortTime || 0) - docSortTime) < 1000);
+            const sourceKey = `realtime_doc_trafo_${trafo}`;
+            const currentRows = bebanLogSnapshots[sourceKey] || [];
+            const existingIdx = currentRows.findIndex(r => Math.abs((r.docSortTime || 0) - docSortTime) < 1000);
             if (existingIdx >= 0) {
-                firestoreBebanLogs[existingIdx] = { ...firestoreBebanLogs[existingIdx], ...log };
+                currentRows[existingIdx] = { ...currentRows[existingIdx], ...log };
             } else {
-                firestoreBebanLogs.unshift(log);
+                currentRows.unshift(log);
             }
-            firestoreBebanLogs.sort((a, b) => b.docSortTime - a.docSortTime);
-            _trimTrainingBuffer(firestoreBebanLogs);
+            currentRows.sort((a, b) => b.docSortTime - a.docSortTime);
+            _trimTrainingBuffer(currentRows);
+            bebanLogSnapshots[sourceKey] = currentRows;
+            _mergeBebanLoggerSources();
             Object.keys(bebanChartHistoricalData).forEach(k => {
                 if (k.startsWith(trafo + '_')) delete bebanChartHistoricalData[k];
             });
             _scheduleMLRealtimeUpdate('update beban realtime');
-            if (activePage === 'logger') renderBebanLoggerTable();
         }
 
         // Konfigurasi HiveMQ Broker dari ESP32 (menggunakan secure websocket)
@@ -3953,10 +3957,34 @@
             console.log(`[BEBAN LOGGER] Rendered ${mapped.length} baris dari ${sourcePath || 'Firestore'}`);
         }
 
-        async function _fetchFirstAvailableBebanLogs() {
+        function _mergeBebanLoggerSources() {
+            const merged = Object.values(bebanLogSnapshots).flat();
+            const seen = new Set();
+            const deduped = [];
+            merged
+                .filter(row => row && Number.isFinite(row.docSortTime))
+                .sort((a, b) => b.docSortTime - a.docSortTime)
+                .forEach(row => {
+                    const key = [
+                        Math.round((row.docSortTime || 0) / 1000),
+                        row.trafo,
+                        Number(row.I_R || 0).toFixed(2),
+                        Number(row.I_S || 0).toFixed(2),
+                        Number(row.I_T || 0).toFixed(2),
+                        Number(row.kW || 0).toFixed(4),
+                        Number(row.kVA || 0).toFixed(4)
+                    ].join('|');
+                    if (seen.has(key)) return;
+                    seen.add(key);
+                    deduped.push(row);
+                });
+            _applyBebanLoggerDocs(deduped, 'gabungan Firestore beban');
+        }
+
+        async function _fetchAllAvailableBebanLogs() {
             const docIds = _getBebanDocIdCandidates(selectedTrafo);
             const rootCollections = _getBebanRootCollectionCandidates();
-            let firstEmpty = null;
+            bebanLogSnapshots = {};
 
             for (const root of rootCollections) {
                 for (const id of docIds) {
@@ -3964,11 +3992,10 @@
                     try {
                         const snap = await window.fs.getDocs(window.fs.collection(window.db, root, id, 'logs'));
                         const mapped = _mapBebanDocsSnapshot(snap, sourcePath, false);
-                        if (!firstEmpty) firstEmpty = { mapped, sourcePath, kind: 'logs', root, docId: id };
+                        bebanLogSnapshots[sourcePath] = mapped;
                         console.log(`[BEBAN LOGGER] ${sourcePath} -> ${snap.size} dokumen`);
                         if (mapped.length > 0) {
                             bebanDocIdMap[selectedTrafo] = id;
-                            return { mapped, sourcePath, kind: 'logs', root, docId: id };
                         }
                     } catch (err) {
                         console.warn(`[BEBAN LOGGER] Gagal membaca ${sourcePath}:`, err.message);
@@ -3984,14 +4011,13 @@
                     if (mapped.length === 0 && snap.size > 0) {
                         mapped = _mapBebanDocsSnapshot(snap, `${sourcePath} (fallback semua dokumen)`, false);
                     }
-                    if (!firstEmpty) firstEmpty = { mapped, sourcePath, kind: 'root', root };
-                    if (mapped.length > 0) return { mapped, sourcePath, kind: 'root', root };
+                    bebanLogSnapshots[sourcePath] = mapped;
                 } catch (err) {
                     console.warn(`[BEBAN LOGGER] Gagal membaca ${root}:`, err.message);
                 }
             }
 
-            return firstEmpty || { mapped: [], sourcePath: 'beban_realtime', kind: 'root' };
+            _mergeBebanLoggerSources();
         }
 
         async function subscribeBebanLogsForSelectedTrafo() {
@@ -3999,28 +4025,49 @@
             if (typeof bebanLogsUnsubscribe === 'function') {
                 bebanLogsUnsubscribe();
                 bebanLogsUnsubscribe = null;
+            } else if (Array.isArray(bebanLogsUnsubscribe)) {
+                bebanLogsUnsubscribe.forEach(u => { if (typeof u === 'function') u(); });
+                bebanLogsUnsubscribe = null;
             }
 
-            const initial = await _fetchFirstAvailableBebanLogs();
-            _applyBebanLoggerDocs(initial.mapped, initial.sourcePath);
+            await _fetchAllAvailableBebanLogs();
 
+            const docIds = _getBebanDocIdCandidates(selectedTrafo);
+            const rootCollections = _getBebanRootCollectionCandidates();
+            const unsubscribes = [];
             try {
-                if (initial.kind === 'logs' && initial.docId) {
-                    const ref = window.fs.collection(window.db, initial.root || 'beban_realtime', initial.docId, 'logs');
-                    bebanLogsUnsubscribe = window.fs.onSnapshot(ref, (snapshot) => {
-                        const mapped = _mapBebanDocsSnapshot(snapshot, initial.sourcePath, false);
-                        _applyBebanLoggerDocs(mapped, initial.sourcePath);
-                    }, err => console.error(`[BEBAN LOGGER] onSnapshot ${initial.sourcePath}:`, err.message));
-                } else {
-                    const ref = window.fs.collection(window.db, initial.root || 'beban_realtime');
-                    bebanLogsUnsubscribe = window.fs.onSnapshot(ref, (snapshot) => {
-                        let mapped = _mapBebanDocsSnapshot(snapshot, initial.sourcePath, true);
-                        if (mapped.length === 0 && snapshot.size > 0) {
-                            mapped = _mapBebanDocsSnapshot(snapshot, `${initial.sourcePath} (fallback semua dokumen)`, false);
+                rootCollections.forEach(root => {
+                    docIds.forEach(id => {
+                        const sourcePath = `${root}/${id}/logs`;
+                        try {
+                            const ref = window.fs.collection(window.db, root, id, 'logs');
+                            const unsub = window.fs.onSnapshot(ref, (snapshot) => {
+                                bebanLogSnapshots[sourcePath] = _mapBebanDocsSnapshot(snapshot, sourcePath, false);
+                                _mergeBebanLoggerSources();
+                            }, err => console.warn(`[BEBAN LOGGER] onSnapshot ${sourcePath}:`, err.message));
+                            unsubscribes.push(unsub);
+                        } catch (err) {
+                            console.warn(`[BEBAN LOGGER] Gagal listener ${sourcePath}:`, err.message);
                         }
-                        _applyBebanLoggerDocs(mapped, initial.sourcePath);
-                    }, err => console.error(`[BEBAN LOGGER] onSnapshot ${initial.sourcePath}:`, err.message));
-                }
+                    });
+
+                    try {
+                        const sourcePath = root;
+                        const ref = window.fs.collection(window.db, root);
+                        const unsub = window.fs.onSnapshot(ref, (snapshot) => {
+                            let mapped = _mapBebanDocsSnapshot(snapshot, sourcePath, true);
+                            if (mapped.length === 0 && snapshot.size > 0) {
+                                mapped = _mapBebanDocsSnapshot(snapshot, `${sourcePath} (fallback semua dokumen)`, false);
+                            }
+                            bebanLogSnapshots[sourcePath] = mapped;
+                            _mergeBebanLoggerSources();
+                        }, err => console.warn(`[BEBAN LOGGER] onSnapshot ${sourcePath}:`, err.message));
+                        unsubscribes.push(unsub);
+                    } catch (err) {
+                        console.warn(`[BEBAN LOGGER] Gagal listener ${root}:`, err.message);
+                    }
+                });
+                bebanLogsUnsubscribe = unsubscribes;
             } catch (err) {
                 console.error('[BEBAN LOGGER] Gagal memasang listener:', err.message);
             }
