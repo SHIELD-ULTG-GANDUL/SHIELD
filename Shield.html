@@ -2756,6 +2756,7 @@
                 if (k.startsWith(trafo + '_')) delete bebanChartHistoricalData[k];
             });
             _scheduleMLRealtimeUpdate('update log beban');
+            if (activePage === 'logger') renderBebanLoggerTable();
         }
 
         function _syncBebanRealtimeTrainingLog(trafo, parsedData) {
@@ -2768,13 +2769,19 @@
                 trafo: `Trafo ${trafo}`
             };
 
-            const exists = firestoreBebanLogs.some(r => Math.abs((r.docSortTime || 0) - docSortTime) < 1000);
-            if (!exists) {
+            const existingIdx = firestoreBebanLogs.findIndex(r => Math.abs((r.docSortTime || 0) - docSortTime) < 1000);
+            if (existingIdx >= 0) {
+                firestoreBebanLogs[existingIdx] = { ...firestoreBebanLogs[existingIdx], ...log };
+            } else {
                 firestoreBebanLogs.unshift(log);
-                firestoreBebanLogs.sort((a, b) => b.docSortTime - a.docSortTime);
-                _trimTrainingBuffer(firestoreBebanLogs);
             }
+            firestoreBebanLogs.sort((a, b) => b.docSortTime - a.docSortTime);
+            _trimTrainingBuffer(firestoreBebanLogs);
+            Object.keys(bebanChartHistoricalData).forEach(k => {
+                if (k.startsWith(trafo + '_')) delete bebanChartHistoricalData[k];
+            });
             _scheduleMLRealtimeUpdate('update beban realtime');
+            if (activePage === 'logger') renderBebanLoggerTable();
         }
 
         // Konfigurasi HiveMQ Broker dari ESP32 (menggunakan secure websocket)
@@ -3673,7 +3680,9 @@
                     return v;
                 };
                 const keyArr = Array.isArray(keys) ? keys : [keys];
+                const norm = (s) => String(s).toLowerCase().replace(/[^a-z0-9]/g, '');
                 for (const key of keyArr) {
+                    if (!key) continue;
                     // Format Firestore REST (fields wrapper)
                     if (docData.fields && docData.fields[key]) {
                         const v = docData.fields[key];
@@ -3687,9 +3696,11 @@
                         return unwrap(docData[key]);
                     }
                     const lowerKey = String(key).toLowerCase();
+                    const normKey = norm(key);
                     const nestedKey = Object.keys(flatDocData).find(k => {
                         const lk = k.toLowerCase();
-                        return lk === lowerKey || lk.endsWith('.' + lowerKey);
+                        const tail = k.split('.').pop() || k;
+                        return lk === lowerKey || lk.endsWith('.' + lowerKey) || norm(tail) === normKey;
                     });
                     if (nestedKey) {
                         return unwrap(flatDocData[nestedKey]);
@@ -3705,22 +3716,22 @@
 
             const result = {
                 // Arus — coba semua variasi nama ION8650 / modbus
-                I_R: num(extract(['I_R','Ir','IR','I_a','Ia','I1','Current_R','ia','current_a','iR','I_ph1','i_r','i_a'])),
-                I_S: num(extract(['I_S','Is','IS','I_b','Ib','I2','Current_S','ib','current_b','iS','I_ph2','i_s','i_b'])),
-                I_T: num(extract(['I_T','It','IT','I_c','Ic','I3','Current_T','ic','current_c','iT','I_ph3','i_t','i_c'])),
+                I_R: num(extract(['I_R','Ir','IR','I_a','Ia','I1','I_L1','IL1','I L1','Current_R','Current R','Current_A','Current A','Current_L1','Current L1','ia','current_a','current a','current_l1','iR','I_ph1','I ph1','I_phase_A','I phase A','phase_a_current','phase a current','Ampere_R','Ampere R','Arus_R','Arus R','Arus_A','Arus A','i_r','i_a'])),
+                I_S: num(extract(['I_S','Is','IS','I_b','Ib','I2','I_L2','IL2','I L2','Current_S','Current S','Current_B','Current B','Current_L2','Current L2','ib','current_b','current b','current_l2','iS','I_ph2','I ph2','I_phase_B','I phase B','phase_b_current','phase b current','Ampere_S','Ampere S','Arus_S','Arus S','Arus_B','Arus B','i_s','i_b'])),
+                I_T: num(extract(['I_T','It','IT','I_c','Ic','I3','I_L3','IL3','I L3','Current_T','Current T','Current_C','Current C','Current_L3','Current L3','ic','current_c','current c','current_l3','iT','I_ph3','I ph3','I_phase_C','I phase C','phase_c_current','phase c current','Ampere_T','Ampere T','Arus_T','Arus T','Arus_C','Arus C','i_t','i_c'])),
                 // Tegangan
-                V_R: num(extract(['V_R','Vr','VR','V_a','Va','V1','Voltage_R','V_an','V_RS','van','voltage_a','vR','Van','Vab','v_r','v_a'])),
-                V_S: num(extract(['V_S','Vs','VS','V_b','Vb','V2','Voltage_S','V_bn','V_ST','vbn','voltage_b','vS','Vbn','Vbc','v_s','v_b'])),
-                V_T: num(extract(['V_T','Vt','VT','V_c','Vc','V3','Voltage_T','V_cn','V_TR','vcn','voltage_c','vT','Vcn','Vca','v_t','v_c'])),
+                V_R: num(extract(['V_R','Vr','VR','V_a','Va','V1','V_L1','VL1','Voltage_R','Voltage R','Voltage_A','Voltage A','Voltage_L1','Voltage L1','V_an','V AN','V_RS','van','voltage_a','voltage a','vR','Van','Vab','v_r','v_a'])),
+                V_S: num(extract(['V_S','Vs','VS','V_b','Vb','V2','V_L2','VL2','Voltage_S','Voltage S','Voltage_B','Voltage B','Voltage_L2','Voltage L2','V_bn','V BN','V_ST','vbn','voltage_b','voltage b','vS','Vbn','Vbc','v_s','v_b'])),
+                V_T: num(extract(['V_T','Vt','VT','V_c','Vc','V3','V_L3','VL3','Voltage_T','Voltage T','Voltage_C','Voltage C','Voltage_L3','Voltage L3','V_cn','V CN','V_TR','vcn','voltage_c','voltage c','vT','Vcn','Vca','v_t','v_c'])),
                 // Daya — auto-detect override + alias lengkap
                 // Nilai dari ION8650 dalam satuan kW/kVAR/kVA — dibagi 1000 → MW/MVAR/MVA
-                kW:   num(extract([ovr.kW, 'MW','mw','P_MW','kW','KW','P','kw','p_total','ActivePower','active_power','real_power','P_total','watt','Watt','watts','active_power_kw'].filter(Boolean))) / 1000,
-                kVAR: num(extract([ovr.kVAR,'MVAR','mvar','Q_MVAR','kVAR','KVAR','Q','kvar','q_total','ReactivePower','reactive_power','Q_total','var','Var'].filter(Boolean))) / 1000,
-                kVA:  num(extract([ovr.kVA, 'MVA','mva','S_MVA','kVA','KVA','S','kva','s_total','ApparentPower','apparent_power','S_total','va','Va'].filter(Boolean))) / 1000,
+                kW:   num(extract([ovr.kW, 'MW','mw','P_MW','kW','KW','P','P_total','P Total','kw','p_total','ActivePower','Active Power','active_power','real_power','watt','Watt','watts','active_power_kw'].filter(Boolean))) / 1000,
+                kVAR: num(extract([ovr.kVAR,'MVAR','mvar','Q_MVAR','kVAR','KVAR','Q','Q_total','Q Total','kvar','q_total','ReactivePower','Reactive Power','reactive_power','var','Var'].filter(Boolean))) / 1000,
+                kVA:  num(extract([ovr.kVA, 'MVA','mva','S_MVA','kVA','KVA','S','S_total','S Total','kva','s_total','ApparentPower','Apparent Power','apparent_power','va','Va'].filter(Boolean))) / 1000,
                 // Power Factor — ION8650 sering pakai desimal 0.xx atau integer 0-100
                 PF:   num(extract([ovr.PF,  'PF','pf','PowerFactor','power_factor','cos_phi','PF_total','pf_total','CosPhi','cosphi','pfTotal','pf_avg','PF_avg'].filter(Boolean))),
                 // % Beban
-                beban_persen: num(extract(['beban_persen','load_percent','LoadPercent','beban','load','load_pct','Beban','loadPercent','load_pct_avg'])),
+                beban_persen: num(extract(['beban_persen','beban persen','load_percent','LoadPercent','Load Percent','beban','load','load_pct','load pct','Beban','loadPercent','load_pct_avg'])),
                 // Timestamp
                 timestamp: extract(['timestamp','ts','Timestamp','time','datetime','created_at','waktu','time_stamp']) || new Date().toLocaleString('id-ID')
             };
