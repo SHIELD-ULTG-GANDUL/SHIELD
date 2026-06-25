@@ -2351,7 +2351,24 @@
         }
 
         function _trimTrainingBuffer(arr, maxLen = ML_TRAINING_BUFFER_MAX) {
-            if (arr.length > maxLen) arr.splice(maxLen);
+            if (!Array.isArray(arr) || arr.length <= maxLen) return arr;
+
+            const timeOf = (row) => {
+                const raw = row?.docSortTime ?? row?._time ?? row?.timestamp ?? row?.ts ?? row?.receivedAt;
+                const t = _parseAnyTimestamp(raw);
+                return Number.isFinite(t) ? t : 0;
+            };
+            const keep = new Set(
+                arr
+                    .map((row, idx) => ({ row, idx, t: timeOf(row) }))
+                    .sort((a, b) => (b.t - a.t) || (b.idx - a.idx))
+                    .slice(0, maxLen)
+                    .map(item => item.row)
+            );
+
+            for (let i = arr.length - 1; i >= 0; i--) {
+                if (!keep.has(arr[i])) arr.splice(i, 1);
+            }
             return arr;
         }
 

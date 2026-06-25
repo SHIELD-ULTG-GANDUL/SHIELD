@@ -1262,6 +1262,85 @@
                     </div>
                   </div>
 
+                  <div class="glass-card p-5">
+                    <h5 class="text-xs font-extrabold text-slate-700 uppercase tracking-widest mb-4">Insight Detail KPI</h5>
+                    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+                      <div class="bg-slate-50 border border-slate-200 rounded-xl p-3">
+                        <div class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest">LNTAI Saat Ini</div>
+                        <div id="lntai-insight-kpi-lntai" class="text-[10px] text-slate-600 leading-relaxed mt-1">Menunggu data.</div>
+                      </div>
+                      <div class="bg-slate-50 border border-slate-200 rounded-xl p-3">
+                        <div class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest">Residual Thermal</div>
+                        <div id="lntai-insight-kpi-residual" class="text-[10px] text-slate-600 leading-relaxed mt-1">Menunggu data.</div>
+                      </div>
+                      <div class="bg-slate-50 border border-slate-200 rounded-xl p-3">
+                        <div class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest">T Kontakt / Beban</div>
+                        <div id="lntai-insight-kpi-input" class="text-[10px] text-slate-600 leading-relaxed mt-1">Menunggu data.</div>
+                      </div>
+                      <div class="bg-slate-50 border border-slate-200 rounded-xl p-3">
+                        <div class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest">Data Aktual</div>
+                        <div id="lntai-insight-kpi-data" class="text-[10px] text-slate-600 leading-relaxed mt-1">Menunggu data.</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                    <div class="glass-card p-5">
+                      <h5 class="text-xs font-extrabold text-slate-700 uppercase tracking-widest mb-3">Grafik Delta Suhu Aktual vs Prediksi</h5>
+                      <p class="text-[10px] text-slate-400 mb-3">Jika kurva aktual jauh di atas prediksi, residual positif membesar dan LNTAI naik.</p>
+                      <div class="relative h-[300px]">
+                        <canvas id="lntai-temp-model-chart"></canvas>
+                        <div id="lntai-temp-model-empty" class="hidden absolute inset-0 flex items-center justify-center bg-white/80 rounded-xl text-xs font-bold text-slate-400">Belum ada data model.</div>
+                      </div>
+                    </div>
+                    <div class="glass-card p-5">
+                      <h5 class="text-xs font-extrabold text-slate-700 uppercase tracking-widest mb-3">Narasi Analisis Otomatis</h5>
+                      <div id="lntai-generated-narrative" class="text-[11px] text-slate-600 leading-relaxed space-y-2">
+                        <p>Menunggu data suhu dan beban.</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                    <div class="glass-card p-5">
+                      <h5 class="text-xs font-extrabold text-slate-700 uppercase tracking-widest mb-3">Tabel Perhitungan Titik Terbaru</h5>
+                      <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs min-w-[680px]">
+                          <thead>
+                            <tr class="bg-slate-100 text-slate-600 font-bold uppercase tracking-wider">
+                              <th class="px-3 py-2">Parameter</th>
+                              <th class="px-3 py-2 text-right">Nilai</th>
+                              <th class="px-3 py-2">Makna</th>
+                            </tr>
+                          </thead>
+                          <tbody id="lntai-calc-table" class="divide-y divide-slate-100">
+                            <tr><td colspan="3" class="px-3 py-6 text-center text-slate-400 font-bold">Menunggu data.</td></tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                    <div class="glass-card p-5">
+                      <h5 class="text-xs font-extrabold text-slate-700 uppercase tracking-widest mb-3">Tabel Histori LNTAI Terbaru</h5>
+                      <div class="overflow-x-auto max-h-[360px]">
+                        <table class="w-full text-left text-xs min-w-[760px]">
+                          <thead class="sticky top-0 bg-slate-100 text-slate-600 font-bold uppercase tracking-wider">
+                            <tr>
+                              <th class="px-3 py-2">Waktu</th>
+                              <th class="px-3 py-2 text-right">T Kontak</th>
+                              <th class="px-3 py-2 text-right">I Load</th>
+                              <th class="px-3 py-2 text-right">Residual</th>
+                              <th class="px-3 py-2 text-right">LNTAI</th>
+                              <th class="px-3 py-2">Level</th>
+                            </tr>
+                          </thead>
+                          <tbody id="lntai-history-table" class="divide-y divide-slate-100">
+                            <tr><td colspan="6" class="px-3 py-6 text-center text-slate-400 font-bold">Menunggu data.</td></tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+
                   <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
                     <div class="glass-card p-5">
                       <h5 class="text-xs font-extrabold text-slate-700 uppercase tracking-widest mb-4">Alur Algoritma LNTAI</h5>
@@ -2519,7 +2598,24 @@
         }
 
         function _trimTrainingBuffer(arr, maxLen = ML_TRAINING_BUFFER_MAX) {
-            if (arr.length > maxLen) arr.splice(0, arr.length - maxLen);
+            if (!Array.isArray(arr) || arr.length <= maxLen) return arr;
+
+            const timeOf = (row) => {
+                const raw = row?.docSortTime ?? row?._time ?? row?.timestamp ?? row?.ts ?? row?.receivedAt;
+                const t = _parseAnyTimestamp(raw);
+                return Number.isFinite(t) ? t : 0;
+            };
+            const keep = new Set(
+                arr
+                    .map((row, idx) => ({ row, idx, t: timeOf(row) }))
+                    .sort((a, b) => (b.t - a.t) || (b.idx - a.idx))
+                    .slice(0, maxLen)
+                    .map(item => item.row)
+            );
+
+            for (let i = arr.length - 1; i >= 0; i--) {
+                if (!keep.has(arr[i])) arr.splice(i, 1);
+            }
             return arr;
         }
 
@@ -5283,6 +5379,139 @@
             `).join('');
         }
 
+        function _updateLNTAIKPIInsights(rows, current, source) {
+            if (!current) {
+                ['lntai-insight-kpi-lntai','lntai-insight-kpi-residual','lntai-insight-kpi-input','lntai-insight-kpi-data'].forEach(id => _setLNTAIText(id, 'Menunggu data.'));
+                return;
+            }
+            const levelText = current.level === 'NORMAL'
+                ? 'Nilai berada di zona normal. Residual thermal belum menunjukkan deviasi signifikan terhadap baseline beban.'
+                : current.level === 'PERHATIAN'
+                    ? 'Nilai sudah melewati batas perhatian. Tren perlu dipantau karena deviasi mulai konsisten terhadap baseline.'
+                    : current.level === 'SIAGA'
+                        ? 'Nilai masuk zona siaga. Selisih pemanasan terhadap prediksi cukup besar dan perlu inspeksi terjadwal.'
+                        : 'Nilai kritis. Kenaikan suhu aktual jauh di atas estimasi beban, indikasi kuat anomali thermal.';
+            const residualText = current.residual < 0
+                ? `Residual negatif ${current.residual.toFixed(2)} °C berarti kontak lebih dingin dari prediksi model. Status tetap normal bila LNTAI < 1.5.`
+                : `Residual positif ${current.residual.toFixed(2)} °C berarti kontak lebih panas dari prediksi model. Semakin besar residual, semakin kuat indikasi kenaikan tahanan kontak.`;
+            const loadPct = (current.i_load / current.i_rated) * 100;
+            const inputText = `Fasa ${current.hottestPhase} menjadi acuan karena rata-rata suhu tertinggi ${current.t_contact.toFixed(1)} °C. Beban ${current.i_load.toFixed(1)} A setara ${loadPct.toFixed(1)}% dari I_rated LNTAI.`;
+            const recent = rows.slice(-12);
+            const recentAvg = recent.length ? recent.reduce((s, r) => s + r.lntai, 0) / recent.length : current.lntai;
+            const dataText = rows.length > 1
+                ? `Analisis memakai ${rows.length} titik dari ${source}. Rata-rata 12 titik terakhir ${recentAvg.toFixed(2)} sehingga tren dapat dibaca, bukan hanya snapshot tunggal.`
+                : `Analisis saat ini berbasis snapshot terbaru dari ${source}. Tambahkan histori suhu dan beban agar tren LNTAI lebih kuat.`;
+            _setLNTAIText('lntai-insight-kpi-lntai', levelText);
+            _setLNTAIText('lntai-insight-kpi-residual', residualText);
+            _setLNTAIText('lntai-insight-kpi-input', inputText);
+            _setLNTAIText('lntai-insight-kpi-data', dataText);
+        }
+
+        function _renderLNTAIModelChart(rows) {
+            destroyChart('lntai-temp-model');
+            const canvas = document.getElementById('lntai-temp-model-chart');
+            const empty = document.getElementById('lntai-temp-model-empty');
+            if (!canvas) return;
+            if (!rows.length) {
+                if (empty) empty.classList.remove('hidden');
+                return;
+            }
+            if (empty) empty.classList.add('hidden');
+            const labels = rows.map(r => new Date(r.time || Date.now()).toLocaleTimeString('id-ID', { hour12:false, hour:'2-digit', minute:'2-digit' }));
+            mlCharts['lntai-temp-model'] = new Chart(canvas, {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [
+                        { label: 'Delta T Aktual', data: rows.map(r => Number(r.delta_T_real.toFixed(2))), borderColor: '#dc2626', backgroundColor: 'rgba(220,38,38,0.08)', borderWidth: 2.5, pointRadius: rows.length > 1 ? 2 : 5, tension: 0.25, fill: true },
+                        { label: 'Delta T Prediksi', data: rows.map(r => Number(r.delta_T_pred.toFixed(2))), borderColor: '#0d9488', borderWidth: 2.2, pointRadius: 0, tension: 0.25 },
+                        { label: 'Arus Beban (A)', data: rows.map(r => Number(r.i_load.toFixed(1))), borderColor: '#7c3aed', borderWidth: 1.8, borderDash: [5,4], pointRadius: 0, tension: 0.2, yAxisID: 'y1' }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } },
+                    scales: {
+                        x: { grid: { display: false }, ticks: { font: { size: 9 }, maxTicksLimit: 9 } },
+                        y: { title: { display: true, text: 'Delta T °C' }, grid: { color: '#f1f5f9' }, ticks: { font: { size: 9 } } },
+                        y1: { position: 'right', title: { display: true, text: 'Ampere' }, grid: { drawOnChartArea: false }, ticks: { font: { size: 9 } } }
+                    }
+                }
+            });
+        }
+
+        function _renderLNTAITables(rows, current) {
+            const calcBody = document.getElementById('lntai-calc-table');
+            const histBody = document.getElementById('lntai-history-table');
+            if (calcBody) {
+                if (!current) {
+                    calcBody.innerHTML = '<tr><td colspan="3" class="px-3 py-6 text-center text-slate-400 font-bold">Menunggu data.</td></tr>';
+                } else {
+                    const calcRows = [
+                        ['T_contact', `${current.t_contact.toFixed(2)} °C`, `Suhu rata-rata fasa ${current.hottestPhase}, dipilih sebagai kontak terpanas.`],
+                        ['T_ambient', `${current.t_ambient.toFixed(2)} °C`, 'Suhu lingkungan referensi untuk menghitung kenaikan suhu aktual.'],
+                        ['I_load', `${current.i_load.toFixed(2)} A`, 'Arus tertinggi dari tiga fasa, dipakai untuk konservatif terhadap beban.'],
+                        ['I_norm', current.i_norm.toFixed(4), 'Normalisasi arus terhadap I_rated LNTAI.'],
+                        ['Delta T real', `${current.delta_T_real.toFixed(2)} °C`, 'Kenaikan suhu aktual kontak terhadap ambient.'],
+                        ['Delta T pred', `${current.delta_T_pred.toFixed(2)} °C`, 'Kenaikan suhu wajar dari model kuadratik beban.'],
+                        ['Residual', `${current.residual.toFixed(2)} °C`, 'Selisih aktual minus prediksi. Nilai positif menunjukkan panas berlebih relatif terhadap beban.'],
+                        ['LNTAI', current.lntai.toFixed(2), `Residual dibagi sigma baseline 4.6761, menghasilkan level ${current.level}.`]
+                    ];
+                    calcBody.innerHTML = calcRows.map(([p,v,m]) => `
+                        <tr class="hover:bg-slate-50">
+                          <td class="px-3 py-2 font-bold text-slate-600">${p}</td>
+                          <td class="px-3 py-2 text-right font-mono font-bold text-slate-700">${v}</td>
+                          <td class="px-3 py-2 text-slate-500">${m}</td>
+                        </tr>
+                    `).join('');
+                }
+            }
+            if (histBody) {
+                if (!rows.length) {
+                    histBody.innerHTML = '<tr><td colspan="6" class="px-3 py-6 text-center text-slate-400 font-bold">Menunggu data.</td></tr>';
+                } else {
+                    histBody.innerHTML = rows.slice(-20).reverse().map(r => `
+                        <tr class="hover:bg-slate-50">
+                          <td class="px-3 py-2 font-mono text-slate-500">${new Date(r.time || Date.now()).toLocaleString('id-ID', { dateStyle:'short', timeStyle:'medium' })}</td>
+                          <td class="px-3 py-2 text-right font-mono font-bold text-slate-700">${r.t_contact.toFixed(1)} °C</td>
+                          <td class="px-3 py-2 text-right font-mono text-violet-700">${r.i_load.toFixed(1)} A</td>
+                          <td class="px-3 py-2 text-right font-mono ${r.residual >= 0 ? 'text-red-700' : 'text-emerald-700'}">${r.residual.toFixed(2)}</td>
+                          <td class="px-3 py-2 text-right font-mono font-black text-slate-700">${r.lntai.toFixed(2)}</td>
+                          <td class="px-3 py-2"><span class="text-[9px] font-extrabold px-2 py-0.5 rounded-full ${r.cls}">${r.icon} ${r.level}</span></td>
+                        </tr>
+                    `).join('');
+                }
+            }
+        }
+
+        function _renderLNTAINarrative(rows, current, source) {
+            const root = document.getElementById('lntai-generated-narrative');
+            if (!root) return;
+            if (!current) {
+                root.innerHTML = '<p>Data suhu kontak dan arus beban belum lengkap, sehingga narasi analisis LNTAI belum dapat dibuat.</p>';
+                return;
+            }
+            const recent = rows.slice(-12);
+            const avg = recent.length ? recent.reduce((s,r)=>s+r.lntai,0)/recent.length : current.lntai;
+            const maxRow = rows.reduce((m, r) => r.lntai > m.lntai ? r : m, rows[0] || current);
+            const trend = recent.length >= 3 ? recent[recent.length - 1].lntai - recent[0].lntai : 0;
+            const trendText = trend > 0.3 ? 'meningkat' : trend < -0.3 ? 'menurun' : 'relatif stabil';
+            const action = current.level === 'NORMAL'
+                ? 'Rekomendasi: pertahankan monitoring berkala dan pastikan histori data tetap tersimpan.'
+                : current.level === 'PERHATIAN'
+                    ? 'Rekomendasi: validasi sensor, pantau tren beberapa interval berikutnya, dan cek apakah residual positif berulang.'
+                    : current.level === 'SIAGA'
+                        ? 'Rekomendasi: jadwalkan inspeksi kontak finger, cek kekencangan/tekanan kontak, dan evaluasi pembebanan.'
+                        : 'Rekomendasi: lakukan tindakan segera, inspeksi kontak finger, dan pertimbangkan pengurangan beban sampai penyebab thermal ditemukan.';
+            root.innerHTML = `
+                <p>Model LNTAI membaca kondisi terakhir sebagai <b>${current.level}</b> dengan nilai <b>${current.lntai.toFixed(2)}</b>. Nilai ini berasal dari residual <b>${current.residual.toFixed(2)} °C</b>, yaitu selisih antara kenaikan suhu aktual <b>${current.delta_T_real.toFixed(2)} °C</b> dan prediksi wajar model <b>${current.delta_T_pred.toFixed(2)} °C</b>.</p>
+                <p>Fasa terpanas adalah <b>${current.hottestPhase}</b> pada <b>${current.t_contact.toFixed(1)} °C</b>, sementara arus beban acuan <b>${current.i_load.toFixed(1)} A</b>. Dengan sumber data <b>${source}</b>, tren ${recent.length} titik terakhir terlihat <b>${trendText}</b> dengan rata-rata LNTAI <b>${avg.toFixed(2)}</b>. Puncak pada data tampil adalah <b>${maxRow.lntai.toFixed(2)}</b> (${maxRow.level}).</p>
+                <p>${action}</p>
+            `;
+        }
+
         function _renderLNTAIChart(rows) {
             destroyChart('lntai-trend');
             const canvas = document.getElementById('lntai-trend-chart');
@@ -5347,6 +5576,10 @@
                 _setLNTAIText('lntai-kpi-source', series.source);
                 _setLNTAIText('lntai-chart-status', 'Data kurang');
                 _updateLNTAIInsight([], null);
+                _updateLNTAIKPIInsights([], null, series.source);
+                _renderLNTAIModelChart([]);
+                _renderLNTAITables([], null);
+                _renderLNTAINarrative([], null, series.source);
                 _renderLNTAIChart([]);
                 lucide.createIcons();
                 return;
@@ -5365,7 +5598,11 @@
                 badge.className = `mt-2 text-[9px] font-extrabold px-2 py-0.5 rounded-full inline-block ${current.cls}`;
             }
             _updateLNTAIInsight(rows, current);
+            _updateLNTAIKPIInsights(rows, current, series.source);
             _renderLNTAIChart(rows);
+            _renderLNTAIModelChart(rows);
+            _renderLNTAITables(rows, current);
+            _renderLNTAINarrative(rows, current, series.source);
             lucide.createIcons();
         }
 
