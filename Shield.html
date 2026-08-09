@@ -1206,7 +1206,7 @@
                         <div class="bg-red-100 p-2 rounded-lg"><i data-lucide="thermometer-sun" class="w-5 h-5 text-red-600"></i></div>
                         <div>
                           <h5 class="text-xs font-extrabold text-red-700 uppercase tracking-widest">LNTAI — Load Normalized Thermal Anomaly Index</h5>
-                          <p class="text-[10px] text-slate-400">Residual kenaikan suhu aktual kontak finger terhadap prediksi kuadratik dari arus beban.</p>
+                          <p class="text-[10px] text-slate-400">Skor komposit dari kenaikan suhu kontak, selisih antar fasa, dan rasio kenaikan suhu terhadap beban — skala 0–40.</p>
                         </div>
                       </div>
                       <button onclick="renderLNTAIPanel(true)" class="flex items-center gap-1.5 bg-white border border-red-200 text-red-700 text-[11px] font-bold px-3 py-1.5 rounded-lg hover:bg-red-50 transition-all">
@@ -1247,7 +1247,7 @@
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
                           <div class="bg-slate-50 rounded-xl p-3 border border-slate-200">
                             <div class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest">Formula LNTAI</div>
-                            <div class="font-mono text-[10px] text-slate-600 mt-1 leading-relaxed">LNTAI = ((T_contact − T_ambient) − (8.2059 × (I_load/1000)² + 26.86)) / 4.6761</div>
+                            <div class="font-mono text-[10px] text-slate-600 mt-1 leading-relaxed">LNTAI = 0.40·S_Temp + 0.30·S_ΔT + 0.30·S_TLR (skala hasil 0–40)</div>
                           </div>
                           <div class="bg-slate-50 rounded-xl p-3 border border-slate-200">
                             <div class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest">Standar Referensi</div>
@@ -1264,12 +1264,12 @@
                         <div id="lntai-kpi-badge" class="mt-2 text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 inline-block">Menunggu data</div>
                       </div>
                       <div class="bg-white border border-slate-200 rounded-xl p-4">
-                        <div class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest">Residual Thermal</div>
+                        <div class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest">Komponen Dominan</div>
                         <div id="lntai-kpi-residual" class="font-mono font-black text-2xl text-slate-700 mt-1">-</div>
-                        <div class="text-[10px] text-slate-400 mt-1">Delta real - delta prediksi</div>
+                        <div class="text-[10px] text-slate-400 mt-1">Skor komponen tertinggi (skala 0–40)</div>
                       </div>
                       <div class="bg-white border border-slate-200 rounded-xl p-4">
-                        <div class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest">T Kontakt / Beban</div>
+                        <div class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest">T Kontak / Loading</div>
                         <div id="lntai-kpi-input" class="font-mono font-black text-xl text-slate-700 mt-1">-</div>
                         <div id="lntai-kpi-phase" class="text-[10px] text-slate-400 mt-1">Fasa terpanas: -</div>
                       </div>
@@ -1285,7 +1285,7 @@
                     <div class="xl:col-span-2 glass-card p-5">
                       <div class="flex items-center justify-between gap-3 mb-3">
                         <div>
-                          <h5 class="text-xs font-extrabold text-slate-700 uppercase tracking-widest">Tren LNTAI & Residual Aktual</h5>
+                          <h5 class="text-xs font-extrabold text-slate-700 uppercase tracking-widest">Tren LNTAI & ΔT Aktual</h5>
                           <p id="lntai-chart-subtitle" class="text-[10px] text-slate-400 mt-1">Menggabungkan histori suhu kontak dan arus beban terdekat.</p>
                         </div>
                         <span id="lntai-chart-status" class="text-[9px] font-extrabold px-2 py-1 rounded-full bg-slate-100 text-slate-500">-</span>
@@ -1314,11 +1314,11 @@
                         <div id="lntai-insight-kpi-lntai" class="text-[10px] text-slate-600 leading-relaxed mt-1">Menunggu data.</div>
                       </div>
                       <div class="bg-slate-50 border border-slate-200 rounded-xl p-3">
-                        <div class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest">Residual Thermal</div>
+                        <div class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest">Komponen Skor</div>
                         <div id="lntai-insight-kpi-residual" class="text-[10px] text-slate-600 leading-relaxed mt-1">Menunggu data.</div>
                       </div>
                       <div class="bg-slate-50 border border-slate-200 rounded-xl p-3">
-                        <div class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest">T Kontakt / Beban</div>
+                        <div class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest">T Kontak / Loading</div>
                         <div id="lntai-insight-kpi-input" class="text-[10px] text-slate-600 leading-relaxed mt-1">Menunggu data.</div>
                       </div>
                       <div class="bg-slate-50 border border-slate-200 rounded-xl p-3">
@@ -1330,8 +1330,8 @@
 
                   <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
                     <div class="glass-card p-5">
-                      <h5 class="text-xs font-extrabold text-slate-700 uppercase tracking-widest mb-3">Grafik Delta Suhu Aktual vs Prediksi</h5>
-                      <p class="text-[10px] text-slate-400 mb-3">Jika kurva aktual jauh di atas prediksi, residual positif membesar dan LNTAI naik.</p>
+                      <h5 class="text-xs font-extrabold text-slate-700 uppercase tracking-widest mb-3">Grafik Komponen Skor LNTAI</h5>
+                      <p class="text-[10px] text-slate-400 mb-3">Kontribusi S_Temp, S_ΔT, dan S_TLR (skala 0–40 masing-masing) terhadap skor LNTAI berbobot dari waktu ke waktu.</p>
                       <div class="relative h-[300px]">
                         <canvas id="lntai-temp-model-chart"></canvas>
                         <div id="lntai-temp-model-empty" class="hidden absolute inset-0 flex items-center justify-center bg-white/80 rounded-xl text-xs font-bold text-slate-400">Belum ada data model.</div>
@@ -1371,8 +1371,8 @@
                             <tr>
                               <th class="px-3 py-2">Waktu</th>
                               <th class="px-3 py-2 text-right">T Kontak</th>
-                              <th class="px-3 py-2 text-right">I Load</th>
-                              <th class="px-3 py-2 text-right">Residual</th>
+                              <th class="px-3 py-2 text-right">I Avg</th>
+                              <th class="px-3 py-2 text-right">S_Temp / S_ΔT / S_TLR</th>
                               <th class="px-3 py-2 text-right">LNTAI</th>
                               <th class="px-3 py-2">Level</th>
                             </tr>
@@ -1388,49 +1388,45 @@
                   <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
                     <div class="glass-card p-5">
                       <h5 class="text-xs font-extrabold text-slate-700 uppercase tracking-widest mb-4">Alur Algoritma LNTAI</h5>
-                      <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
-                        <div class="bg-slate-50 rounded-xl p-3 border border-slate-200"><div class="text-[9px] font-extrabold text-red-600 uppercase">1. Input Sensor</div><div class="text-[10px] text-slate-600 mt-1">Ambil suhu kontak finger, suhu ambient, dan arus beban dari meter.</div></div>
-                        <div class="bg-slate-50 rounded-xl p-3 border border-slate-200"><div class="text-[9px] font-extrabold text-red-600 uppercase">2. Delta Aktual</div><div class="text-[10px] text-slate-600 mt-1">Hitung kenaikan suhu real: T_contact - T_ambient.</div></div>
-                        <div class="bg-slate-50 rounded-xl p-3 border border-slate-200"><div class="text-[9px] font-extrabold text-red-600 uppercase">3. Normalisasi Beban</div><div class="text-[10px] text-slate-600 mt-1">Ubah arus menjadi I_norm = I_load / I_rated.</div></div>
-                        <div class="bg-slate-50 rounded-xl p-3 border border-slate-200"><div class="text-[9px] font-extrabold text-red-600 uppercase">4. Prediksi Wajar</div><div class="text-[10px] text-slate-600 mt-1">Delta_T_pred = 8.2059 x I_norm² + 26.86.</div></div>
-                        <div class="bg-slate-50 rounded-xl p-3 border border-slate-200"><div class="text-[9px] font-extrabold text-red-600 uppercase">5. Residual</div><div class="text-[10px] text-slate-600 mt-1">Bandingkan delta aktual dengan prediksi: residual = real - pred.</div></div>
-                        <div class="bg-slate-50 rounded-xl p-3 border border-slate-200"><div class="text-[9px] font-extrabold text-red-600 uppercase">6. Klasifikasi</div><div class="text-[10px] text-slate-600 mt-1">LNTAI = residual / 4.6761, lalu petakan ke Normal, Perhatian, Siaga, Kritis.</div></div>
+                      <div class="grid grid-cols-1 md:grid-cols-4 gap-2">
+                        <div class="bg-slate-50 rounded-xl p-3 border border-slate-200"><div class="text-[9px] font-extrabold text-red-600 uppercase">1. Akuisisi Data</div><div class="text-[10px] text-slate-600 mt-1">Suhu kontak 6 titik/fasa (MQTT), arus beban I_R/I_S/I_T (power meter), suhu ambient real-time (Open-Meteo API).</div></div>
+                        <div class="bg-slate-50 rounded-xl p-3 border border-slate-200"><div class="text-[9px] font-extrabold text-red-600 uppercase">2. Preprocessing &amp; Validasi</div><div class="text-[10px] text-slate-600 mt-1">Cek kelengkapan &amp; rentang nilai. Jika tidak valid, data tidak dipakai — nilai LNTAI sebelumnya dipertahankan.</div></div>
+                        <div class="bg-slate-50 rounded-xl p-3 border border-slate-200"><div class="text-[9px] font-extrabold text-red-600 uppercase">3. Agregasi Parameter</div><div class="text-[10px] text-slate-600 mt-1">Rata-rata suhu per fasa T_R/T_S/T_T, arus rata-rata I_avg, Loading% = I_avg/I_nominal x100%.</div></div>
+                        <div class="bg-slate-50 rounded-xl p-3 border border-slate-200"><div class="text-[9px] font-extrabold text-red-600 uppercase">4. Skor Komponen (0–40)</div><div class="text-[10px] text-slate-600 mt-1">S_Temp = kenaikan suhu di atas ambient. S_ΔT = selisih suhu antar fasa. S_TLR = rasio kenaikan suhu per beban².</div></div>
+                        <div class="bg-slate-50 rounded-xl p-3 border border-slate-200"><div class="text-[9px] font-extrabold text-red-600 uppercase">5. Skor LNTAI Berbobot</div><div class="text-[10px] text-slate-600 mt-1">LNTAI = 0.40·S_Temp + 0.30·S_ΔT + 0.30·S_TLR. Rentang hasil: 0–40.</div></div>
+                        <div class="bg-slate-50 rounded-xl p-3 border border-slate-200"><div class="text-[9px] font-extrabold text-red-600 uppercase">6. Klasifikasi</div><div class="text-[10px] text-slate-600 mt-1">0–10 Normal · 10–25 Warning · 25–40 Critical.</div></div>
+                        <div class="bg-slate-50 rounded-xl p-3 border border-slate-200"><div class="text-[9px] font-extrabold text-red-600 uppercase">7. Logging &amp; Update Dashboard</div><div class="text-[10px] text-slate-600 mt-1">Simpan data &amp; skor LNTAI, perbarui KPI dan grafik tren secara real-time.</div></div>
                       </div>
                     </div>
                     <div class="glass-card p-5">
                       <h5 class="text-xs font-extrabold text-slate-700 uppercase tracking-widest mb-4">Pembacaan Engineering</h5>
                       <div class="space-y-3 text-[10px] text-slate-600 leading-relaxed">
-                        <p><b>LNTAI berbeda dari alarm suhu absolut.</b> Suhu 75°C pada beban tinggi bisa lebih wajar daripada suhu 75°C pada beban rendah, karena model menghitung pemanasan yang seharusnya muncul dari arus.</p>
-                        <p><b>Residual positif besar</b> berarti kontak lebih panas dari estimasi beban. Ini dapat mengarah ke tahanan kontak naik, tekanan finger melemah, oksidasi, kotoran, atau hotspot lokal.</p>
-                        <p><b>Residual negatif</b> tetap ditampilkan apa adanya. Selama LNTAI di bawah 1.5, status tetap Normal karena suhu aktual masih lebih rendah atau tidak jauh dari prediksi baseline.</p>
+                        <p><b>LNTAI adalah skor komposit berbobot</b>, bukan satu variabel suhu tunggal. Tiga komponen dinilai 0–40 lalu digabung dengan bobot 0.40/0.30/0.30 sehingga hasil akhirnya selalu berada di rentang 0–40.</p>
+                        <p><b>S_Temp</b> menilai kenaikan suhu kontak terpanas di atas ambient terhadap batas kenaikan terminal 40K (IEC 62271-1). <b>S_ΔT</b> menilai selisih suhu antar fasa R/S/T — indikasi ketidakseimbangan kontak. <b>S_TLR</b> menilai rasio kenaikan suhu terhadap kuadrat beban — indikasi pemanasan tidak wajar terhadap arus yang mengalir.</p>
+                        <p><b>Data tidak valid/lengkap</b> (sensor putus, nilai di luar rentang wajar) tidak dipakai untuk menghitung skor baru — dashboard tetap menampilkan nilai LNTAI valid terakhir sampai pembacaan berikutnya lengkap.</p>
                         <div class="bg-red-50 border border-red-100 rounded-xl p-3 font-mono text-[10px] text-red-700">
-                          LNTAI = ((T_contact - T_ambient) - (8.2059 x (I_load / 1000)^2 + 26.86)) / 4.6761
+                          LNTAI = 0.40·S_Temp + 0.30·S_ΔT + 0.30·S_TLR &nbsp;→&nbsp; rentang hasil 0–40
                         </div>
                       </div>
                     </div>
                   </div>
 
                   <div class="glass-card p-5">
-                    <h5 class="text-xs font-extrabold text-slate-700 uppercase tracking-widest mb-3">Threshold Klasifikasi</h5>
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+                    <h5 class="text-xs font-extrabold text-slate-700 uppercase tracking-widest mb-3">Threshold Klasifikasi (Skala 0–40)</h5>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                       <div class="bg-emerald-50 border border-emerald-100 rounded-xl p-3">
                         <div class="text-[9px] font-extrabold text-emerald-700 uppercase tracking-widest">Normal</div>
-                        <div class="font-mono font-black text-lg text-slate-700">&lt; 1.5</div>
+                        <div class="font-mono font-black text-lg text-slate-700">0 - 10</div>
                         <div class="text-[10px] text-slate-500 mt-1">Monitoring rutin</div>
                       </div>
                       <div class="bg-amber-50 border border-amber-100 rounded-xl p-3">
-                        <div class="text-[9px] font-extrabold text-amber-700 uppercase tracking-widest">Perhatian</div>
-                        <div class="font-mono font-black text-lg text-slate-700">1.5 - 3.0</div>
-                        <div class="text-[10px] text-slate-500 mt-1">Pantau tren</div>
-                      </div>
-                      <div class="bg-orange-50 border border-orange-100 rounded-xl p-3">
-                        <div class="text-[9px] font-extrabold text-orange-700 uppercase tracking-widest">Siaga</div>
-                        <div class="font-mono font-black text-lg text-slate-700">3.0 - 5.0</div>
-                        <div class="text-[10px] text-slate-500 mt-1">Inspeksi terjadwal</div>
+                        <div class="text-[9px] font-extrabold text-amber-700 uppercase tracking-widest">Warning</div>
+                        <div class="font-mono font-black text-lg text-slate-700">10 - 25</div>
+                        <div class="text-[10px] text-slate-500 mt-1">Pantau tren, jadwalkan inspeksi</div>
                       </div>
                       <div class="bg-red-50 border border-red-100 rounded-xl p-3">
-                        <div class="text-[9px] font-extrabold text-red-700 uppercase tracking-widest">Kritis</div>
-                        <div class="font-mono font-black text-lg text-slate-700">&ge; 5.0</div>
+                        <div class="text-[9px] font-extrabold text-red-700 uppercase tracking-widest">Critical</div>
+                        <div class="font-mono font-black text-lg text-slate-700">25 - 40</div>
                         <div class="text-[10px] text-slate-500 mt-1">Tindakan segera</div>
                       </div>
                     </div>
@@ -1450,10 +1446,10 @@
                       </div>
                       <div class="bg-slate-50 rounded-xl p-4 border border-slate-200">
                         <div class="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-2">Output Dashboard</div>
-                        <pre class="text-[10px] text-slate-700 overflow-x-auto">{"lntai":5.33,"level":"KRITIS","color":"red"}</pre>
+                        <pre class="text-[10px] text-slate-700 overflow-x-auto">{"lntai":32.4,"level":"CRITICAL","s_temp":36.0,"s_deltaT":28.0,"s_tlr":30.7}</pre>
                       </div>
                     </div>
-                    <p class="text-[10px] text-slate-500 mt-4 leading-relaxed">LNTAI bukan alarm suhu absolut. Nilai ini menilai selisih antara kenaikan suhu aktual dan kenaikan suhu yang wajar menurut arus beban, sehingga residual positif besar dapat mengindikasikan kenaikan tahanan kontak finger.</p>
+                    <p class="text-[10px] text-slate-500 mt-4 leading-relaxed">LNTAI bukan alarm suhu absolut. Skor ini menggabungkan kenaikan suhu kontak, ketidakseimbangan antar fasa, dan kewajaran pemanasan terhadap beban dalam satu angka 0–40, sehingga skor tinggi dapat mengindikasikan kenaikan tahanan kontak finger meski suhu absolutnya belum terlalu tinggi.</p>
                   </div>
                 </div>
 
@@ -5292,13 +5288,18 @@
 
         let mlCharts = {};
 
+        // Konfigurasi LNTAI mengikuti flowchart: skor komponen 0-40, digabung berbobot
+        // (0.40 S_Temp + 0.30 S_ΔT + 0.30 S_TLR) sehingga hasil akhir selalu 0-40.
         const LNTAI_CFG = {
-            A: 8.2059,
-            B: 26.86,
-            sigma: 4.6761,
+            scoreMax: 40,
+            weights: { temp: 0.40, deltaT: 0.30, tlr: 0.30 },
+            refTempRise: 40,      // IEC 62271-1:2017 §7.4 — batas kenaikan suhu terminal kontak (K)
+            refPhaseDelta: 15,    // batas kritikal selisih suhu antar fasa (K), selaras dgn severity PMT lain
+            refTLR: 20,           // referensi rasio kenaikan suhu per (I_norm)² pada kondisi anomali (K/unit²)
+            tlrLoadFloor: 0.15,   // floor I_norm agar TLR tidak meledak saat beban sangat rendah
             ambient: 30,
-            iRated: 1000,
-            thresholds: { attention: 1.5, alert: 3.0, critical: 5.0 }
+            iRated: I_NOMINAL_TRAFO,
+            thresholds: { warning: 10, critical: 25 }
         };
 
         const GANDUL_WEATHER_POINT = {
@@ -5369,36 +5370,48 @@
         setInterval(refreshGandulAmbientTemperature, GANDUL_WEATHER_POINT.refreshMs);
         setInterval(_applyAmbientVariation, GANDUL_WEATHER_POINT.variationMs);
 
-        function _calcLNTAIFrontend(tContact, iLoad, tAmbient = LNTAI_CFG.ambient, iRated = LNTAI_CFG.iRated) {
-            const tc = Number(tContact);
-            const il = Number(iLoad);
+        // Langkah 3-6 flowchart: agregasi parameter → skor komponen 0-40 → skor berbobot → klasifikasi.
+        // `ph` adalah hasil _phaseAveragesFromTemp (berisi tContact/hottestPhase/deltaPhase/T_R/T_S/T_T).
+        function _calcLNTAIFrontend(ph, iAvg, tAmbient = LNTAI_CFG.ambient, iRated = LNTAI_CFG.iRated) {
+            const tc = Number(ph?.tContact);
+            const dPhase = Number(ph?.deltaPhase);
+            const ia = Number(iAvg);
             const ta = Number(tAmbient);
             const ir = Number(iRated);
-            if (![tc, il, ta, ir].every(Number.isFinite) || ir === 0 || LNTAI_CFG.sigma === 0) return null;
-            const iNorm = il / ir;
+            if (![tc, dPhase, ia, ta, ir].every(Number.isFinite) || ir === 0) return null;
+
+            const iNorm = ia / ir;
+            const loadingPct = iNorm * 100;
             const deltaReal = tc - ta;
-            const deltaPred = LNTAI_CFG.A * Math.pow(iNorm, 2) + LNTAI_CFG.B;
-            const residual = deltaReal - deltaPred;
-            const lntai = residual / LNTAI_CFG.sigma;
-            const level = lntai >= LNTAI_CFG.thresholds.critical ? 'KRITIS'
-                : lntai >= LNTAI_CFG.thresholds.alert ? 'SIAGA'
-                : lntai >= LNTAI_CFG.thresholds.attention ? 'PERHATIAN'
+            // Floor mencegah rasio TLR meledak saat beban mendekati nol
+            const iNormFloor = Math.max(iNorm, LNTAI_CFG.tlrLoadFloor);
+            const tlr = deltaReal / Math.pow(iNormFloor, 2);
+
+            const S_Temp = _clampNumber((deltaReal / LNTAI_CFG.refTempRise) * LNTAI_CFG.scoreMax, 0, LNTAI_CFG.scoreMax);
+            const S_DeltaT = _clampNumber((dPhase / LNTAI_CFG.refPhaseDelta) * LNTAI_CFG.scoreMax, 0, LNTAI_CFG.scoreMax);
+            const S_TLR = _clampNumber((tlr / LNTAI_CFG.refTLR) * LNTAI_CFG.scoreMax, 0, LNTAI_CFG.scoreMax);
+
+            const lntai = LNTAI_CFG.weights.temp * S_Temp + LNTAI_CFG.weights.deltaT * S_DeltaT + LNTAI_CFG.weights.tlr * S_TLR;
+
+            const level = lntai >= LNTAI_CFG.thresholds.critical ? 'CRITICAL'
+                : lntai >= LNTAI_CFG.thresholds.warning ? 'WARNING'
                 : 'NORMAL';
             const meta = {
-                NORMAL: { color: 'green', icon: '🟢', cls: 'bg-emerald-100 text-emerald-700', rec: 'Kondisi normal. Lanjutkan monitoring berkala.' },
-                PERHATIAN: { color: 'yellow-orange', icon: '🟡', cls: 'bg-amber-100 text-amber-700', rec: 'Pantau tren LNTAI, residual, dan validitas sensor.' },
-                SIAGA: { color: 'orange-red', icon: '🟠', cls: 'bg-orange-100 text-orange-700', rec: 'Jadwalkan inspeksi kontak finger dan evaluasi beban.' },
-                KRITIS: { color: 'red', icon: '🔴', cls: 'bg-red-100 text-red-700 animate-pulse', rec: 'Tindakan segera, inspeksi kontak finger dan pertimbangkan pengurangan beban.' }
+                NORMAL:   { icon: '🟢', cls: 'bg-emerald-100 text-emerald-700', rec: 'Kondisi normal. Lanjutkan monitoring berkala.' },
+                WARNING:  { icon: '🟡', cls: 'bg-amber-100 text-amber-700', rec: 'Pantau tren skor komponen dan validitas sensor, jadwalkan inspeksi.' },
+                CRITICAL: { icon: '🔴', cls: 'bg-red-100 text-red-700 animate-pulse', rec: 'Tindakan segera, inspeksi kontak finger dan evaluasi beban.' }
             }[level];
             return {
                 t_contact: tc,
                 t_ambient: ta,
-                i_load: il,
+                i_avg: ia,
                 i_rated: ir,
                 i_norm: iNorm,
+                loading_pct: loadingPct,
                 delta_T_real: deltaReal,
-                delta_T_pred: deltaPred,
-                residual,
+                delta_phase: dPhase,
+                tlr,
+                S_Temp, S_DeltaT, S_TLR,
                 lntai,
                 level,
                 ...meta
@@ -5425,16 +5438,24 @@
             };
         }
 
+        // Cache LNTAI valid terakhir per trafo — langkah 2 flowchart: jika bacaan baru tidak
+        // lengkap/valid, data tidak dipakai dan nilai LNTAI sebelumnya dipertahankan.
+        let _lastValidLNTAIResult = { '2': null, '3': null, '4': null };
+
         function _currentLNTAIResult() {
             const td = temperatureData[selectedTrafo];
             const bd = latestBebanData[selectedTrafo];
             const ph = _phaseAveragesFromTemp(td);
-            if (!ph || !bd) return null;
-            const iLoad = Math.max(Number(bd.I_R) || 0, Number(bd.I_S) || 0, Number(bd.I_T) || 0);
-            if (!Number.isFinite(iLoad) || iLoad <= 0) return null;
-            const calc = _calcLNTAIFrontend(ph.tContact, iLoad);
-            if (!calc) return null;
-            return { ...calc, ...ph, timestamp: td.timestamp || bd.timestamp || new Date().toISOString(), source: 'snapshot realtime' };
+            const validTemp = ph && hasValidTemperaturePacket(td);
+            const validBeban = bd && hasValidBebanPacket(bd);
+            if (!validTemp || !validBeban) return _lastValidLNTAIResult[selectedTrafo];
+
+            const iAvg = (Number(bd.I_R) || 0) + (Number(bd.I_S) || 0) + (Number(bd.I_T) || 0);
+            const calc = _calcLNTAIFrontend(ph, iAvg / 3);
+            if (!calc) return _lastValidLNTAIResult[selectedTrafo];
+            const result = { ...calc, ...ph, timestamp: td.timestamp || bd.timestamp || new Date().toISOString(), source: 'snapshot realtime' };
+            _lastValidLNTAIResult[selectedTrafo] = result;
+            return result;
         }
 
         function _rowTime(row) {
@@ -5463,8 +5484,8 @@
                     const nearest = candidates.sort((a, b) => Math.abs(a._time - t._time) - Math.abs(b._time - t._time))[0];
                     if (!nearest || Math.abs(nearest._time - t._time) > 30 * 60 * 1000) return;
                     const ph = _phaseAveragesFromTemp(t);
-                    const iLoad = Math.max(Number(nearest.I_R) || 0, Number(nearest.I_S) || 0, Number(nearest.I_T) || 0);
-                    const calc = _calcLNTAIFrontend(ph.tContact, iLoad);
+                    const iAvg = ((Number(nearest.I_R) || 0) + (Number(nearest.I_S) || 0) + (Number(nearest.I_T) || 0)) / 3;
+                    const calc = _calcLNTAIFrontend(ph, iAvg);
                     if (calc) paired.push({ ...calc, ...ph, time: t._time, source: 'histori Firestore suhu + beban' });
                 });
             }
@@ -5486,8 +5507,8 @@
                     };
                     const ph = _phaseAveragesFromTemp(tempRow);
                     const load = loadRows[idx];
-                    const iLoad = Math.max(Number(load.I_R) || 0, Number(load.I_S) || 0, Number(load.I_T) || 0);
-                    const calc = ph ? _calcLNTAIFrontend(ph.tContact, iLoad) : null;
+                    const iAvg = ((Number(load.I_R) || 0) + (Number(load.I_S) || 0) + (Number(load.I_T) || 0)) / 3;
+                    const calc = ph ? _calcLNTAIFrontend(ph, iAvg) : null;
                     if (calc) paired.push({ ...calc, ...ph, time: Date.now() - (n - idx) * 60000, source: 'buffer live' });
                 }
                 if (paired.length) return { rows: paired, source: 'buffer live chart' };
@@ -5514,9 +5535,10 @@
             const avgRecent = recent.length ? recent.reduce((s, r) => s + r.lntai, 0) / recent.length : current.lntai;
             const trend = recent.length >= 3 ? recent[recent.length - 1].lntai - recent[0].lntai : 0;
             const items = [
-                { title: `${current.icon} Status ${current.level}`, body: `${current.rec} LNTAI saat ini ${current.lntai.toFixed(2)} dengan residual ${current.residual.toFixed(2)} °C.` },
-                { title: 'Fasa terpanas', body: `Fasa ${current.hottestPhase} rata-rata ${current.t_contact.toFixed(1)} °C, selisih antar fasa ${current.deltaPhase.toFixed(1)} °C.` },
-                { title: 'Konteks beban', body: `Arus maksimum ${current.i_load.toFixed(1)} A, I_norm ${current.i_norm.toFixed(3)}. Delta prediksi model ${current.delta_T_pred.toFixed(2)} °C.` },
+                { title: `${current.icon} Status ${current.level}`, body: `${current.rec} LNTAI saat ini ${current.lntai.toFixed(2)} dari skala 0–40.` },
+                { title: 'Komponen skor', body: `S_Temp ${current.S_Temp.toFixed(1)} · S_ΔT ${current.S_DeltaT.toFixed(1)} · S_TLR ${current.S_TLR.toFixed(1)} (masing-masing skala 0–40).` },
+                { title: 'Fasa terpanas', body: `Fasa ${current.hottestPhase} rata-rata ${current.t_contact.toFixed(1)} °C, selisih antar fasa ${current.delta_phase.toFixed(1)} °C.` },
+                { title: 'Konteks beban', body: `Arus rata-rata ${current.i_avg.toFixed(1)} A, Loading ${current.loading_pct.toFixed(1)}% dari I_nominal ${current.i_rated} A.` },
                 { title: 'Tren terbaru', body: `Rata-rata LNTAI ${recent.length} titik terakhir ${avgRecent.toFixed(2)}. ${trend > 0.3 ? 'Tren naik, perlu dipantau lebih rapat.' : trend < -0.3 ? 'Tren menurun, indikasi thermal membaik.' : 'Tren relatif stabil.'}` },
                 { title: 'Puncak periode', body: `LNTAI maksimum pada data yang tampil ${maxRow.lntai.toFixed(2)} (${maxRow.level}).` }
             ];
@@ -5534,17 +5556,17 @@
                 return;
             }
             const levelText = current.level === 'NORMAL'
-                ? 'Nilai berada di zona normal. Residual thermal belum menunjukkan deviasi signifikan terhadap baseline beban.'
-                : current.level === 'PERHATIAN'
-                    ? 'Nilai sudah melewati batas perhatian. Tren perlu dipantau karena deviasi mulai konsisten terhadap baseline.'
-                    : current.level === 'SIAGA'
-                        ? 'Nilai masuk zona siaga. Selisih pemanasan terhadap prediksi cukup besar dan perlu inspeksi terjadwal.'
-                        : 'Nilai kritis. Kenaikan suhu aktual jauh di atas estimasi beban, indikasi kuat anomali thermal.';
-            const residualText = current.residual < 0
-                ? `Residual negatif ${current.residual.toFixed(2)} °C berarti kontak lebih dingin dari prediksi model. Status tetap normal bila LNTAI < 1.5.`
-                : `Residual positif ${current.residual.toFixed(2)} °C berarti kontak lebih panas dari prediksi model. Semakin besar residual, semakin kuat indikasi kenaikan tahanan kontak.`;
-            const loadPct = (current.i_load / current.i_rated) * 100;
-            const inputText = `Fasa ${current.hottestPhase} menjadi acuan karena rata-rata suhu tertinggi ${current.t_contact.toFixed(1)} °C. Beban ${current.i_load.toFixed(1)} A setara ${loadPct.toFixed(1)}% dari I_rated LNTAI.`;
+                ? 'Skor berada di zona normal (0–10). Ketiga komponen — kenaikan suhu, selisih fasa, dan rasio beban — masih dalam batas wajar.'
+                : current.level === 'WARNING'
+                    ? 'Skor masuk zona warning (10–25). Salah satu atau lebih komponen sudah signifikan, tren perlu dipantau dan inspeksi dijadwalkan.'
+                    : 'Skor kritis (25–40). Kombinasi kenaikan suhu, ketidakseimbangan fasa, dan/atau rasio beban menunjukkan indikasi kuat anomali thermal.';
+            const dominant = [
+                { name: 'S_Temp (kenaikan suhu)', value: current.S_Temp },
+                { name: 'S_ΔT (selisih antar fasa)', value: current.S_DeltaT },
+                { name: 'S_TLR (rasio suhu/beban²)', value: current.S_TLR }
+            ].reduce((a, b) => b.value > a.value ? b : a);
+            const residualText = `Komponen dominan saat ini adalah ${dominant.name} dengan skor ${dominant.value.toFixed(1)} dari skala 0–40. Rincian: S_Temp ${current.S_Temp.toFixed(1)}, S_ΔT ${current.S_DeltaT.toFixed(1)}, S_TLR ${current.S_TLR.toFixed(1)}.`;
+            const inputText = `Fasa ${current.hottestPhase} menjadi acuan karena rata-rata suhu tertinggi ${current.t_contact.toFixed(1)} °C. Arus rata-rata ${current.i_avg.toFixed(1)} A setara ${current.loading_pct.toFixed(1)}% dari I_nominal.`;
             const recent = rows.slice(-12);
             const recentAvg = recent.length ? recent.reduce((s, r) => s + r.lntai, 0) / recent.length : current.lntai;
             const dataText = rows.length > 1
@@ -5572,9 +5594,10 @@
                 data: {
                     labels,
                     datasets: [
-                        { label: 'Delta T Aktual', data: rows.map(r => Number(r.delta_T_real.toFixed(2))), borderColor: '#dc2626', backgroundColor: 'rgba(220,38,38,0.08)', borderWidth: 2.5, pointRadius: rows.length > 1 ? 2 : 5, tension: 0.25, fill: true },
-                        { label: 'Delta T Prediksi', data: rows.map(r => Number(r.delta_T_pred.toFixed(2))), borderColor: '#0d9488', borderWidth: 2.2, pointRadius: 0, tension: 0.25 },
-                        { label: 'Arus Beban (A)', data: rows.map(r => Number(r.i_load.toFixed(1))), borderColor: '#7c3aed', borderWidth: 1.8, borderDash: [5,4], pointRadius: 0, tension: 0.2, yAxisID: 'y1' }
+                        { label: 'S_Temp', data: rows.map(r => Number(r.S_Temp.toFixed(1))), borderColor: '#dc2626', backgroundColor: 'rgba(220,38,38,0.08)', borderWidth: 2.5, pointRadius: rows.length > 1 ? 2 : 5, tension: 0.25, fill: true },
+                        { label: 'S_ΔT', data: rows.map(r => Number(r.S_DeltaT.toFixed(1))), borderColor: '#f59e0b', borderWidth: 2, pointRadius: 0, tension: 0.25 },
+                        { label: 'S_TLR', data: rows.map(r => Number(r.S_TLR.toFixed(1))), borderColor: '#0d9488', borderWidth: 2, pointRadius: 0, tension: 0.25 },
+                        { label: 'LNTAI', data: rows.map(r => Number(r.lntai.toFixed(1))), borderColor: '#7c3aed', borderWidth: 2.2, borderDash: [5,4], pointRadius: 0, tension: 0.2 }
                     ]
                 },
                 options: {
@@ -5584,8 +5607,7 @@
                     plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } },
                     scales: {
                         x: { grid: { display: false }, ticks: { font: { size: 9 }, maxTicksLimit: 9 } },
-                        y: { title: { display: true, text: 'Delta T °C' }, grid: { color: '#f1f5f9' }, ticks: { font: { size: 9 } } },
-                        y1: { position: 'right', title: { display: true, text: 'Ampere' }, grid: { drawOnChartArea: false }, ticks: { font: { size: 9 } } }
+                        y: { title: { display: true, text: 'Skor (0-40)' }, grid: { color: '#f1f5f9' }, suggestedMin: 0, suggestedMax: 40, ticks: { font: { size: 9 } } }
                     }
                 }
             });
@@ -5604,12 +5626,15 @@
                     const calcRows = [
                         ['T_contact', `${current.t_contact.toFixed(2)} °C`, `Suhu rata-rata fasa ${current.hottestPhase}, dipilih sebagai kontak terpanas.`],
                         ['T_ambient', `${current.t_ambient.toFixed(2)} °C`, `${ambientWeatherState.source} (${GANDUL_WEATHER_POINT.latitude.toFixed(6)}, ${GANDUL_WEATHER_POINT.longitude.toFixed(4)}) + variasi mikro lokal. ${ambientUpdated}.`],
-                        ['I_load', `${current.i_load.toFixed(2)} A`, 'Arus tertinggi dari tiga fasa, dipakai untuk konservatif terhadap beban.'],
-                        ['I_norm', current.i_norm.toFixed(4), 'Normalisasi arus terhadap I_rated LNTAI.'],
-                        ['Delta T real', `${current.delta_T_real.toFixed(2)} °C`, 'Kenaikan suhu aktual kontak terhadap ambient.'],
-                        ['Delta T pred', `${current.delta_T_pred.toFixed(2)} °C`, 'Kenaikan suhu wajar dari model kuadratik beban.'],
-                        ['Residual', `${current.residual.toFixed(2)} °C`, 'Selisih aktual minus prediksi. Nilai positif menunjukkan panas berlebih relatif terhadap beban.'],
-                        ['LNTAI', current.lntai.toFixed(2), `Residual dibagi sigma baseline 4.6761, menghasilkan level ${current.level}.`]
+                        ['I_avg', `${current.i_avg.toFixed(2)} A`, 'Rata-rata arus tiga fasa I_R/I_S/I_T.'],
+                        ['Loading %', `${current.loading_pct.toFixed(1)} %`, `I_avg / I_nominal (${current.i_rated} A) × 100%.`],
+                        ['ΔT real (rise)', `${current.delta_T_real.toFixed(2)} °C`, 'Kenaikan suhu kontak terpanas terhadap ambient.'],
+                        ['ΔT antar fasa', `${current.delta_phase.toFixed(2)} °C`, 'Selisih suhu tertinggi-terendah antar fasa R/S/T.'],
+                        ['TLR', `${current.tlr.toFixed(2)} K/unit²`, 'Rasio kenaikan suhu terhadap kuadrat beban ternormalisasi.'],
+                        ['S_Temp', `${current.S_Temp.toFixed(1)} / 40`, `Skor kenaikan suhu vs batas terminal ${LNTAI_CFG.refTempRise}K (IEC 62271-1).`],
+                        ['S_ΔT', `${current.S_DeltaT.toFixed(1)} / 40`, `Skor selisih antar fasa vs referensi ${LNTAI_CFG.refPhaseDelta}K.`],
+                        ['S_TLR', `${current.S_TLR.toFixed(1)} / 40`, `Skor rasio suhu/beban² vs referensi ${LNTAI_CFG.refTLR} K/unit².`],
+                        ['LNTAI', `${current.lntai.toFixed(2)} / 40`, `0.40·S_Temp + 0.30·S_ΔT + 0.30·S_TLR, menghasilkan level ${current.level}.`]
                     ];
                     calcBody.innerHTML = calcRows.map(([p,v,m]) => `
                         <tr class="hover:bg-slate-50">
@@ -5628,8 +5653,8 @@
                         <tr class="hover:bg-slate-50">
                           <td class="px-3 py-2 font-mono text-slate-500">${new Date(r.time || Date.now()).toLocaleString('id-ID', { dateStyle:'short', timeStyle:'medium' })}</td>
                           <td class="px-3 py-2 text-right font-mono font-bold text-slate-700">${r.t_contact.toFixed(1)} °C</td>
-                          <td class="px-3 py-2 text-right font-mono text-violet-700">${r.i_load.toFixed(1)} A</td>
-                          <td class="px-3 py-2 text-right font-mono ${r.residual >= 0 ? 'text-red-700' : 'text-emerald-700'}">${r.residual.toFixed(2)}</td>
+                          <td class="px-3 py-2 text-right font-mono text-violet-700">${r.i_avg.toFixed(1)} A</td>
+                          <td class="px-3 py-2 text-right font-mono text-slate-600">${r.S_Temp.toFixed(0)} / ${r.S_DeltaT.toFixed(0)} / ${r.S_TLR.toFixed(0)}</td>
                           <td class="px-3 py-2 text-right font-mono font-black text-slate-700">${r.lntai.toFixed(2)}</td>
                           <td class="px-3 py-2"><span class="text-[9px] font-extrabold px-2 py-0.5 rounded-full ${r.cls}">${r.icon} ${r.level}</span></td>
                         </tr>
@@ -5652,14 +5677,12 @@
             const trendText = trend > 0.3 ? 'meningkat' : trend < -0.3 ? 'menurun' : 'relatif stabil';
             const action = current.level === 'NORMAL'
                 ? 'Rekomendasi: pertahankan monitoring berkala dan pastikan histori data tetap tersimpan.'
-                : current.level === 'PERHATIAN'
-                    ? 'Rekomendasi: validasi sensor, pantau tren beberapa interval berikutnya, dan cek apakah residual positif berulang.'
-                    : current.level === 'SIAGA'
-                        ? 'Rekomendasi: jadwalkan inspeksi kontak finger, cek kekencangan/tekanan kontak, dan evaluasi pembebanan.'
-                        : 'Rekomendasi: lakukan tindakan segera, inspeksi kontak finger, dan pertimbangkan pengurangan beban sampai penyebab thermal ditemukan.';
+                : current.level === 'WARNING'
+                    ? 'Rekomendasi: validasi sensor, pantau tren beberapa interval berikutnya, dan cek komponen mana yang mendominasi kenaikan skor.'
+                    : 'Rekomendasi: lakukan tindakan segera, inspeksi kontak finger, dan pertimbangkan pengurangan beban sampai penyebab thermal ditemukan.';
             root.innerHTML = `
-                <p>Model LNTAI membaca kondisi terakhir sebagai <b>${current.level}</b> dengan nilai <b>${current.lntai.toFixed(2)}</b>. Nilai ini berasal dari residual <b>${current.residual.toFixed(2)} °C</b>, yaitu selisih antara kenaikan suhu aktual <b>${current.delta_T_real.toFixed(2)} °C</b> dan prediksi wajar model <b>${current.delta_T_pred.toFixed(2)} °C</b>.</p>
-                <p>Fasa terpanas adalah <b>${current.hottestPhase}</b> pada <b>${current.t_contact.toFixed(1)} °C</b>, sementara arus beban acuan <b>${current.i_load.toFixed(1)} A</b>. Dengan sumber data <b>${source}</b>, tren ${recent.length} titik terakhir terlihat <b>${trendText}</b> dengan rata-rata LNTAI <b>${avg.toFixed(2)}</b>. Puncak pada data tampil adalah <b>${maxRow.lntai.toFixed(2)}</b> (${maxRow.level}).</p>
+                <p>Model LNTAI membaca kondisi terakhir sebagai <b>${current.level}</b> dengan skor <b>${current.lntai.toFixed(2)}</b> dari skala 0–40. Rincian komponen: S_Temp <b>${current.S_Temp.toFixed(1)}</b>, S_ΔT <b>${current.S_DeltaT.toFixed(1)}</b>, S_TLR <b>${current.S_TLR.toFixed(1)}</b> — digabung dengan bobot 0.40/0.30/0.30.</p>
+                <p>Fasa terpanas adalah <b>${current.hottestPhase}</b> pada <b>${current.t_contact.toFixed(1)} °C</b> (kenaikan <b>${current.delta_T_real.toFixed(1)} °C</b> di atas ambient), sementara arus rata-rata <b>${current.i_avg.toFixed(1)} A</b> (Loading ${current.loading_pct.toFixed(1)}%). Dengan sumber data <b>${source}</b>, tren ${recent.length} titik terakhir terlihat <b>${trendText}</b> dengan rata-rata LNTAI <b>${avg.toFixed(2)}</b>. Puncak pada data tampil adalah <b>${maxRow.lntai.toFixed(2)}</b> (${maxRow.level}).</p>
                 <p>${action}</p>
             `;
         }
@@ -5682,10 +5705,9 @@
                     labels,
                     datasets: [
                         { label: 'LNTAI', data: rows.map(r => Number(r.lntai.toFixed(2))), borderColor: '#dc2626', backgroundColor: 'rgba(220,38,38,0.08)', borderWidth: 2.5, pointRadius: rows.length > 1 ? 2 : 5, tension: 0.28, yAxisID: 'y', fill: true },
-                        { label: 'Residual (°C)', data: rows.map(r => Number(r.residual.toFixed(2))), borderColor: '#2563eb', borderWidth: 2, pointRadius: 0, tension: 0.28, yAxisID: 'y1' },
-                        thresholdLine(1.5, 'Batas Perhatian', '#f59e0b'),
-                        thresholdLine(3.0, 'Batas Siaga', '#f97316'),
-                        thresholdLine(5.0, 'Batas Kritis', '#991b1b')
+                        { label: 'ΔT Aktual (°C)', data: rows.map(r => Number(r.delta_T_real.toFixed(2))), borderColor: '#2563eb', borderWidth: 2, pointRadius: 0, tension: 0.28, yAxisID: 'y1' },
+                        thresholdLine(10, 'Batas Warning', '#f59e0b'),
+                        thresholdLine(25, 'Batas Critical', '#991b1b')
                     ]
                 },
                 options: {
@@ -5698,28 +5720,19 @@
                             callbacks: {
                                 afterBody: (items) => {
                                     const r = rows[items[0].dataIndex];
-                                    return [`Level: ${r.level}`, `T_contact: ${r.t_contact.toFixed(1)} °C`, `I_load: ${r.i_load.toFixed(1)} A`];
+                                    return [`Level: ${r.level}`, `T_contact: ${r.t_contact.toFixed(1)} °C`, `I_avg: ${r.i_avg.toFixed(1)} A`, `S_Temp/S_ΔT/S_TLR: ${r.S_Temp.toFixed(0)}/${r.S_DeltaT.toFixed(0)}/${r.S_TLR.toFixed(0)}`];
                                 }
                             }
                         }
                     },
                     scales: {
                         x: { grid: { display: false }, ticks: { font: { size: 9 }, maxTicksLimit: 10 } },
-                        y: { title: { display: true, text: 'LNTAI' }, grid: { color: '#f1f5f9' }, suggestedMin: 0, suggestedMax: 6, ticks: { font: { size: 9 } } },
-                        y1: { position: 'right', title: { display: true, text: 'Residual °C' }, grid: { drawOnChartArea: false }, ticks: { font: { size: 9 } } }
+                        y: { title: { display: true, text: 'LNTAI (0-40)' }, grid: { color: '#f1f5f9' }, suggestedMin: 0, suggestedMax: 40, ticks: { font: { size: 9 } } },
+                        y1: { position: 'right', title: { display: true, text: 'ΔT Aktual °C' }, grid: { drawOnChartArea: false }, ticks: { font: { size: 9 } } }
                     }
                 }
             });
         }
-
-        // Referensi kenaikan suhu terminal maksimum yang diizinkan (IEC 62271-1:2017 §7.4)
-        const LNTAI_OT_REFERENCE_K = 40;
-        // Skala tampilan kartu KPI LNTAI (0-40). Nilai LNTAI mentah (residual/sigma) bisa
-        // negatif saat kenaikan suhu aktual masih di bawah prediksi model — itu valid secara
-        // matematis dan tetap dipakai apa adanya di grafik tren & tabel histori. Kartu KPI ini
-        // hanya membatasi tampilannya ke 0-40 agar tidak menampilkan angka minus yang membingungkan;
-        // status Normal/Perhatian/Siaga/Kritis tetap dihitung dari nilai LNTAI asli (tidak dibatasi).
-        const LNTAI_KPI_SCALE_MAX = 40;
 
         function _renderLNTAIKPIBarChart(current) {
             destroyChart('lntai-kpi-bar');
@@ -5737,12 +5750,11 @@
             }
             if (empty) empty.classList.add('hidden');
 
-            const otNormPct = (current.delta_T_real / LNTAI_OT_REFERENCE_K) * 100;
+            // S_Temp/S_DeltaT/S_TLR dan lntai sudah dijamin 0-40 oleh engine (_calcLNTAIFrontend)
+            const otNormPct = (current.S_Temp / LNTAI_CFG.scoreMax) * 100;
             const loadFactorPct = current.i_norm * 100;
-            // Nilai asli (tidak dibatasi) tetap dipakai untuk badge status di bawah
-            const lntaiScore = Math.min(LNTAI_KPI_SCALE_MAX, Math.max(0, current.lntai));
 
-            _setLNTAIText('lntai-kpi-score', lntaiScore.toFixed(1));
+            _setLNTAIText('lntai-kpi-score', current.lntai.toFixed(1));
             _setLNTAIText('lntai-kpi-ot-norm', (otNormPct / 100).toFixed(3));
             _setLNTAIText('lntai-kpi-load-factor', `${loadFactorPct.toFixed(1)}%`);
             const statusEl = document.getElementById('lntai-kpi-status');
@@ -5753,7 +5765,7 @@
                 data: {
                     labels: ['OT Normalized (%)', 'Load Factor (%)', 'LNTAI Score'],
                     datasets: [{
-                        data: [Number(otNormPct.toFixed(1)), Number(loadFactorPct.toFixed(1)), Number(lntaiScore.toFixed(1))],
+                        data: [Number(otNormPct.toFixed(1)), Number(loadFactorPct.toFixed(1)), Number(current.lntai.toFixed(1))],
                         backgroundColor: ['#38bdf8', '#3b82f6', '#f97316'],
                         borderRadius: 6,
                         maxBarThickness: 90
@@ -5797,10 +5809,15 @@
                 return;
             }
 
+            const dominantComp = [
+                { name: 'S_Temp', value: current.S_Temp },
+                { name: 'S_ΔT', value: current.S_DeltaT },
+                { name: 'S_TLR', value: current.S_TLR }
+            ].reduce((a, b) => b.value > a.value ? b : a);
             _setLNTAIText('lntai-kpi-value', current.lntai.toFixed(2));
-            _setLNTAIText('lntai-kpi-residual', `${current.residual.toFixed(2)} °C`);
-            _setLNTAIText('lntai-kpi-input', `${current.t_contact.toFixed(1)} °C / ${current.i_load.toFixed(1)} A`);
-            _setLNTAIText('lntai-kpi-phase', `Fasa terpanas: ${current.hottestPhase} · Δ fasa ${current.deltaPhase.toFixed(1)} °C`);
+            _setLNTAIText('lntai-kpi-residual', `${dominantComp.name} ${dominantComp.value.toFixed(1)}`);
+            _setLNTAIText('lntai-kpi-input', `${current.t_contact.toFixed(1)} °C / ${current.loading_pct.toFixed(1)}%`);
+            _setLNTAIText('lntai-kpi-phase', `Fasa terpanas: ${current.hottestPhase} · Δ fasa ${current.delta_phase.toFixed(1)} °C`);
             _setLNTAIText('lntai-kpi-points', String(rows.length));
             _setLNTAIText('lntai-kpi-source', series.source);
             _setLNTAIText('lntai-chart-status', `${rows.length} titik · ${series.source}`);
