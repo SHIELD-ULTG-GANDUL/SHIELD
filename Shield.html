@@ -1219,7 +1219,7 @@
                       <div class="glass-card p-5 border border-slate-200">
                         <div class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest">KPI LNTAI</div>
                         <div id="lntai-kpi-score" class="font-mono font-black text-4xl text-red-600 mt-1">-</div>
-                        <p class="text-[10px] text-slate-400 mt-1">Skor LNTAI real-time</p>
+                        <p class="text-[10px] text-slate-400 mt-1">Skor LNTAI real-time (skala 0–40)</p>
                         <div class="mt-4 space-y-2">
                           <div class="flex items-center justify-between text-[11px]">
                             <span class="text-slate-500 font-bold">OT Normalized</span>
@@ -2996,6 +2996,8 @@
             if (group === 'ml' && tabId === 'lntai' && typeof renderLNTAIPanel === 'function') {
                 setTimeout(() => renderLNTAIPanel(false), 80);
             }
+            if (group === 'logger' && tabId === 'suhu' && _loggerTempDirty) renderLoggerTable();
+            if (group === 'logger' && tabId === 'beban' && _loggerBebanDirty) renderBebanLoggerTable();
         }
 
         // ── Sidebar submenu: open/close state per group ──────────────────────
@@ -3391,10 +3393,20 @@
         }
 
         // Render Baris Riwayat dari Firestore ke Tabel Logger
+        // Rebuild tabel logger hanya jika tab-nya sedang terlihat (mencegah reflow DOM
+        // ratusan baris berulang kali di background setiap ada snapshot Firestore baru)
+        let _loggerTempDirty = false;
         function renderLoggerTable() {
+            const pane = document.getElementById('itab-content-logger-suhu');
+            if (activePage !== 'logger' || (pane && pane.classList.contains('hidden'))) {
+                _loggerTempDirty = true;
+                return;
+            }
+            _loggerTempDirty = false;
+
             const tableBody = document.getElementById('logger-body');
             if (!tableBody) return;
-            
+
             tableBody.innerHTML = '';
 
             if (firestoreLogs.length === 0) {
@@ -4424,7 +4436,15 @@
         }
 
         // Render tabel histori beban
+        let _loggerBebanDirty = false;
         function renderBebanLoggerTable() {
+            const pane = document.getElementById('itab-content-logger-beban');
+            if (activePage !== 'logger' || (pane && pane.classList.contains('hidden'))) {
+                _loggerBebanDirty = true;
+                return;
+            }
+            _loggerBebanDirty = false;
+
             const tableBody = document.getElementById('beban-logger-body');
             if (!tableBody) return;
             tableBody.innerHTML = '';
@@ -5694,6 +5714,12 @@
 
         // Referensi kenaikan suhu terminal maksimum yang diizinkan (IEC 62271-1:2017 §7.4)
         const LNTAI_OT_REFERENCE_K = 40;
+        // Skala tampilan kartu KPI LNTAI (0-40). Nilai LNTAI mentah (residual/sigma) bisa
+        // negatif saat kenaikan suhu aktual masih di bawah prediksi model — itu valid secara
+        // matematis dan tetap dipakai apa adanya di grafik tren & tabel histori. Kartu KPI ini
+        // hanya membatasi tampilannya ke 0-40 agar tidak menampilkan angka minus yang membingungkan;
+        // status Normal/Perhatian/Siaga/Kritis tetap dihitung dari nilai LNTAI asli (tidak dibatasi).
+        const LNTAI_KPI_SCALE_MAX = 40;
 
         function _renderLNTAIKPIBarChart(current) {
             destroyChart('lntai-kpi-bar');
@@ -5713,7 +5739,8 @@
 
             const otNormPct = (current.delta_T_real / LNTAI_OT_REFERENCE_K) * 100;
             const loadFactorPct = current.i_norm * 100;
-            const lntaiScore = current.lntai;
+            // Nilai asli (tidak dibatasi) tetap dipakai untuk badge status di bawah
+            const lntaiScore = Math.min(LNTAI_KPI_SCALE_MAX, Math.max(0, current.lntai));
 
             _setLNTAIText('lntai-kpi-score', lntaiScore.toFixed(1));
             _setLNTAIText('lntai-kpi-ot-norm', (otNormPct / 100).toFixed(3));
