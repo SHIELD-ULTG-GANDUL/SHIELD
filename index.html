@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="id" class="light">
+<html lang="en" class="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8052,6 +8052,372 @@
       </div>
     </div>
     <!-- /LOKASI WARNING MODAL -->
+
+    <script>
+        // Academic English UI localization layer. It translates rendered text only,
+        // preserving IDs, data keys, Firestore collection names, and operational logic.
+        (function localizeShieldUiToEnglish() {
+            const translations = [
+                ['Analisis Ketidakseimbangan & Suhu Kontak PMT Incoming', 'Incoming CB Contact Temperature and Imbalance Analysis'],
+                ['SKDIR PLN — Suhu kontak PMT incoming', 'PLN SKDIR — incoming CB contact temperature'],
+                ['Perhatian', 'Attention'],
+                ['PERHATIAN', 'ATTENTION'],
+                ['Kritis', 'Critical'],
+                ['KRITIS', 'CRITICAL'],
+                ['Normal', 'Normal'],
+                ['NORMAL', 'NORMAL'],
+                ['Ketidakseimbangan Fasa Suhu', 'Temperature Phase Imbalance'],
+                ['Maks. Selisih', 'Maximum Difference'],
+                ['Ketidakseimbangan Arus Beban', 'Load Current Imbalance'],
+                ['Ketidakseimbangan', 'Imbalance'],
+                ['Beban vs I_nom', 'Load versus I_nom'],
+                ['Suhu Kontak PMT Incoming', 'Incoming CB Contact Temperature'],
+                ['Suhu PMT Tertinggi', 'Maximum CB Temperature'],
+                ['Imbalance Arus', 'Current Imbalance'],
+                ['Maks. ΔT Antar Fasa', 'Maximum Inter-Phase ΔT'],
+                ['Menunggu Data', 'Awaiting Data'],
+                ['Rata-Rata Suhu', 'Average Temperature'],
+                ['Suhu Tertinggi', 'Maximum Temperature'],
+                ['Suhu Terendah', 'Minimum Temperature'],
+                ['Status Proteksi', 'Protection Status'],
+                ['Batas Kritis', 'Critical Threshold'],
+                ['Real-time dari MQTT Broker', 'Real-time data from the MQTT broker'],
+                ['Sensor: Phase', 'Sensor: Phase'],
+                ['Suhu Inti', 'Core Temperature'],
+                ['Pemetaan Sensor Fisik Trafo', 'Physical Transformer Sensor Mapping'],
+                ['Daya Semu Trafo', 'Transformer Apparent Power'],
+                ['Daya Aktif', 'Active Power'],
+                ['Faktor Daya', 'Power Factor'],
+                ['Pembebanan Trafo', 'Transformer Loading'],
+                ['Status Beban', 'Load Status'],
+                ['Detail Arus Fasa', 'Phase Current Details'],
+                ['Detail Tegangan Fasa', 'Phase Voltage Details'],
+                ['Detail Daya', 'Power Details'],
+                ['Histori suhu berkala langsung dari Firestore', 'Periodic temperature history retrieved directly from Firestore'],
+                ['Histori arus, tegangan, dan daya dari Firestore', 'Current, voltage, and power history retrieved from Firestore'],
+                ['Sedang mengambil histori suhu dari Firestore', 'Retrieving temperature history from Firestore'],
+                ['Klik tab ini untuk memuat data beban', 'Select this tab to load the load dataset'],
+                ['Tidak ada data untuk rentang waktu ini', 'No data are available for this time interval'],
+                ['Mengambil histori dari Firestore', 'Retrieving historical records from Firestore'],
+                ['Fluktuasi suhu sensor Acrel ATP007', 'Acrel ATP007 sensor temperature fluctuation'],
+                ['Tren arus, tegangan, dan daya dari Firestore PM Meter', 'Current, voltage, and power trends from the Firestore PM meter'],
+                ['pilih rentang waktu di bawah', 'select the time interval below'],
+                ['Sumber: HiveMQ Stream', 'Source: HiveMQ Stream'],
+                ['Sumber: Firestore', 'Source: Firestore'],
+                ['Titik Data', 'Data Points'],
+                ['Reset Zoom', 'Reset Zoom'],
+                ['Pilih area untuk zoom', 'Select an area to zoom'],
+                ['Pilih Area', 'Select Area'],
+                ['Unduh chart sebagai gambar PNG', 'Download the chart as a PNG image'],
+                ['Kirim / bagikan gambar chart', 'Send or share the chart image'],
+                ['Tutup', 'Close'],
+                ['Tampil/sembunyikan data historis', 'Show or hide historical data'],
+                ['Tampil/sembunyikan kurva fitted', 'Show or hide the fitted curve'],
+                ['Tampil/sembunyikan garis forecast', 'Show or hide the forecast line'],
+                ['Tampil/sembunyikan pita CI 95%', 'Show or hide the 95% CI band'],
+                ['Garis Log Forecast penuh', 'Complete forecast log line'],
+                ['Rentang Waktu', 'Time Interval'],
+                ['Semua', 'All'],
+                ['Historis', 'Historical'],
+                ['Grafik Suhu', 'Temperature Chart'],
+                ['Grafik Beban', 'Load Chart'],
+                ['Grafik Tren', 'Trend Charts'],
+                ['Log Suhu', 'Temperature Log'],
+                ['Log Beban', 'Load Log'],
+                ['Data Logger', 'Data Logger'],
+                ['Forecast Realtime', 'Real-Time Forecast'],
+                ['Stokastik', 'Stochastic'],
+                ['Hubungkan Ulang', 'Reconnect'],
+                ['Konten Utama', 'Main Content'],
+                ['Dashboard Suhu & Beban', 'Temperature and Load Dashboard'],
+                ['Dashboard Suhu', 'Temperature Dashboard'],
+                ['Lokasi', 'Location'],
+                ['Trafo', 'Transformer'],
+                ['Keluar', 'Sign Out'],
+                ['Filter aktif', 'Active filter'],
+                ['Tidak ada data yang cocok dengan filter', 'No data match the active filter'],
+                ['Muat Ulang', 'Reload'],
+                ['Terapkan', 'Apply'],
+                ['Reset', 'Reset'],
+                ['Dari', 'From'],
+                ['Sampai', 'To'],
+                ['Suhu Minimum', 'Minimum Temperature'],
+                ['Contoh', 'Example'],
+                ['Tanggal', 'Date'],
+                ['Waktu', 'Time'],
+                ['Aktual', 'Actual'],
+                ['Akurasi', 'Accuracy'],
+                ['LNTAI Saat Ini', 'Current LNTAI'],
+                ['Simulasi Forecast', 'Forecast Simulation'],
+                ['Replay animasi grafik forecast vs data aktual real-time', 'Animated replay of the forecast chart against real-time actual data'],
+                ['Kecepatan', 'Speed'],
+                ['Lambat', 'Slow'],
+                ['Cepat', 'Fast'],
+                ['Cara Kerja', 'Methodology'],
+                ['Algoritma Fisika Estimasi', 'Physics-Based Estimation Algorithm'],
+                ['Algoritma peramalan deret waktu yang menggunakan dua komponen:', 'A time-series forecasting algorithm using two components:'],
+                ['Algoritma ini mengestimasi tahanan kontak PMT', 'This algorithm estimates CB contact resistance'],
+                ['Alur Algoritma LNTAI', 'LNTAI Algorithm Workflow'],
+                ['Parameter & Hasil Estimasi', 'Parameters and Estimation Results'],
+                ['Error Estimasi', 'Estimation Error'],
+                ['R_contact: Estimasi vs Pengukuran Dulfur', 'R_contact: Estimation versus Dulfur Measurement'],
+                ['RUL Estimasi', 'Estimated RUL'],
+                ['Sisa Umur Estimasi', 'Estimated Remaining Life'],
+                ['Estimasi OLS', 'OLS Estimation'],
+                ['Estimasi', 'Estimation'],
+                ['estimasi', 'estimation'],
+                ['Algoritma', 'Algorithm'],
+                ['algoritma', 'algorithm'],
+                ['Pengukuran', 'Measurement'],
+                ['pengukuran', 'measurement'],
+                ['Sisa Umur', 'Remaining Life'],
+                ['tahanan kontak', 'contact resistance'],
+                ['mengestimasi', 'estimates'],
+                ['menggunakan', 'using'],
+                ['komponen', 'components'],
+                ['Cara Kerja — Pipeline Analisis Keandalan Stokastik 10 Langkah', 'Methodology — Ten-Step Stochastic Reliability Analysis Pipeline'],
+                ['Langkah Saat Ini', 'Current Step'],
+                ['Forecast h Langkah', 'Forecast h-Step Ahead'],
+                ['Akumulasi Metrik', 'Cumulative Metrics'],
+                ['Info Model', 'Model Information'],
+                ['N historis', 'Historical N'],
+                ['N forecast', 'Forecast N'],
+                ['Total step', 'Total Steps'],
+                ['Siap', 'Ready'],
+                ['Log Perbandingan Real-Time', 'Real-Time Comparative Log'],
+                ['Data Aktual', 'Actual Data'],
+                ['Selisih Error', 'Error Difference'],
+                ['Posisi Saat Ini', 'Current Position'],
+                ['Device Belum Terpasang', 'Device Not Yet Installed'],
+                ['Lokasi yang dipilih', 'Selected location'],
+                ['Perangkat SHIELD belum terpasang di lokasi ini', 'The SHIELD device has not yet been installed at this location'],
+                ['Saat ini hanya tersedia di', 'It is currently available only at'],
+                ['Kembali ke GI Gandul', 'Return to GI Gandul'],
+                ['Akses Ditolak', 'Access Denied'],
+                ['Email tidak terdaftar atau password salah', 'The email address is not registered or the password is incorrect'],
+                ['Memverifikasi', 'Verifying'],
+                ['Kredensial Email', 'Email Credentials'],
+                ['Password Akses', 'Access Password'],
+                ['Masuk Sistem', 'Enter System'],
+                ['Whitelist Access Only', 'Whitelisted Access Only'],
+                ['Suhu lingkungan referensi untuk menghitung kenaikan suhu aktual', 'Reference ambient temperature for calculating the actual temperature rise'],
+                ['Suhu rata-rata fasa', 'Average phase temperature'],
+                ['dipilih sebagai kontak terpanas', 'selected as the hottest contact'],
+                ['Arus tertinggi dari tiga fasa', 'Highest current among the three phases'],
+                ['dipakai untuk konservatif terhadap beban', 'used as a conservative load reference'],
+                ['Normalisasi arus terhadap', 'Current normalization against'],
+                ['Kenaikan suhu aktual kontak terhadap ambient', 'Actual contact temperature rise relative to ambient temperature'],
+                ['Kenaikan suhu wajar dari model kuadratik beban', 'Expected temperature rise from the quadratic load model'],
+                ['Selisih aktual minus prediksi', 'Actual value minus predicted value'],
+                ['Nilai positif menunjukkan panas berlebih relatif terhadap beban', 'A positive value indicates excess heating relative to load'],
+                ['Residual dibagi sigma baseline', 'Residual divided by the baseline sigma'],
+                ['menghasilkan level', 'yielding the level'],
+                ['Butuh data suhu kontak dan arus beban yang valid untuk menghitung', 'Valid contact temperature and load-current data are required to calculate'],
+                ['Kondisi normal', 'The condition is normal'],
+                ['Lanjutkan monitoring berkala', 'Continue periodic monitoring'],
+                ['Pantau tren', 'Monitor the trend'],
+                ['dan validitas sensor', 'and sensor validity'],
+                ['Jadwalkan inspeksi kontak finger dan evaluasi beban', 'Schedule a contact-finger inspection and load evaluation'],
+                ['Tindakan segera', 'Immediate action is required'],
+                ['inspeksi kontak finger dan pertimbangkan pengurangan beban', 'inspect the contact fingers and consider load reduction'],
+                ['Fasa terpanas', 'Hottest Phase'],
+                ['Konteks beban', 'Load Context'],
+                ['Tren terbaru', 'Latest Trend'],
+                ['Puncak periode', 'Period Peak'],
+                ['Rata-rata', 'Average'],
+                ['titik terakhir', 'most recent points'],
+                ['Tren naik, perlu dipantau lebih rapat', 'The trend is increasing and requires closer monitoring'],
+                ['Tren menurun, indikasi thermal membaik', 'The trend is decreasing, indicating thermal improvement'],
+                ['Tren relatif stabil', 'The trend is relatively stable'],
+                ['LNTAI maksimum pada data yang tampil', 'The maximum LNTAI within the displayed data'],
+                ['Analisis memakai', 'The analysis uses'],
+                ['titik dari', 'points from'],
+                ['sehingga tren dapat dibaca', 'therefore the trend can be interpreted'],
+                ['bukan hanya snapshot tunggal', 'rather than a single snapshot only'],
+                ['Analisis saat ini berbasis snapshot terbaru', 'The current analysis is based on the latest snapshot'],
+                ['Tambahkan histori suhu dan beban agar tren', 'Add temperature and load histories so the trend'],
+                ['lebih kuat', 'becomes more robust'],
+                ['Menunggu data', 'Awaiting data'],
+                ['Data kurang', 'Insufficient data'],
+                ['Data belum lengkap', 'Incomplete data'],
+                ['DATA KURANG', 'INSUFFICIENT DATA'],
+                ['TIDAK VALID', 'INVALID'],
+                ['Tidak tersedia', 'Unavailable'],
+                ['tidak tersedia', 'unavailable'],
+                ['Kesimpulan', 'Conclusion'],
+                ['Rekomendasi Teknis', 'Technical Recommendation'],
+                ['Tindakan yang Diperlukan', 'Required Action'],
+                ['Status Kelengkapan Data', 'Data Completeness Status'],
+                ['Ringkasan Delapan Algoritma Analitik', 'Summary of the Eight Analytical Algorithms'],
+                ['Rekomendasi Teknis Terprioritas', 'Prioritized Technical Recommendations'],
+                ['Standar & Referensi yang Diterapkan', 'Applied Standards and References'],
+                ['Sintesis lintas delapan algoritma', 'Synthesis across eight algorithms'],
+                ['Diperbarui', 'Updated'],
+                ['Auto-refresh', 'Auto-refresh'],
+                ['Segera', 'Immediate'],
+                ['Otomatis', 'Automatic'],
+                ['Jadwalkan', 'Schedule'],
+                ['Periksa', 'Inspect'],
+                ['Pertahankan', 'Maintain'],
+                ['Tambahkan', 'Add'],
+                ['Kumpulkan', 'Collect'],
+                ['Hubungkan', 'Connect'],
+                ['Pastikan', 'Ensure'],
+                ['Prioritaskan', 'Prioritize'],
+                ['Suhu', 'Temperature'],
+                ['suhu', 'temperature'],
+                ['Beban', 'Load'],
+                ['beban', 'load'],
+                ['Arus', 'Current'],
+                ['arus', 'current'],
+                ['Tegangan', 'Voltage'],
+                ['tegangan', 'voltage'],
+                ['Daya', 'Power'],
+                ['daya', 'power'],
+                ['Waktu', 'Time'],
+                ['waktu', 'time'],
+                ['Tanggal', 'Date'],
+                ['tanggal', 'date'],
+                ['Nilai', 'Value'],
+                ['nilai', 'value'],
+                ['Status', 'Status'],
+                ['Terhubung', 'Connected'],
+                ['terhubung', 'connected'],
+                ['Gagal', 'Failed'],
+                ['gagal', 'failed'],
+                ['Berhasil', 'Successful'],
+                ['berhasil', 'successful'],
+                ['Menghitung', 'Calculating'],
+                ['menghitung', 'calculating'],
+                ['Menunggu', 'Awaiting'],
+                ['menunggu', 'awaiting'],
+                ['Data', 'Data'],
+                ['data', 'data'],
+                ['Grafik', 'Chart'],
+                ['grafik', 'chart'],
+                ['Riwayat', 'History'],
+                ['riwayat', 'history'],
+                ['Histori', 'History'],
+                ['histori', 'history'],
+                ['Prediksi', 'Prediction'],
+                ['prediksi', 'prediction'],
+                ['Forecast', 'Forecast'],
+                ['Aktual', 'Actual'],
+                ['aktual', 'actual'],
+                ['Simpan', 'Save'],
+                ['Kirim', 'Send'],
+                ['Unduh', 'Download'],
+                ['Bagikan', 'Share'],
+                ['Pilih', 'Select'],
+                ['dipilih', 'selected'],
+                ['Semua', 'All'],
+                ['Batal', 'Cancel'],
+                ['Tutup', 'Close'],
+                ['Klik', 'Click'],
+                ['klik', 'click'],
+                ['seret', 'drag'],
+                ['Area', 'Area'],
+                ['Rentang', 'Interval'],
+                ['Lokasi', 'Location'],
+                ['Perangkat', 'Device'],
+                ['Belum', 'Not Yet'],
+                ['tersedia', 'available'],
+                ['Kembali', 'Return'],
+                ['Saat ini', 'Currently'],
+                ['hanya', 'only'],
+                ['dan', 'and'],
+                ['atau', 'or'],
+                ['dengan', 'with'],
+                ['dari', 'from'],
+                ['untuk', 'for'],
+                ['pada', 'on'],
+                ['terhadap', 'relative to']
+            ];
+
+            const exact = new Map(translations);
+            const sorted = translations
+                .filter(([from]) => from.length > 2)
+                .sort((a, b) => b[0].length - a[0].length);
+            const escapeRegExp = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+            function translateText(value) {
+                if (!value || !/[A-Za-zÀ-ÿ]/.test(value)) return value;
+                const trimmed = value.trim();
+                if (exact.has(trimmed)) {
+                    return value.replace(trimmed, exact.get(trimmed));
+                }
+                let out = value;
+                sorted.forEach(([from, to]) => {
+                    out = out.replace(new RegExp(escapeRegExp(from), 'g'), to);
+                });
+                return out;
+            }
+
+            function shouldSkipNode(node) {
+                const parent = node.parentElement;
+                if (!parent) return true;
+                return ['SCRIPT', 'STYLE', 'CODE', 'PRE', 'TEXTAREA'].includes(parent.tagName);
+            }
+
+            function translateElement(root) {
+                const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+                    acceptNode(node) {
+                        return shouldSkipNode(node) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT;
+                    }
+                });
+                const textNodes = [];
+                while (walker.nextNode()) textNodes.push(walker.currentNode);
+                textNodes.forEach(node => {
+                    const next = translateText(node.nodeValue);
+                    if (next !== node.nodeValue) node.nodeValue = next;
+                });
+
+                const elements = root.nodeType === Node.ELEMENT_NODE ? [root, ...root.querySelectorAll('*')] : [];
+                elements.forEach(el => {
+                    ['title', 'placeholder', 'aria-label', 'alt', 'value'].forEach(attr => {
+                        if (!el.hasAttribute || !el.hasAttribute(attr)) return;
+                        const current = el.getAttribute(attr);
+                        const next = translateText(current);
+                        if (next !== current) el.setAttribute(attr, next);
+                    });
+                });
+            }
+
+            function runLocalization() {
+                translateElement(document.body);
+            }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', runLocalization, { once: true });
+            } else {
+                runLocalization();
+            }
+
+            const observer = new MutationObserver(mutations => {
+                mutations.forEach(mutation => {
+                    mutation.addedNodes.forEach(node => {
+                        if (node.nodeType === Node.ELEMENT_NODE) translateElement(node);
+                        if (node.nodeType === Node.TEXT_NODE && !shouldSkipNode(node)) {
+                            const next = translateText(node.nodeValue);
+                            if (next !== node.nodeValue) node.nodeValue = next;
+                        }
+                    });
+                    if (mutation.type === 'characterData' && !shouldSkipNode(mutation.target)) {
+                        const next = translateText(mutation.target.nodeValue);
+                        if (next !== mutation.target.nodeValue) mutation.target.nodeValue = next;
+                    }
+                });
+            });
+
+            if (document.body) {
+                observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+            } else {
+                document.addEventListener('DOMContentLoaded', () => {
+                    observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+                }, { once: true });
+            }
+        })();
+    </script>
 
 </body>
 </html>
