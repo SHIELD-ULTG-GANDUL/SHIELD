@@ -5201,8 +5201,8 @@
         const R_CONTACT_FACTOR_LIMIT = 2.0;
         // α_CuCr = temperature coefficient of resistivity, copper-chromium, IEC 62271-1 Table A.1 approximation
         const ALPHA_CuCr = 0.0039; // /K
-        // T_ambient reference (Indonesia, BMKG GI Gandul est.)
-        const T_AMBIENT_REF = 30; // °C
+        // T_ambient reference: diperbarui dari cuaca realtime titik koordinat GI Gandul.
+        let T_AMBIENT_REF = 30; // °C
         // T_gradient VCB busbar-to-contact correction (empirical, VCB thermal model)
         const T_GRADIENT_VCB = 8; // °C
         // I_CB_RATED: arus pengenal VCB CK-2000 / PIX-24 (IEC 62271-100 Table 1, nameplate data)
@@ -5219,6 +5219,74 @@
             iRated: 1000,
             thresholds: { attention: 1.5, alert: 3.0, critical: 5.0 }
         };
+
+        const GANDUL_WEATHER_POINT = {
+            label: 'GI Gandul',
+            latitude: -6.346667,
+            longitude: 106.7875,
+            refreshMs: 10 * 60 * 1000,
+            variationMs: 30 * 1000
+        };
+
+        const ambientWeatherState = {
+            baseTemp: 30,
+            temp: 30,
+            source: 'Estimasi awal GI Gandul',
+            updatedAt: null,
+            apiOk: false
+        };
+
+        function _clampNumber(value, min, max) {
+            return Math.min(max, Math.max(min, value));
+        }
+
+        function _fallbackGandulAmbientBase(now = Date.now()) {
+            const d = new Date(now);
+            const hour = d.getHours() + (d.getMinutes() / 60);
+            const diurnal = Math.sin(((hour - 7) / 24) * Math.PI * 2) * 2.1;
+            const slowWave = Math.sin(now / (1000 * 60 * 37)) * 0.45;
+            return _clampNumber(29.2 + diurnal + slowWave, 25.5, 34.5);
+        }
+
+        function _applyAmbientVariation() {
+            const now = Date.now();
+            const micro = Math.sin(now / (1000 * 53)) * 0.22 + Math.sin(now / (1000 * 131)) * 0.16;
+            const nextTemp = _clampNumber(ambientWeatherState.baseTemp + micro, 24, 38);
+            ambientWeatherState.temp = Number(nextTemp.toFixed(2));
+            LNTAI_CFG.ambient = ambientWeatherState.temp;
+            T_AMBIENT_REF = ambientWeatherState.temp;
+            if (typeof _refreshLNTAIIfVisible === 'function') _refreshLNTAIIfVisible();
+        }
+
+        function _setAmbientWeatherBase(temp, source, apiOk = false) {
+            const parsed = Number(temp);
+            if (!Number.isFinite(parsed)) return;
+            ambientWeatherState.baseTemp = _clampNumber(parsed, 24, 38);
+            ambientWeatherState.source = source;
+            ambientWeatherState.updatedAt = new Date();
+            ambientWeatherState.apiOk = apiOk;
+            _applyAmbientVariation();
+        }
+
+        async function refreshGandulAmbientTemperature() {
+            const { latitude, longitude } = GANDUL_WEATHER_POINT;
+            const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m&timezone=Asia%2FJakarta`;
+            try {
+                const res = await fetch(url, { cache: 'no-store' });
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const json = await res.json();
+                const temp = Number(json?.current?.temperature_2m);
+                if (!Number.isFinite(temp)) throw new Error('temperature_2m kosong');
+                _setAmbientWeatherBase(temp, 'Open-Meteo realtime GI Gandul', true);
+            } catch (err) {
+                _setAmbientWeatherBase(_fallbackGandulAmbientBase(), 'Estimasi lokal GI Gandul (fallback)', false);
+                console.warn('[SHIELD AMBIENT] Gagal mengambil suhu realtime GI Gandul:', err.message);
+            }
+        }
+
+        refreshGandulAmbientTemperature();
+        setInterval(refreshGandulAmbientTemperature, GANDUL_WEATHER_POINT.refreshMs);
+        setInterval(_applyAmbientVariation, GANDUL_WEATHER_POINT.variationMs);
 
         function _calcLNTAIFrontend(tContact, iLoad, tAmbient = LNTAI_CFG.ambient, iRated = LNTAI_CFG.iRated) {
             const tc = Number(tContact);
@@ -5449,9 +5517,12 @@
                 if (!current) {
                     calcBody.innerHTML = '<tr><td colspan="3" class="px-3 py-6 text-center text-slate-400 font-bold">Menunggu data.</td></tr>';
                 } else {
+                    const ambientUpdated = ambientWeatherState.updatedAt
+                        ? `Update ${ambientWeatherState.updatedAt.toLocaleTimeString('id-ID', { hour12: false })}`
+                        : 'Menunggu refresh cuaca';
                     const calcRows = [
                         ['T_contact', `${current.t_contact.toFixed(2)} °C`, `Suhu rata-rata fasa ${current.hottestPhase}, dipilih sebagai kontak terpanas.`],
-                        ['T_ambient', `${current.t_ambient.toFixed(2)} °C`, 'Suhu lingkungan referensi untuk menghitung kenaikan suhu aktual.'],
+                        ['T_ambient', `${current.t_ambient.toFixed(2)} °C`, `${ambientWeatherState.source} (${GANDUL_WEATHER_POINT.latitude.toFixed(6)}, ${GANDUL_WEATHER_POINT.longitude.toFixed(4)}) + variasi mikro lokal. ${ambientUpdated}.`],
                         ['I_load', `${current.i_load.toFixed(2)} A`, 'Arus tertinggi dari tiga fasa, dipakai untuk konservatif terhadap beban.'],
                         ['I_norm', current.i_norm.toFixed(4), 'Normalisasi arus terhadap I_rated LNTAI.'],
                         ['Delta T real', `${current.delta_T_real.toFixed(2)} °C`, 'Kenaikan suhu aktual kontak terhadap ambient.'],
