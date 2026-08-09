@@ -52,19 +52,19 @@
                     sidebar.classList.remove('hidden');
                     sidebar.classList.add('flex');
                     
-                    // Hubungkan ke MQTT untuk realtime data (Dashboard & Grafik)
+                    // Connect to MQTT for realtime data (Dashboard & Graphs)
                     if (typeof window.connectToMQTT === 'function') {
                         window.connectToMQTT();
                     }
-                    // Ambil histori dari Firestore untuk Data Logger
+                    // Load history from Firestore for the Data Logger
                     if (typeof window.loadHistoricalLogs === 'function') {
                         window.loadHistoricalLogs();
                     }
-                    // Subscribe data beban real-time dari Firestore PM Meter
+                    // Subscribe to real-time load data from Firestore PM Meter
                     if (typeof window.subscribeBebanData === 'function') {
                         window.subscribeBebanData();
                     }
-                    // Subscribe data dulfur (R_contact) dari Firestore — auto update ML
+                    // Subscribe to sulfur data (R_contact) from Firestore — auto update ML
                     if (typeof window.subscribeDulfurData === 'function') {
                         window.subscribeDulfurData();
                     }
@@ -80,12 +80,12 @@
         window.handleSignIn = async (email, password) => {
             const btn = document.getElementById('connect-btn-ui');
             const originalText = btn.textContent;
-            btn.textContent = "Memverifikasi...";
+            btn.textContent = "Verifying...";
             btn.disabled = true;
             try {
                 await signInWithEmailAndPassword(auth, email, password);
             } catch (err) {
-                alert("Akses Ditolak: Email tidak terdaftar atau password salah.");
+                alert("Access Denied: Email not registered or incorrect password.");
                 btn.textContent = originalText;
                 btn.disabled = false;
             }
@@ -144,12 +144,12 @@
         .btn-logout-small { background: #e11d48; color: white; padding: 10px; border-radius: 8px; transition: all 0.2s; display: flex; align-items: center; justify-content: center; }
         .btn-logout-small:hover { background: #be123c; transform: scale(1.05); }
 
-        /* Status Warna Suhu */
+        /* Temperature Status Colors */
         .temp-normal { color: #388e3c; }
         .temp-warning { color: #f59e0b; }
         .temp-danger { color: #ef4444; }
 
-        /* Warna Beban */
+        /* Load Colors */
         .value-cell-beban { font-weight: 700; text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 1.1rem; width: 50%; color: #7c3aed; }
         .status-badge-violet { background: linear-gradient(90deg, #a78bfa 0%, #7c3aed 100%); height: 3px; width: 30px; display: inline-block; margin-right: 8px; border-radius: 2px; }
         .status-badge-blue { background: linear-gradient(90deg, #60a5fa 0%, #2563eb 100%); height: 3px; width: 30px; display: inline-block; margin-right: 8px; border-radius: 2px; }
@@ -160,7 +160,7 @@
         .chart-filter-btn.active { background: white; color: #388e3c; box-shadow: 0 1px 6px rgba(0,0,0,0.12); }
         .chart-filter-btn.live.active { color: #4caf50; }
         .chart-filter-sep { width: 1px; height: 18px; background: #e2e8f0; display: inline-block; margin: 0 2px; }
-        /* Parameter Filter Beban */
+        /* Load Parameter Filter */
         .param-filter-btn { padding: 5px 14px; border-radius: 7px; font-size: 11px; font-weight: 800; color: #6d28d9; transition: all 0.18s; cursor: pointer; background: transparent; border: none; }
         .param-filter-btn:hover { background: rgba(139,92,246,0.12); }
         .param-filter-btn.active { background: #7c3aed; color: white; box-shadow: 0 1px 6px rgba(109,40,217,0.3); }
@@ -220,7 +220,7 @@
 </head>
 <body class="flex min-h-screen">
 
-    <!-- Sidebar Menu Navigasi -->
+    <!-- Sidebar Navigation Menu -->
     <aside id="sidebar" class="w-64 flex-col hidden">
         <div class="px-5 py-5 border-b border-white/10 flex items-center gap-4">
             <!-- SHIELD SVG Logo (white on teal) -->
@@ -249,10 +249,10 @@
             </div>
             <div id="submenu-dashboard" class="sidebar-submenu">
               <div onclick="goToTab('dashboard','suhu')" id="sub-dashboard-suhu" class="sidebar-sub-item active">
-                <i data-lucide="thermometer" class="w-3.5 h-3.5 shrink-0"></i> Suhu
+                <i data-lucide="thermometer" class="w-3.5 h-3.5 shrink-0"></i> Temperature
               </div>
               <div onclick="goToTab('dashboard','beban')" id="sub-dashboard-beban" class="sidebar-sub-item">
-                <i data-lucide="zap" class="w-3.5 h-3.5 shrink-0"></i> Beban
+                <i data-lucide="zap" class="w-3.5 h-3.5 shrink-0"></i> Load
               </div>
             </div>
           </div>
@@ -267,28 +267,28 @@
             </div>
             <div id="submenu-logger" class="sidebar-submenu">
               <div onclick="goToTab('logger','suhu')" id="sub-logger-suhu" class="sidebar-sub-item">
-                <i data-lucide="thermometer" class="w-3.5 h-3.5 shrink-0"></i> Log Suhu
+                <i data-lucide="thermometer" class="w-3.5 h-3.5 shrink-0"></i> Temperature Log
               </div>
               <div onclick="goToTab('logger','beban')" id="sub-logger-beban" class="sidebar-sub-item">
-                <i data-lucide="zap" class="w-3.5 h-3.5 shrink-0"></i> Log Beban
+                <i data-lucide="zap" class="w-3.5 h-3.5 shrink-0"></i> Load Log
               </div>
             </div>
           </div>
 
-          <!-- Grafik Tren -->
+          <!-- Trend Graphs -->
           <div>
             <div id="menu-graphs" onclick="toggleSubMenu('graphs')"
               class="sidebar-item flex items-center gap-3 px-4 py-3.5 text-sm font-bold rounded-xl">
               <i data-lucide="line-chart" class="w-5 h-5 shrink-0"></i>
-              <span class="flex-1">Grafik Tren</span>
+              <span class="flex-1">Trend Graphs</span>
               <span class="sidebar-arrow text-white/60 text-xs">▶</span>
             </div>
             <div id="submenu-graphs" class="sidebar-submenu">
               <div onclick="goToTab('graphs','suhu')" id="sub-graphs-suhu" class="sidebar-sub-item">
-                <i data-lucide="thermometer" class="w-3.5 h-3.5 shrink-0"></i> Grafik Suhu
+                <i data-lucide="thermometer" class="w-3.5 h-3.5 shrink-0"></i> Temperature Graph
               </div>
               <div onclick="goToTab('graphs','beban')" id="sub-graphs-beban" class="sidebar-sub-item">
-                <i data-lucide="zap" class="w-3.5 h-3.5 shrink-0"></i> Grafik Beban
+                <i data-lucide="zap" class="w-3.5 h-3.5 shrink-0"></i> Load Graph
               </div>
             </div>
           </div>
@@ -330,45 +330,45 @@
                 <i data-lucide="trending-up" class="w-3.5 h-3.5 shrink-0"></i> OLS Baseline
               </div>
               <div onclick="goToTab('ml','a7')" id="sub-ml-a7" class="sidebar-sub-item">
-                <i data-lucide="shuffle" class="w-3.5 h-3.5 shrink-0"></i> Stokastik
+                <i data-lucide="shuffle" class="w-3.5 h-3.5 shrink-0"></i> Stochastic
               </div>
             </div>
           </div>
 
         </nav>
         <div class="p-4 border-t border-white/10">
-            <button onclick="reconnectMQTT()" class="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-white/10 text-white text-xs font-bold hover:bg-white/20 transition-all"><i data-lucide="refresh-cw" class="w-4 h-4"></i> Hubungkan Ulang </button>
+            <button onclick="reconnectMQTT()" class="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-white/10 text-white text-xs font-bold hover:bg-white/20 transition-all"><i data-lucide="refresh-cw" class="w-4 h-4"></i> Reconnect </button>
         </div>
     </aside>
 
-    <!-- Konten Utama -->
+    <!-- Main Content -->
     <div class="flex-1 flex flex-col overflow-hidden">
         <header class="h-20 px-6 flex items-center justify-between z-10">
             <div class="flex items-center gap-5 flex-wrap">
                 <div>
-                    <h2 id="page-title" class="text-xl font-extrabold text-[#1e293b]">Dashboard Suhu</h2>
+                    <h2 id="page-title" class="text-xl font-extrabold text-[#1e293b]">Temperature Dashboard</h2>
                     <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Acrel ATP007 Temperature Monitor</p>
                 </div>
-                <!-- Pilih Lokasi -->
+                <!-- Location Selector -->
                 <div class="pln-selector">
                     <i data-lucide="map-pin" class="w-4 h-4 text-[#4caf50] shrink-0"></i>
-                    <span class="text-[10px] font-bold text-slate-500 uppercase">Lokasi:</span>
+                    <span class="text-[10px] font-bold text-slate-500 uppercase">Location:</span>
                     <select id="lokasi-selector" onchange="handleLokasiChange()" class="bg-transparent text-sm font-extrabold outline-none cursor-pointer text-[#388e3c]">
-                        <option value="gi-gandul">GI Gandul</option>
-                        <option value="gi-cimanggis">GI Cimanggis</option>
-                        <option value="gi-depok">GI Depok</option>
-                        <option value="gis-depok-baru">GIS Depok Baru</option>
-                        <option value="gis-ragunan">GIS Ragunan</option>
+                        <option value="gi-gandul">Gandul Substation</option>
+                        <option value="gi-cimanggis">Cimanggis Substation</option>
+                        <option value="gi-depok">Depok Substation</option>
+                        <option value="gis-depok-baru">Depok Baru GIS</option>
+                        <option value="gis-ragunan">Ragunan GIS</option>
                     </select>
                 </div>
-                <!-- Pilih Trafo -->
+                <!-- Transformer Selector -->
                 <div class="pln-selector">
                     <i data-lucide="zap" class="w-4 h-4 text-[#4caf50] shrink-0"></i>
-                    <span class="text-[10px] font-bold text-slate-500 uppercase">Trafo:</span>
+                    <span class="text-[10px] font-bold text-slate-500 uppercase">Transformer:</span>
                     <select id="trafo-selector" onchange="handleTrafoChange()" class="bg-transparent text-sm font-extrabold outline-none cursor-pointer text-[#388e3c]">
-                        <option value="2" selected>Trafo 2</option>
-                        <option value="3">Trafo 3</option>
-                        <option value="4">Trafo 4</option>
+                        <option value="2" selected>Transformer 2</option>
+                        <option value="3">Transformer 3</option>
+                        <option value="4">Transformer 4</option>
                     </select>
                 </div>
             </div>
@@ -382,7 +382,7 @@
                     </div>
                 </div>
                 <div class="border-l border-slate-200 pl-6">
-                    <button onclick="handleSignOut()" class="btn-logout-small shadow-md" title="Keluar">
+                    <button onclick="handleSignOut()" class="btn-logout-small shadow-md" title="Sign Out">
                         <i data-lucide="log-out" class="w-4 h-4"></i>
                     </button>
                 </div>
@@ -390,50 +390,50 @@
         </header>
 
         <main id="main-content" class="p-8">
-            
-            <!-- HALAMAN 1: DASHBOARD -->
+
+            <!-- PAGE 1: DASHBOARD -->
             <div id="view-dashboard" class="space-y-6">
 
-                <!-- ★ URUTAN 1: KPI Keseimbangan & Hotspot PMT Incoming -->
+                <!-- ★ ORDER 1: PMT Incoming Imbalance & Hotspot KPI -->
                 <div class="glass-card p-6 border-l-4 border-orange-400">
                     <div class="flex items-center gap-3 mb-5">
                         <div class="bg-orange-100 p-2 rounded-lg shrink-0"><i data-lucide="activity" class="w-5 h-5 text-orange-600"></i></div>
                         <div>
-                            <h4 class="text-xs font-extrabold text-orange-700 uppercase tracking-widest">Analisis Ketidakseimbangan & Suhu Kontak PMT Incoming</h4>
-                            <p class="text-[10px] text-slate-400 mt-0.5">SKDIR PLN — Suhu kontak PMT incoming: Normal ≤ 70°C · Perhatian 70-90°C · Kritis > 90°C · Imbalance ≤ 10%</p>
+                            <h4 class="text-xs font-extrabold text-orange-700 uppercase tracking-widest">Imbalance Analysis & PMT Incoming Contact Temperature</h4>
+                            <p class="text-[10px] text-slate-400 mt-0.5">SKDIR PLN — PMT incoming contact temperature: Normal ≤ 70°C · Warning 70-90°C · Critical > 90°C · Imbalance ≤ 10%</p>
                         </div>
                     </div>
                     <div class="grid grid-cols-1 xl:grid-cols-3 gap-5">
                         <div class="bg-gradient-to-br from-rose-50 to-white border border-rose-200 rounded-xl p-4">
-                            <h5 class="text-[10px] font-extrabold text-rose-600 uppercase tracking-widest mb-3 flex items-center gap-1.5"><i data-lucide="thermometer" class="w-3.5 h-3.5"></i> Delta Suhu Antar Fasa</h5>
+                            <h5 class="text-[10px] font-extrabold text-rose-600 uppercase tracking-widest mb-3 flex items-center gap-1.5"><i data-lucide="thermometer" class="w-3.5 h-3.5"></i> Inter-Phase Temperature Delta</h5>
                             <div class="space-y-1.5">
                                 <div class="flex justify-between items-center py-1.5 border-b border-rose-100"><span class="text-[11px] font-bold text-slate-500">Avg R − Avg S</span><span id="kpi-delta-RS" class="font-mono font-extrabold text-sm text-slate-700">-</span></div>
                                 <div class="flex justify-between items-center py-1.5 border-b border-rose-100"><span class="text-[11px] font-bold text-slate-500">Avg S − Avg T</span><span id="kpi-delta-ST" class="font-mono font-extrabold text-sm text-slate-700">-</span></div>
                                 <div class="flex justify-between items-center py-1.5"><span class="text-[11px] font-bold text-slate-500">Avg R − Avg T</span><span id="kpi-delta-RT" class="font-mono font-extrabold text-sm text-slate-700">-</span></div>
                             </div>
                             <div class="mt-3 pt-3 border-t border-rose-200 flex justify-between items-center">
-                                <span class="text-[10px] text-slate-400 font-bold uppercase">Maks. Selisih</span>
+                                <span class="text-[10px] text-slate-400 font-bold uppercase">Max. Difference</span>
                                 <span id="kpi-delta-temp-max" class="font-mono font-black text-lg text-slate-700">-</span>
                             </div>
-                            <p class="text-[9px] text-slate-400 mt-1">Normal &lt;5°C · Perhatian 5-10°C · Kritis &gt;10°C</p>
+                            <p class="text-[9px] text-slate-400 mt-1">Normal &lt;5°C · Warning 5-10°C · Critical &gt;10°C</p>
                         </div>
                         <div class="bg-gradient-to-br from-amber-50 to-white border border-amber-200 rounded-xl p-4">
-                            <h5 class="text-[10px] font-extrabold text-amber-600 uppercase tracking-widest mb-3 flex items-center gap-1.5"><i data-lucide="zap" class="w-3.5 h-3.5"></i> Imbalance & Overcurrent Arus</h5>
+                            <h5 class="text-[10px] font-extrabold text-amber-600 uppercase tracking-widest mb-3 flex items-center gap-1.5"><i data-lucide="zap" class="w-3.5 h-3.5"></i> Current Imbalance & Overcurrent</h5>
                             <div class="space-y-1.5">
                                 <div class="flex justify-between items-center py-1.5 border-b border-amber-100"><span class="text-[11px] font-bold text-slate-500">|I_R − I_S|</span><span id="kpi-delta-IR-IS" class="font-mono font-extrabold text-sm text-slate-700">-</span></div>
                                 <div class="flex justify-between items-center py-1.5 border-b border-amber-100"><span class="text-[11px] font-bold text-slate-500">|I_S − I_T|</span><span id="kpi-delta-IS-IT" class="font-mono font-extrabold text-sm text-slate-700">-</span></div>
                                 <div class="flex justify-between items-center py-1.5"><span class="text-[11px] font-bold text-slate-500">|I_R − I_T|</span><span id="kpi-delta-IR-IT" class="font-mono font-extrabold text-sm text-slate-700">-</span></div>
                             </div>
                             <div class="mt-3 pt-3 border-t border-amber-200 flex justify-between items-center">
-                                <span class="text-[10px] text-slate-400 font-bold uppercase">Ketidakseimbangan</span>
+                                <span class="text-[10px] text-slate-400 font-bold uppercase">Imbalance</span>
                                 <span id="kpi-imbalance-pct" class="font-mono font-black text-lg text-slate-700">-</span>
                             </div>
-                            <p class="text-[9px] text-slate-400 mt-1">Normal &lt;10% · Perhatian 10-25% · Kritis &gt;25%</p>
+                            <p class="text-[9px] text-slate-400 mt-1">Normal &lt;10% · Warning 10-25% · Critical &gt;25%</p>
 
-                            <!-- Pembebanan vs I_nominal -->
+                            <!-- Load vs I_nominal -->
                             <div class="mt-3 pt-3 border-t border-amber-200">
                                 <div class="flex items-center justify-between mb-2">
-                                    <span class="text-[10px] text-slate-400 font-bold uppercase">Beban vs I_nom (1780 A)</span>
+                                    <span class="text-[10px] text-slate-400 font-bold uppercase">Load vs I_nom (1780 A)</span>
                                     <span id="kpi-overcurrent-badge" class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-slate-100 text-slate-500">—</span>
                                 </div>
                                 <div class="grid grid-cols-3 gap-1.5">
@@ -456,43 +456,43 @@
                             </div>
                         </div>
                         <div id="kpi-hotspot-card" class="border-2 rounded-xl p-4 transition-all duration-500 hotspot-normal">
-                            <h5 class="text-[10px] font-extrabold uppercase tracking-widest mb-3 flex items-center gap-1.5 text-slate-600"><i data-lucide="flame" class="w-3.5 h-3.5"></i> Suhu Kontak PMT Incoming</h5>
-                            <div class="text-center py-2 mb-3"><span id="kpi-hotspot-badge" class="inline-flex items-center px-4 py-2 rounded-full text-sm font-extrabold bg-white/70 text-slate-400 shadow-sm">— Menunggu Data —</span></div>
+                            <h5 class="text-[10px] font-extrabold uppercase tracking-widest mb-3 flex items-center gap-1.5 text-slate-600"><i data-lucide="flame" class="w-3.5 h-3.5"></i> PMT Incoming Contact Temperature</h5>
+                            <div class="text-center py-2 mb-3"><span id="kpi-hotspot-badge" class="inline-flex items-center px-4 py-2 rounded-full text-sm font-extrabold bg-white/70 text-slate-400 shadow-sm">— Awaiting Data —</span></div>
                             <div class="space-y-2">
-                                <div class="flex justify-between items-center text-[11px]"><span class="text-slate-500 font-bold">Suhu PMT Tertinggi</span><span id="kpi-hotspot-temp" class="font-mono font-extrabold text-slate-700">- °C</span></div>
-                                <div class="flex justify-between items-center text-[11px]"><span class="text-slate-500 font-bold">Imbalance Arus</span><span id="kpi-hotspot-imb" class="font-mono font-extrabold text-slate-700">- %</span></div>
-                                <div class="flex justify-between items-center text-[11px]"><span class="text-slate-500 font-bold">Maks. ΔT Antar Fasa</span><span id="kpi-hotspot-dt" class="font-mono font-extrabold text-slate-700">- °C</span></div>
+                                <div class="flex justify-between items-center text-[11px]"><span class="text-slate-500 font-bold">Highest PMT Temperature</span><span id="kpi-hotspot-temp" class="font-mono font-extrabold text-slate-700">- °C</span></div>
+                                <div class="flex justify-between items-center text-[11px]"><span class="text-slate-500 font-bold">Current Imbalance</span><span id="kpi-hotspot-imb" class="font-mono font-extrabold text-slate-700">- %</span></div>
+                                <div class="flex justify-between items-center text-[11px]"><span class="text-slate-500 font-bold">Max. Inter-Phase ΔT</span><span id="kpi-hotspot-dt" class="font-mono font-extrabold text-slate-700">- °C</span></div>
                             </div>
-                            <p id="kpi-hotspot-note" class="text-[9px] text-slate-500 mt-3 pt-2 border-t border-white/60 leading-relaxed">IEC 62271-1:2017 §7.4 — PMT 20kV: Normal ≤ 70°C · Perhatian 70-90°C · Kritis >90°C. CIGRE TB 167.</p>
+                            <p id="kpi-hotspot-note" class="text-[9px] text-slate-500 mt-3 pt-2 border-t border-white/60 leading-relaxed">IEC 62271-1:2017 §7.4 — PMT 20kV: Normal ≤ 70°C · Warning 70-90°C · Critical >90°C. CIGRE TB 167.</p>
                         </div>
                     </div>
                 </div>
 
-                <!-- Inner Tabs: Suhu | Beban -->
+                <!-- Inner Tabs: Temperature | Load -->
                 <div>
                     <div class="inner-tab-nav">
                         <button onclick="switchInnerTab('dash','suhu')" id="itab-dash-suhu" class="inner-tab-btn active">
-                            <i data-lucide="thermometer" class="w-4 h-4"></i> Suhu
+                            <i data-lucide="thermometer" class="w-4 h-4"></i> Temperature
                         </button>
                         <button onclick="switchInnerTab('dash','beban')" id="itab-dash-beban" class="inner-tab-btn v-beban">
-                            <i data-lucide="zap" class="w-4 h-4"></i> Beban
+                            <i data-lucide="zap" class="w-4 h-4"></i> Load
                         </button>
                     </div>
 
-                    <!-- ── TAB SUHU ──────────────────────────────────── -->
+                    <!-- ── TEMPERATURE TAB ──────────────────────────────────── -->
                     <div id="itab-content-dash-suhu" class="space-y-6">
-                        <!-- Widget Ringkasan Trafo Terpilih -->
+                        <!-- Selected Transformer Summary Widget -->
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
                     <div class="glass-card p-5 bg-gradient-to-br from-teal-50 to-white border-teal-100">
-                        <span id="avg-title-text" class="text-[10px] font-bold text-teal-600 uppercase tracking-widest">Rata-Rata Suhu (MQTT)</span>
+                        <span id="avg-title-text" class="text-[10px] font-bold text-teal-600 uppercase tracking-widest">Average Temperature (MQTT)</span>
                         <div class="flex items-baseline gap-1 mt-2">
                             <span id="summary-avg-temp" class="text-3xl font-black text-slate-800">-</span>
                             <span class="text-sm font-bold text-slate-500">°C</span>
                         </div>
-                        <p class="text-[10px] text-slate-400 mt-1">Real-time dari MQTT Broker</p>
+                        <p class="text-[10px] text-slate-400 mt-1">Real-time from MQTT Broker</p>
                     </div>
                     <div class="glass-card p-5 bg-gradient-to-br from-rose-50 to-white border-rose-100">
-                        <span class="text-[10px] font-bold text-rose-600 uppercase tracking-widest">Suhu Tertinggi</span>
+                        <span class="text-[10px] font-bold text-rose-600 uppercase tracking-widest">Highest Temperature</span>
                         <div class="flex items-baseline gap-1 mt-2">
                             <span id="summary-max-temp" class="text-3xl font-black text-rose-700">-</span>
                             <span class="text-sm font-bold text-rose-500">°C</span>
@@ -500,7 +500,7 @@
                         <span id="summary-max-sensor" class="text-[10px] text-slate-500 mt-1">Sensor: -</span>
                     </div>
                     <div class="glass-card p-5 bg-gradient-to-br from-emerald-50 to-white border-emerald-100">
-                        <span class="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">Suhu Terendah</span>
+                        <span class="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">Lowest Temperature</span>
                         <div class="flex items-baseline gap-1 mt-2">
                             <span id="summary-min-temp" class="text-3xl font-black text-emerald-700">-</span>
                             <span class="text-sm font-bold text-slate-500">°C</span>
@@ -508,36 +508,36 @@
                         <span id="summary-min-sensor" class="text-[10px] text-slate-500 mt-1">Sensor: -</span>
                     </div>
                     <div class="glass-card p-5">
-                        <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Status Proteksi</span>
+                        <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Protection Status</span>
                         <div class="mt-2">
                             <span id="summary-status-badge" class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-extrabold bg-slate-100 text-slate-600">
                                 -
                             </span>
                         </div>
-                        <p class="text-[10px] text-slate-400 mt-2">Batas Kritis: 90.0 °C</p>
+                        <p class="text-[10px] text-slate-400 mt-2">Critical Limit: 90.0 °C</p>
                     </div>
                 </div>
 
-                <!-- Detail Panel Suhu Per Phase R, S, T -->
+                <!-- Temperature Detail Panel Per Phase R, S, T -->
                 <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
                     <!-- Phase R Card -->
                     <div class="glass-card p-6">
                         <div class="flex justify-between items-center mb-6">
                             <h4 class="text-xs font-extrabold text-[#0d9488] uppercase tracking-widest flex items-center"><span class="status-badge-teal"></span> PHASE R</h4>
-                            <div class="bg-teal-50 text-teal-700 px-2.5 py-1 rounded text-[10px] font-extrabold">Suhu Inti</div>
+                            <div class="bg-teal-50 text-teal-700 px-2.5 py-1 rounded text-[10px] font-extrabold">Core Temperature</div>
                         </div>
                         <table class="w-full compact-table">
                             <tr>
-                                <td class="label-cell">R - Atas</td>
+                                <td class="label-cell">R - Top</td>
                                 <td id="temp-R_Atas" class="value-cell">-</td>
                             </tr>
                             <tr>
-                                <td class="label-cell">R - Bawah</td>
+                                <td class="label-cell">R - Bottom</td>
                                 <td id="temp-R_Bawah" class="value-cell">-</td>
                             </tr>
                         </table>
                         <div class="p-3 bg-slate-50 border-t border-slate-100 flex justify-between items-center text-[10px] mt-4 rounded-lg">
-                            <span class="text-slate-400 font-bold uppercase">Delta T (R_Atas - Bawah)</span>
+                            <span class="text-slate-400 font-bold uppercase">Delta T (R_Atas - Bottom)</span>
                             <span id="delta-R" class="font-mono font-bold text-slate-600">-</span>
                         </div>
                     </div>
@@ -546,20 +546,20 @@
                     <div class="glass-card p-6">
                         <div class="flex justify-between items-center mb-6">
                             <h4 class="text-xs font-extrabold text-[#0d9488] uppercase tracking-widest flex items-center"><span class="status-badge-teal"></span> PHASE S</h4>
-                            <div class="bg-teal-50 text-teal-700 px-2.5 py-1 rounded text-[10px] font-extrabold">Suhu Inti</div>
+                            <div class="bg-teal-50 text-teal-700 px-2.5 py-1 rounded text-[10px] font-extrabold">Core Temperature</div>
                         </div>
                         <table class="w-full compact-table">
                             <tr>
-                                <td class="label-cell">S - Atas</td>
+                                <td class="label-cell">S - Top</td>
                                 <td id="temp-S_Atas" class="value-cell">-</td>
                             </tr>
                             <tr>
-                                <td class="label-cell">S - Bawah</td>
+                                <td class="label-cell">S - Bottom</td>
                                 <td id="temp-S_Bawah" class="value-cell">-</td>
                             </tr>
                         </table>
                         <div class="p-3 bg-slate-50 border-t border-slate-100 flex justify-between items-center text-[10px] mt-4 rounded-lg">
-                            <span class="text-slate-400 font-bold uppercase">Delta T (S_Atas - Bawah)</span>
+                            <span class="text-slate-400 font-bold uppercase">Delta T (S_Atas - Bottom)</span>
                             <span id="delta-S" class="font-mono font-bold text-slate-600">-</span>
                         </div>
                     </div>
@@ -568,28 +568,28 @@
                     <div class="glass-card p-6">
                         <div class="flex justify-between items-center mb-6">
                             <h4 class="text-xs font-extrabold text-[#0d9488] uppercase tracking-widest flex items-center"><span class="status-badge-teal"></span> PHASE T</h4>
-                            <div class="bg-teal-50 text-teal-700 px-2.5 py-1 rounded text-[10px] font-extrabold">Suhu Inti</div>
+                            <div class="bg-teal-50 text-teal-700 px-2.5 py-1 rounded text-[10px] font-extrabold">Core Temperature</div>
                         </div>
                         <table class="w-full compact-table">
                             <tr>
-                                <td class="label-cell">T - Atas</td>
+                                <td class="label-cell">T - Top</td>
                                 <td id="temp-T_Atas" class="value-cell">-</td>
                             </tr>
                             <tr>
-                                <td class="label-cell">T - Bawah</td>
+                                <td class="label-cell">T - Bottom</td>
                                 <td id="temp-T_Bawah" class="value-cell">-</td>
                             </tr>
                         </table>
                         <div class="p-3 bg-slate-50 border-t border-slate-100 flex justify-between items-center text-[10px] mt-4 rounded-lg">
-                            <span class="text-slate-400 font-bold uppercase">Delta T (T_Atas - Bawah)</span>
+                            <span class="text-slate-400 font-bold uppercase">Delta T (T_Atas - Bottom)</span>
                             <span id="delta-T" class="font-mono font-bold text-slate-600">-</span>
                         </div>
                     </div>
                 </div>
 
-                <!-- Skema Visual Sederhana Trafo -->
+                <!-- Simplified Transformer Sensor Diagram -->
                 <div class="glass-card p-6">
-                    <h4 class="text-xs font-extrabold text-[#0d9488] uppercase tracking-widest mb-4 flex items-center"><span class="status-badge-teal"></span> Pemetaan Sensor Fisik Trafo</h4>
+                    <h4 class="text-xs font-extrabold text-[#0d9488] uppercase tracking-widest mb-4 flex items-center"><span class="status-badge-teal"></span> Transformer Physical Sensor Mapping</h4>
                     <div class="bg-slate-50 border border-slate-200 rounded-2xl p-6 grid grid-cols-3 gap-4 text-center">
                         <div class="bg-white border border-slate-100 p-4 rounded-xl shadow-sm">
                             <span class="text-xs font-bold text-slate-400 uppercase">Phase R</span>
@@ -615,25 +615,25 @@
                     </div>
                 </div>
 
-                    </div> <!-- end tab suhu -->
+                    </div> <!-- end temperature tab -->
 
-                    <!-- ── TAB BEBAN ──────────────────────────────────── -->
+                    <!-- ── LOAD TAB ──────────────────────────────────── -->
                     <div id="itab-content-dash-beban" class="hidden space-y-6">
-                        <!-- Status Koneksi Beban -->
+                        <!-- Load Connection Status -->
                         <div class="flex items-center justify-between px-1 flex-wrap gap-2">
                             <div class="flex items-center gap-2">
                                 <span class="status-badge-violet"></span>
-                                <span class="text-xs font-extrabold text-violet-700 uppercase tracking-widest">Data Beban Trafo (ION8650)</span>
+                                <span class="text-xs font-extrabold text-violet-700 uppercase tracking-widest">Transformer Load Data (ION8650)</span>
                             </div>
                             <div class="flex items-center gap-2">
                                 <span id="beban-update-time" class="text-[10px] text-teal-600 font-mono bg-teal-50 px-2 py-1 rounded-lg">Update: -</span>
-                                <button onclick="showBebanDiagnostic()" class="flex items-center gap-1.5 bg-violet-50 border border-violet-200 text-violet-700 text-[11px] font-bold px-3 py-1.5 rounded-lg hover:bg-violet-100 transition-all" title="Lihat field mentah dari Firebase">
-                                    <i data-lucide="stethoscope" class="w-3.5 h-3.5"></i> Diagnostik
+                                <button onclick="showBebanDiagnostic()" class="flex items-center gap-1.5 bg-violet-50 border border-violet-200 text-violet-700 text-[11px] font-bold px-3 py-1.5 rounded-lg hover:bg-violet-100 transition-all" title="View raw fields from Firebase">
+                                    <i data-lucide="stethoscope" class="w-3.5 h-3.5"></i> Diagnostics
                                 </button>
                             </div>
                         </div>
 
-                        <!-- Summary Beban 4 Widget: MVA | MW | PF | % Beban -->
+                        <!-- Load Summary 4 Widgets: MVA | MW | PF | % Load -->
                         <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
                             <div class="glass-card p-5 bg-gradient-to-br from-violet-50 to-white border-violet-100">
                                 <span class="text-[10px] font-bold text-violet-600 uppercase tracking-widest">Total MVA</span>
@@ -641,7 +641,7 @@
                                     <span id="beban-kva" class="text-3xl font-black text-slate-800">-</span>
                                     <span class="text-sm font-bold text-violet-500">MVA</span>
                                 </div>
-                                <p class="text-[10px] text-slate-400 mt-1">Daya Semu Trafo</p>
+                                <p class="text-[10px] text-slate-400 mt-1">Transformer Apparent Power</p>
                             </div>
                             <div class="glass-card p-5 bg-gradient-to-br from-blue-50 to-white border-blue-100">
                                 <span class="text-[10px] font-bold text-blue-600 uppercase tracking-widest">Total MW</span>
@@ -649,17 +649,17 @@
                                     <span id="beban-kw" class="text-3xl font-black text-blue-700">-</span>
                                     <span class="text-sm font-bold text-blue-500">MW</span>
                                 </div>
-                                <p class="text-[10px] text-slate-400 mt-1">Daya Aktif</p>
+                                <p class="text-[10px] text-slate-400 mt-1">Active Power</p>
                             </div>
                             <div class="glass-card p-5 bg-gradient-to-br from-amber-50 to-white border-amber-100">
                                 <span class="text-[10px] font-bold text-amber-600 uppercase tracking-widest">Power Factor</span>
                                 <div class="flex items-baseline gap-1 mt-2">
                                     <span id="beban-pf" class="text-3xl font-black text-amber-700">-</span>
                                 </div>
-                                <p class="text-[10px] text-slate-400 mt-1">Faktor Daya</p>
+                                <p class="text-[10px] text-slate-400 mt-1">Power Factor</p>
                             </div>
                             <div class="glass-card p-5">
-                                <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Pembebanan Trafo</span>
+                                <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Transformer Loading</span>
                                 <div class="flex items-baseline gap-1 mt-2">
                                     <span id="beban-persen" class="text-3xl font-black text-slate-800">-</span>
                                     <span class="text-sm font-bold text-slate-500">%</span>
@@ -670,109 +670,109 @@
                             </div>
                         </div>
 
-                        <!-- Phase Beban + Daya -->
+                        <!-- Phase Load + Power -->
                         <div class="grid grid-cols-1 xl:grid-cols-4 gap-6">
                             <div class="glass-card p-6">
                                 <div class="flex justify-between items-center mb-6">
                                     <h4 class="text-xs font-extrabold text-violet-700 uppercase tracking-widest flex items-center"><span class="status-badge-violet"></span> PHASE R</h4>
-                                    <div class="bg-violet-50 text-violet-700 px-2.5 py-1 rounded text-[10px] font-extrabold">Arus & Tegangan</div>
+                                    <div class="bg-violet-50 text-violet-700 px-2.5 py-1 rounded text-[10px] font-extrabold">Current & Voltage</div>
                                 </div>
                                 <table class="w-full compact-table">
-                                    <tr><td class="label-cell">Arus (I_R)</td><td id="beban-I_R" class="value-cell-beban">-</td></tr>
-                                    <tr><td class="label-cell">Tegangan (V_R)</td><td id="beban-V_R" class="value-cell-beban">-</td></tr>
+                                    <tr><td class="label-cell">Current (I_R)</td><td id="beban-I_R" class="value-cell-beban">-</td></tr>
+                                    <tr><td class="label-cell">Voltage (V_R)</td><td id="beban-V_R" class="value-cell-beban">-</td></tr>
                                 </table>
                             </div>
                             <div class="glass-card p-6">
                                 <div class="flex justify-between items-center mb-6">
                                     <h4 class="text-xs font-extrabold text-violet-700 uppercase tracking-widest flex items-center"><span class="status-badge-violet"></span> PHASE S</h4>
-                                    <div class="bg-violet-50 text-violet-700 px-2.5 py-1 rounded text-[10px] font-extrabold">Arus & Tegangan</div>
+                                    <div class="bg-violet-50 text-violet-700 px-2.5 py-1 rounded text-[10px] font-extrabold">Current & Voltage</div>
                                 </div>
                                 <table class="w-full compact-table">
-                                    <tr><td class="label-cell">Arus (I_S)</td><td id="beban-I_S" class="value-cell-beban">-</td></tr>
-                                    <tr><td class="label-cell">Tegangan (V_S)</td><td id="beban-V_S" class="value-cell-beban">-</td></tr>
+                                    <tr><td class="label-cell">Current (I_S)</td><td id="beban-I_S" class="value-cell-beban">-</td></tr>
+                                    <tr><td class="label-cell">Voltage (V_S)</td><td id="beban-V_S" class="value-cell-beban">-</td></tr>
                                 </table>
                             </div>
                             <div class="glass-card p-6">
                                 <div class="flex justify-between items-center mb-6">
                                     <h4 class="text-xs font-extrabold text-violet-700 uppercase tracking-widest flex items-center"><span class="status-badge-violet"></span> PHASE T</h4>
-                                    <div class="bg-violet-50 text-violet-700 px-2.5 py-1 rounded text-[10px] font-extrabold">Arus & Tegangan</div>
+                                    <div class="bg-violet-50 text-violet-700 px-2.5 py-1 rounded text-[10px] font-extrabold">Current & Voltage</div>
                                 </div>
                                 <table class="w-full compact-table">
-                                    <tr><td class="label-cell">Arus (I_T)</td><td id="beban-I_T" class="value-cell-beban">-</td></tr>
-                                    <tr><td class="label-cell">Tegangan (V_T)</td><td id="beban-V_T" class="value-cell-beban">-</td></tr>
+                                    <tr><td class="label-cell">Current (I_T)</td><td id="beban-I_T" class="value-cell-beban">-</td></tr>
+                                    <tr><td class="label-cell">Voltage (V_T)</td><td id="beban-V_T" class="value-cell-beban">-</td></tr>
                                 </table>
                             </div>
                             <div class="glass-card p-6">
                                 <div class="flex justify-between items-center mb-6">
-                                    <h4 class="text-xs font-extrabold text-blue-700 uppercase tracking-widest flex items-center"><span class="status-badge-blue"></span> DAYA TOTAL</h4>
+                                    <h4 class="text-xs font-extrabold text-blue-700 uppercase tracking-widest flex items-center"><span class="status-badge-blue"></span> TOTAL POWER</h4>
                                     <div class="bg-blue-50 text-blue-700 px-2.5 py-1 rounded text-[10px] font-extrabold">Power</div>
                                 </div>
                                 <table class="w-full compact-table">
-                                    <tr><td class="label-cell">MW (Aktif)</td><td id="beban-kw-detail" class="value-cell" style="color:#2563eb">-</td></tr>
-                                    <tr><td class="label-cell">MVAR (Reaktif)</td><td id="beban-kvar" class="value-cell" style="color:#d97706">-</td></tr>
-                                    <tr><td class="label-cell">MVA (Semu)</td><td id="beban-kva-detail" class="value-cell" style="color:#7c3aed">-</td></tr>
+                                    <tr><td class="label-cell">MW (Active)</td><td id="beban-kw-detail" class="value-cell" style="color:#2563eb">-</td></tr>
+                                    <tr><td class="label-cell">MVAR (Reactive)</td><td id="beban-kvar" class="value-cell" style="color:#d97706">-</td></tr>
+                                    <tr><td class="label-cell">MVA (Apparent)</td><td id="beban-kva-detail" class="value-cell" style="color:#7c3aed">-</td></tr>
                                 </table>
                             </div>
                         </div>
-                    </div> <!-- end tab beban -->
+                    </div> <!-- end load tab -->
 
                 </div> <!-- end inner tabs -->
             </div> <!-- end view-dashboard -->
 
-            <!-- HALAMAN 2: DATA LOGGER -->
+            <!-- PAGE 2: DATA LOGGER -->
             <div id="view-logger" class="hidden space-y-4">
                 <!-- Inner Tabs -->
                 <div class="inner-tab-nav">
                     <button onclick="switchInnerTab('logger','suhu')" id="itab-logger-suhu" class="inner-tab-btn active">
-                        <i data-lucide="thermometer" class="w-4 h-4"></i> Log Suhu
+                        <i data-lucide="thermometer" class="w-4 h-4"></i> Temperature Log
                     </button>
                     <button onclick="switchInnerTab('logger','beban'); loadBebanLogs()" id="itab-logger-beban" class="inner-tab-btn v-beban">
-                        <i data-lucide="zap" class="w-4 h-4"></i> Log Beban
+                        <i data-lucide="zap" class="w-4 h-4"></i> Load Log
                     </button>
                 </div>
 
-                <!-- Tab: Log Suhu -->
+                <!-- Tab: Temperature Log -->
                 <div id="itab-content-logger-suhu">
                 <div class="glass-card overflow-hidden">
                     <div class="p-6 border-b border-slate-100 flex flex-wrap justify-between items-center bg-slate-50/50 gap-4">
                         <div>
                             <div class="flex items-center gap-2 mb-1">
                                 <span class="status-badge-teal inline-block"></span>
-                                <h3 class="text-sm font-extrabold text-[#0f766e]">Log Suhu — Acrel ATP007</h3>
+                                <h3 class="text-sm font-extrabold text-[#0f766e]">Temperature Log — Acrel ATP007</h3>
                             </div>
-                            <p class="text-[11px] text-slate-400 mt-1">Histori suhu berkala langsung dari Firestore (collection: acrel_atp007).</p>
+                            <p class="text-[11px] text-slate-400 mt-1">Periodic temperature history streamed directly from Firestore (collection: acrel_atp007).</p>
                         </div>
                         <div class="flex gap-3 items-center flex-wrap">
                             <button onclick="toggleFilterPanel('fp-suhu')" class="bg-white border border-slate-200 px-4 py-2 text-xs font-bold text-slate-600 rounded-lg hover:bg-slate-50 transition-all flex items-center gap-1.5"><i data-lucide="sliders-horizontal" class="w-4 h-4"></i> Filter <span id="fp-suhu-badge" class="hidden ml-1 bg-teal-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full">ON</span></button>
-                            <button onclick="loadHistoricalLogs()" class="bg-white border border-slate-200 px-4 py-2 text-xs font-bold text-[#0d9488] rounded-lg hover:bg-teal-50 transition-all flex items-center gap-1.5"><i data-lucide="refresh-cw" class="w-4 h-4"></i> Muat Ulang</button>
-                            <button onclick="exportLoggerExcel()" class="btn-action px-5 py-2 text-xs flex items-center gap-1.5"><i data-lucide="download" class="w-4 h-4"></i> Unduh Excel</button>
+                            <button onclick="loadHistoricalLogs()" class="bg-white border border-slate-200 px-4 py-2 text-xs font-bold text-[#0d9488] rounded-lg hover:bg-teal-50 transition-all flex items-center gap-1.5"><i data-lucide="refresh-cw" class="w-4 h-4"></i> Reload</button>
+                            <button onclick="exportLoggerExcel()" class="btn-action px-5 py-2 text-xs flex items-center gap-1.5"><i data-lucide="download" class="w-4 h-4"></i> Download Excel</button>
                         </div>
                     </div>
 
-                    <!-- Filter Panel Suhu -->
+                    <!-- Temperature Filter Panel -->
                     <div id="fp-suhu" class="hidden border-b border-slate-200 bg-slate-50 px-6 py-4">
                         <div class="grid grid-cols-2 md:grid-cols-5 gap-3 items-end">
                             <div>
-                                <label class="filter-label">Dari Tanggal</label>
+                                <label class="filter-label">From Date</label>
                                 <input type="date" id="tf-from" class="filter-input">
                             </div>
                             <div>
-                                <label class="filter-label">Sampai Tanggal</label>
+                                <label class="filter-label">To Date</label>
                                 <input type="date" id="tf-to" class="filter-input">
                             </div>
                             <div>
-                                <label class="filter-label">Suhu Maks ≥ (°C)</label>
-                                <input type="number" id="tf-mintemp" placeholder="Contoh: 60" class="filter-input">
+                                <label class="filter-label">Max Temp ≥ (°C)</label>
+                                <input type="number" id="tf-mintemp" placeholder="e.g. 60" class="filter-input">
                             </div>
                             <div>
-                                <label class="filter-label">Urutan Data</label>
+                                <label class="filter-label">Sort Order</label>
                                 <select id="tf-sort" class="filter-input">
-                                    <option value="desc">Terbaru ↓</option>
-                                    <option value="asc">Terlama ↑</option>
+                                    <option value="desc">Newest ↓</option>
+                                    <option value="asc">Oldest ↑</option>
                                 </select>
                             </div>
                             <div class="flex gap-2">
-                                <button onclick="applyTempFilter()" class="btn-action px-4 py-2 text-xs flex-1 flex items-center justify-center gap-1"><i data-lucide="check" class="w-3.5 h-3.5"></i> Terapkan</button>
+                                <button onclick="applyTempFilter()" class="btn-action px-4 py-2 text-xs flex-1 flex items-center justify-center gap-1"><i data-lucide="check" class="w-3.5 h-3.5"></i> Apply</button>
                                 <button onclick="resetTempFilter()" class="bg-white border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 rounded-lg hover:bg-slate-50 flex items-center gap-1"><i data-lucide="x" class="w-3.5 h-3.5"></i> Reset</button>
                             </div>
                         </div>
@@ -783,8 +783,8 @@
                         <table class="w-full text-left text-xs min-w-[900px]">
                             <thead>
                                 <tr class="bg-slate-100 text-slate-600 font-bold uppercase tracking-wider border-b border-slate-200">
-                                    <th class="px-6 py-3.5">Waktu Logging (Firestore)</th>
-                                    <th class="px-6 py-3.5 text-center">Trafo</th>
+                                    <th class="px-6 py-3.5">Logging Time (Firestore)</th>
+                                    <th class="px-6 py-3.5 text-center">Transformer</th>
                                     <th class="px-6 py-3.5 text-right">R_Atas (°C)</th>
                                     <th class="px-6 py-3.5 text-right">R_Bawah (°C)</th>
                                     <th class="px-6 py-3.5 text-right">S_Atas (°C)</th>
@@ -798,7 +798,7 @@
                                     <td colspan="8" class="text-center py-12 text-slate-400 font-bold">
                                         <div class="flex flex-col items-center justify-center gap-2">
                                             <i data-lucide="loader-2" class="w-8 h-8 text-teal-600 animate-spin"></i>
-                                            <span>Sedang mengambil histori suhu dari Firestore...</span>
+                                            <span>Retrieving temperature history from Firestore...</span>
                                         </div>
                                     </td>
                                 </tr>
@@ -808,48 +808,48 @@
                 </div>
                 </div> <!-- end itab-content-logger-suhu -->
 
-                <!-- Tab: Log Beban -->
+                <!-- Tab: Load Log -->
                 <div id="itab-content-logger-beban" class="hidden">
                 <div class="glass-card overflow-hidden">
                     <div class="p-6 border-b border-violet-100 flex flex-wrap justify-between items-center bg-violet-50/30 gap-4">
                         <div>
                             <div class="flex items-center gap-2 mb-1">
                                 <span class="status-badge-violet inline-block"></span>
-                                <h3 class="text-sm font-extrabold text-violet-700">Log Beban — ION8650 (beban_realtime)</h3>
+                                <h3 class="text-sm font-extrabold text-violet-700">Load Log — ION8650 (beban_realtime)</h3>
                             </div>
-                            <p class="text-[11px] text-slate-400 mt-1">Histori arus, tegangan, dan daya dari Firestore (beban_realtime/{trafo}/logs).</p>
+                            <p class="text-[11px] text-slate-400 mt-1">Current, voltage, and power history from Firestore (beban_realtime/{trafo}/logs).</p>
                         </div>
                         <div class="flex gap-3 items-center flex-wrap">
                             <button onclick="toggleFilterPanel('fp-beban')" class="bg-white border border-violet-200 px-4 py-2 text-xs font-bold text-violet-700 rounded-lg hover:bg-violet-50 transition-all flex items-center gap-1.5"><i data-lucide="sliders-horizontal" class="w-4 h-4"></i> Filter <span id="fp-beban-badge" class="hidden ml-1 bg-violet-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full">ON</span></button>
-                            <button onclick="loadBebanLogs()" class="bg-white border border-violet-200 px-4 py-2 text-xs font-bold text-violet-700 rounded-lg hover:bg-violet-50 transition-all flex items-center gap-1.5"><i data-lucide="refresh-cw" class="w-4 h-4"></i> Muat Ulang</button>
-                            <button onclick="exportBebanExcel()" class="btn-action px-5 py-2 text-xs flex items-center gap-1.5"><i data-lucide="download" class="w-4 h-4"></i> Unduh Excel</button>
+                            <button onclick="loadBebanLogs()" class="bg-white border border-violet-200 px-4 py-2 text-xs font-bold text-violet-700 rounded-lg hover:bg-violet-50 transition-all flex items-center gap-1.5"><i data-lucide="refresh-cw" class="w-4 h-4"></i> Reload</button>
+                            <button onclick="exportBebanExcel()" class="btn-action px-5 py-2 text-xs flex items-center gap-1.5"><i data-lucide="download" class="w-4 h-4"></i> Download Excel</button>
                         </div>
                     </div>
 
-                    <!-- Filter Panel Beban -->
+                    <!-- Load Filter Panel -->
                     <div id="fp-beban" class="hidden border-b border-violet-200 bg-violet-50/40 px-6 py-4">
                         <div class="grid grid-cols-2 md:grid-cols-5 gap-3 items-end">
                             <div>
-                                <label class="filter-label">Dari Tanggal</label>
+                                <label class="filter-label">From Date</label>
                                 <input type="date" id="bf-from" class="filter-input">
                             </div>
                             <div>
-                                <label class="filter-label">Sampai Tanggal</label>
+                                <label class="filter-label">To Date</label>
                                 <input type="date" id="bf-to" class="filter-input">
                             </div>
                             <div>
-                                <label class="filter-label">Arus I_max ≥ (A)</label>
-                                <input type="number" id="bf-minI" placeholder="Contoh: 500" class="filter-input">
+                                <label class="filter-label">Current I_max ≥ (A)</label>
+                                <input type="number" id="bf-minI" placeholder="e.g. 500" class="filter-input">
                             </div>
                             <div>
-                                <label class="filter-label">Urutan Data</label>
+                                <label class="filter-label">Sort Order</label>
                                 <select id="bf-sort" class="filter-input">
-                                    <option value="desc">Terbaru ↓</option>
-                                    <option value="asc">Terlama ↑</option>
+                                    <option value="desc">Newest ↓</option>
+                                    <option value="asc">Oldest ↑</option>
                                 </select>
                             </div>
                             <div class="flex gap-2">
-                                <button onclick="applyBebanFilter()" class="btn-action px-4 py-2 text-xs flex-1 flex items-center justify-center gap-1"><i data-lucide="check" class="w-3.5 h-3.5"></i> Terapkan</button>
+                                <button onclick="applyBebanFilter()" class="btn-action px-4 py-2 text-xs flex-1 flex items-center justify-center gap-1"><i data-lucide="check" class="w-3.5 h-3.5"></i> Apply</button>
                                 <button onclick="resetBebanFilter()" class="bg-white border border-violet-200 px-3 py-2 text-xs font-bold text-violet-700 rounded-lg hover:bg-violet-50 flex items-center gap-1"><i data-lucide="x" class="w-3.5 h-3.5"></i> Reset</button>
                             </div>
                         </div>
@@ -860,8 +860,8 @@
                         <table class="w-full text-left text-xs min-w-[1400px]">
                             <thead>
                                 <tr class="bg-slate-100 text-slate-600 font-bold uppercase tracking-wider border-b border-slate-200">
-                                    <th class="px-6 py-3.5">Waktu (Firestore)</th>
-                                    <th class="px-6 py-3.5 text-center">Trafo</th>
+                                    <th class="px-6 py-3.5">Time (Firestore)</th>
+                                    <th class="px-6 py-3.5 text-center">Transformer</th>
                                     <th class="px-6 py-3.5 text-right">I_R (A)</th>
                                     <th class="px-6 py-3.5 text-right">I_S (A)</th>
                                     <th class="px-6 py-3.5 text-right">I_T (A)</th>
@@ -872,11 +872,11 @@
                                     <th class="px-6 py-3.5 text-right">MVAR</th>
                                     <th class="px-6 py-3.5 text-right">MVA</th>
                                     <th class="px-6 py-3.5 text-right">PF</th>
-                                    <th class="px-6 py-3.5 text-right">Beban (%)</th>
+                                    <th class="px-6 py-3.5 text-right">Load (%)</th>
                                 </tr>
                             </thead>
                             <tbody id="beban-logger-body" class="divide-y divide-slate-100">
-                                <tr><td colspan="13" class="text-center py-12 text-slate-400 font-bold">Klik tab ini untuk memuat data beban.</td></tr>
+                                <tr><td colspan="13" class="text-center py-12 text-slate-400 font-bold">Click this tab to load the load data.</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -884,38 +884,38 @@
                 </div> <!-- end itab-content-logger-beban -->
             </div> <!-- end view-logger -->
 
-            <!-- HALAMAN 3: GRAFIK TREN -->
+            <!-- PAGE 3: TREND GRAPHS -->
             <div id="view-graphs" class="hidden space-y-4">
                 <!-- Inner Tabs -->
                 <div class="inner-tab-nav">
                     <button onclick="switchInnerTab('graphs','suhu'); setTimeFilter(activeTimeFilter)" id="itab-graphs-suhu" class="inner-tab-btn active">
-                        <i data-lucide="thermometer" class="w-4 h-4"></i> Grafik Suhu
+                        <i data-lucide="thermometer" class="w-4 h-4"></i> Temperature Graph
                     </button>
                     <button onclick="switchInnerTab('graphs','beban'); setBebanTimeFilter(activeBebanTimeFilter)" id="itab-graphs-beban" class="inner-tab-btn v-beban">
-                        <i data-lucide="zap" class="w-4 h-4"></i> Grafik Beban
+                        <i data-lucide="zap" class="w-4 h-4"></i> Load Graph
                     </button>
                 </div>
 
-                <!-- Tab: Grafik Suhu -->
+                <!-- Tab: Temperature Graph -->
                 <div id="itab-content-graphs-suhu">
                 <div class="glass-card p-6">
 
-                    <!-- Header Row: Judul + Badge Sumber -->
+                    <!-- Header Row: Title + Source Badge -->
                     <div class="flex flex-wrap justify-between items-start mb-4 gap-3">
                         <div>
                             <h4 id="chart-mode-title" class="text-sm font-extrabold text-[#0d9488] uppercase tracking-widest flex items-center">
-                                <span class="status-badge-teal"></span> Grafik Tren Suhu Real-time (MQTT)
+                                <span class="status-badge-teal"></span> Real-time Temperature Trend Graph (MQTT)
                             </h4>
-                            <p class="text-[11px] text-slate-400 mt-1">Fluktuasi suhu sensor Acrel ATP007 — pilih rentang waktu di bawah.</p>
+                            <p class="text-[11px] text-slate-400 mt-1">Acrel ATP007 sensor temperature fluctuation — select a time range below.</p>
                         </div>
                         <div class="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-[11px] font-bold">
                             <span id="graph-badge-text" class="flex items-center gap-1.5 text-[#0f766e]">
-                                <span class="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse"></span>Sumber: HiveMQ Stream
+                                <span class="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse"></span>Source: HiveMQ Stream
                             </span>
                         </div>
                     </div>
 
-                    <!-- Filter Bar Gaya Saham -->
+                    <!-- Stock-style Filter Bar -->
                     <div class="flex items-center justify-between flex-wrap gap-3 mb-5">
                         <div class="flex items-center gap-1 bg-slate-100 rounded-xl p-1 shadow-inner">
                             <!-- LIVE -->
@@ -923,7 +923,7 @@
                                 <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-pulse"></span>LIVE
                             </button>
                             <span class="chart-filter-sep"></span>
-                            <!-- Historis -->
+                            <!-- Historical -->
                             <button onclick="setTimeFilter('1H')"  id="filter-1H"  class="chart-filter-btn">1H</button>
                             <button onclick="setTimeFilter('6H')"  id="filter-6H"  class="chart-filter-btn">6H</button>
                             <button onclick="setTimeFilter('1D')"  id="filter-1D"  class="chart-filter-btn">1D</button>
@@ -933,7 +933,7 @@
                             <button onclick="setTimeFilter('MAX')" id="filter-MAX" class="chart-filter-btn">MAX</button>
                         </div>
 
-                        <!-- Info jumlah titik data -->
+                        <!-- Data point count info -->
                         <div class="flex items-center gap-3">
                             <span id="chart-point-info" class="text-[10px] text-slate-400 font-mono"></span>
                             <button onclick="refreshCurrentChart()" class="flex items-center gap-1.5 bg-white border border-slate-200 text-[11px] font-bold text-[#0d9488] px-3 py-1.5 rounded-lg hover:bg-teal-50 transition-all">
@@ -942,49 +942,49 @@
                         </div>
                     </div>
 
-                    <!-- Kontainer Canvas + Overlay -->
+                    <!-- Canvas Container + Overlay -->
                     <div class="relative h-[460px]">
                         <canvas id="realtime-temp-chart"></canvas>
 
                         <!-- Loading Overlay -->
                         <div id="chart-loading-overlay" class="hidden absolute inset-0 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center rounded-xl gap-3 z-10">
                             <i data-lucide="loader-2" class="w-10 h-10 text-teal-500 animate-spin"></i>
-                            <span class="text-sm font-bold text-slate-500">Mengambil histori dari Firestore...</span>
+                            <span class="text-sm font-bold text-slate-500">Retrieving history from Firestore...</span>
                         </div>
 
                         <!-- No Data State -->
                         <div id="chart-no-data" class="hidden absolute inset-0 flex flex-col items-center justify-center gap-3 z-10">
                             <i data-lucide="area-chart" class="w-12 h-12 text-slate-300"></i>
-                            <span class="text-sm font-bold text-slate-400">Tidak ada data untuk rentang waktu ini</span>
-                            <button onclick="setTimeFilter('MAX')" class="text-xs text-teal-600 font-bold underline mt-1">Coba tampilkan semua data →</button>
+                            <span class="text-sm font-bold text-slate-400">No data for this time range</span>
+                            <button onclick="setTimeFilter('MAX')" class="text-xs text-teal-600 font-bold underline mt-1">Try showing all data →</button>
                         </div>
                     </div>
 
-                    <!-- Toolbar Bawah: Info + Zoom + Simpan -->
+                    <!-- Bottom Toolbar: Info + Zoom + Save -->
                     <div class="mt-4 border-t border-slate-100 pt-3 flex items-center justify-between gap-3 flex-wrap">
                         <div class="text-[10px] text-slate-400 font-mono flex-1 min-w-0">
-                            <span id="chart-range-info">Mode: LIVE — update otomatis dari MQTT</span>
+                            <span id="chart-range-info">Mode: LIVE — auto-updating from MQTT</span>
                             <span class="mx-2 text-slate-300">·</span>
                             <span id="chart-last-point"></span>
                         </div>
                         <div class="flex items-center gap-2 shrink-0 flex-wrap">
-                            <span id="temp-zoom-hint" class="text-[9px] text-slate-400 hidden md:inline">Scroll=Zoom · Drag=Geser</span>
-                            <button id="btn-temp-drag-zoom" onclick="toggleDragZoom('temp')" class="btn-drag-zoom" title="Tahan dan seret untuk pilih area zoom">
+                            <span id="temp-zoom-hint" class="text-[9px] text-slate-400 hidden md:inline">Scroll=Zoom · Drag=Pan</span>
+                            <button id="btn-temp-drag-zoom" onclick="toggleDragZoom('temp')" class="btn-drag-zoom" title="Hold and drag to select a zoom area">
                                 <i data-lucide="crosshair" class="w-3.5 h-3.5"></i>
-                                <span>Pilih Area</span>
+                                <span>Select Area</span>
                             </button>
                             <button onclick="resetTempChartZoom()" class="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold px-3 py-1.5 rounded-lg transition-all">
                                 <i data-lucide="minimize-2" class="w-3.5 h-3.5"></i> Reset Zoom
                             </button>
                             <button onclick="saveChartImage('realtime-temp-chart','Suhu')" class="flex items-center gap-1.5 bg-white border border-slate-200 hover:bg-teal-50 text-[#0d9488] text-[11px] font-bold px-3 py-1.5 rounded-lg transition-all">
-                                <i data-lucide="image" class="w-3.5 h-3.5"></i> Simpan Gambar
+                                <i data-lucide="image" class="w-3.5 h-3.5"></i> Save Image
                             </button>
                         </div>
                     </div>
                 </div>
                 </div> <!-- end itab-content-graphs-suhu -->
 
-                <!-- Tab: Grafik Beban -->
+                <!-- Tab: Load Graph -->
                 <div id="itab-content-graphs-beban" class="hidden">
                 <div class="glass-card p-6">
 
@@ -992,13 +992,13 @@
                     <div class="flex flex-wrap justify-between items-start mb-4 gap-3">
                         <div>
                             <h4 id="beban-chart-title" class="text-sm font-extrabold text-violet-700 uppercase tracking-widest flex items-center">
-                                <span class="status-badge-violet"></span> Grafik Tren Beban (PM Meter)
+                                <span class="status-badge-violet"></span> Load Trend Graph (PM Meter)
                             </h4>
-                            <p class="text-[11px] text-slate-400 mt-1">Tren arus, tegangan, dan daya dari Firestore PM Meter.</p>
+                            <p class="text-[11px] text-slate-400 mt-1">Current, voltage, and power trend from Firestore PM Meter.</p>
                         </div>
                         <div class="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-[11px] font-bold">
                             <span id="beban-chart-badge" class="flex items-center gap-1.5 text-violet-700">
-                                <span class="w-2 h-2 rounded-full bg-violet-500 inline-block"></span>Sumber: Firestore PM Meter
+                                <span class="w-2 h-2 rounded-full bg-violet-500 inline-block"></span>Source: Firestore PM Meter
                             </span>
                         </div>
                     </div>
@@ -1028,8 +1028,8 @@
 
                     <!-- Parameter Filter Bar -->
                     <div class="flex items-center gap-1 bg-violet-50 border border-violet-100 rounded-xl p-1 mb-5 w-fit">
-                        <button onclick="setBebanParam('I')"  id="bparam-I"  class="param-filter-btn active">Arus (A)</button>
-                        <button onclick="setBebanParam('V')"  id="bparam-V"  class="param-filter-btn">Tegangan (V)</button>
+                        <button onclick="setBebanParam('I')"  id="bparam-I"  class="param-filter-btn active">Current (A)</button>
+                        <button onclick="setBebanParam('V')"  id="bparam-V"  class="param-filter-btn">Voltage (V)</button>
                         <button onclick="setBebanParam('P')"  id="bparam-P"  class="param-filter-btn">MW / MVAR / MVA</button>
                         <button onclick="setBebanParam('PF')" id="bparam-PF" class="param-filter-btn">Power Factor</button>
                     </div>
@@ -1039,32 +1039,32 @@
                         <canvas id="beban-trend-chart"></canvas>
                         <div id="beban-chart-loading" class="hidden absolute inset-0 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center rounded-xl gap-3 z-10">
                             <i data-lucide="loader-2" class="w-10 h-10 text-violet-500 animate-spin"></i>
-                            <span class="text-sm font-bold text-slate-500">Mengambil data beban dari Firestore...</span>
+                            <span class="text-sm font-bold text-slate-500">Retrieving load data from Firestore...</span>
                         </div>
                         <div id="beban-chart-nodata" class="hidden absolute inset-0 flex flex-col items-center justify-center gap-3 z-10">
                             <i data-lucide="bar-chart-2" class="w-12 h-12 text-slate-300"></i>
-                            <span class="text-sm font-bold text-slate-400">Tidak ada data beban untuk rentang ini</span>
+                            <span class="text-sm font-bold text-slate-400">No load data for this range</span>
                         </div>
                     </div>
 
-                    <!-- Toolbar Bawah Beban: Info + Zoom + Simpan -->
+                    <!-- Bottom Load Toolbar: Info + Zoom + Save -->
                     <div class="mt-4 border-t border-slate-100 pt-3 flex items-center justify-between gap-3 flex-wrap">
                         <div class="text-[10px] text-slate-400 font-mono flex-1 min-w-0">
-                            <span id="beban-chart-range-info">Mode: LIVE — data terbaru dari Firestore PM Meter</span>
+                            <span id="beban-chart-range-info">Mode: LIVE — latest data from Firestore PM Meter</span>
                             <span class="mx-2 text-slate-300">·</span>
                             <span id="beban-chart-last-point"></span>
                         </div>
                         <div class="flex items-center gap-2 shrink-0 flex-wrap">
-                            <span id="beban-zoom-hint" class="text-[9px] text-slate-400 hidden md:inline">Scroll=Zoom · Drag=Geser</span>
-                            <button id="btn-beban-drag-zoom" onclick="toggleDragZoom('beban')" class="btn-drag-zoom" title="Tahan dan seret untuk pilih area zoom">
+                            <span id="beban-zoom-hint" class="text-[9px] text-slate-400 hidden md:inline">Scroll=Zoom · Drag=Pan</span>
+                            <button id="btn-beban-drag-zoom" onclick="toggleDragZoom('beban')" class="btn-drag-zoom" title="Hold and drag to select a zoom area">
                                 <i data-lucide="crosshair" class="w-3.5 h-3.5"></i>
-                                <span>Pilih Area</span>
+                                <span>Select Area</span>
                             </button>
                             <button onclick="resetBebanChartZoom()" class="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold px-3 py-1.5 rounded-lg transition-all">
                                 <i data-lucide="minimize-2" class="w-3.5 h-3.5"></i> Reset Zoom
                             </button>
                             <button onclick="saveChartImage('beban-trend-chart','Beban')" class="flex items-center gap-1.5 bg-white border border-violet-200 hover:bg-violet-50 text-violet-700 text-[11px] font-bold px-3 py-1.5 rounded-lg transition-all">
-                                <i data-lucide="image" class="w-3.5 h-3.5"></i> Simpan Gambar
+                                <i data-lucide="image" class="w-3.5 h-3.5"></i> Save Image
                             </button>
                         </div>
                     </div>
@@ -1083,18 +1083,18 @@
                     <div class="bg-indigo-100 p-2 rounded-lg"><i data-lucide="brain-circuit" class="w-5 h-5 text-indigo-600"></i></div>
                     <div>
                       <h4 class="text-sm font-extrabold text-indigo-700 uppercase tracking-widest">SHIELD ML Engine</h4>
-                      <p class="text-[10px] text-slate-400">Analisis kondisi INC Trafo berbasis IEC 62271 · IEEE C37 · CIGRE TB 761</p>
+                      <p class="text-[10px] text-slate-400">INC Transformer condition analysis based on IEC 62271 · IEEE C37 · CIGRE TB 761</p>
                     </div>
                   </div>
                   <div class="flex items-center gap-3">
                     <div class="flex items-center gap-4 text-[10px] font-bold text-slate-500">
-                      <span class="flex items-center gap-1"><span id="ml-dot-temp" class="w-2 h-2 rounded-full bg-slate-300 inline-block"></span>Suhu MQTT</span>
-                      <span class="flex items-center gap-1"><span id="ml-dot-beban" class="w-2 h-2 rounded-full bg-slate-300 inline-block"></span>Beban ION8650</span>
-                      <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>Data Historis</span>
+                      <span class="flex items-center gap-1"><span id="ml-dot-temp" class="w-2 h-2 rounded-full bg-slate-300 inline-block"></span>MQTT Temperature</span>
+                      <span class="flex items-center gap-1"><span id="ml-dot-beban" class="w-2 h-2 rounded-full bg-slate-300 inline-block"></span>ION8650 Load</span>
+                      <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>Historical Data</span>
                     </div>
                     <div class="flex flex-col items-end gap-1">
                       <button onclick="runMLAnalysis()" class="btn-action px-4 py-2 text-xs flex items-center gap-2">
-                        <i data-lucide="play" class="w-3.5 h-3.5"></i> Jalankan Analisis
+                        <i data-lucide="play" class="w-3.5 h-3.5"></i> Run Analysis
                       </button>
                       <div class="flex items-center gap-2 text-[9px] text-slate-400 font-bold">
                         <span id="ml-autorefresh-dot" class="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block animate-pulse"></span>
@@ -1113,7 +1113,7 @@
                 <div class="glass-card p-3 cursor-pointer hover:border-cyan-300 transition-all border-l-2 border-cyan-400" onclick="switchInnerTab('ml','a0')">
                   <div class="text-[9px] font-extrabold text-cyan-600 uppercase tracking-widest mb-1">Alg.0 Forecast</div>
                   <div id="ml-ov-a0" class="font-mono font-black text-lg text-slate-700">-</div>
-                  <div class="text-[9px] text-slate-400 mt-0.5">Akurasi (%)</div>
+                  <div class="text-[9px] text-slate-400 mt-0.5">Accuracy (%)</div>
                   <div id="ml-ov-a0-badge" class="mt-1.5 text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 inline-block">—</div>
                 </div>
                 <!-- Alg 1 -->
@@ -1213,6 +1213,50 @@
                         <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Refresh LNTAI
                       </button>
                     </div>
+
+                    <!-- KPI LNTAI Summary + Grafik LNTAI -->
+                    <div class="grid grid-cols-1 xl:grid-cols-3 gap-4 mb-4">
+                      <div class="glass-card p-5 border border-slate-200">
+                        <div class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest">KPI LNTAI</div>
+                        <div id="lntai-kpi-score" class="font-mono font-black text-4xl text-red-600 mt-1">-</div>
+                        <p class="text-[10px] text-slate-400 mt-1">Skor LNTAI real-time</p>
+                        <div class="mt-4 space-y-2">
+                          <div class="flex items-center justify-between text-[11px]">
+                            <span class="text-slate-500 font-bold">OT Normalized</span>
+                            <span id="lntai-kpi-ot-norm" class="font-mono font-extrabold text-slate-700">-</span>
+                          </div>
+                          <div class="flex items-center justify-between text-[11px]">
+                            <span class="text-slate-500 font-bold">Load Factor</span>
+                            <span id="lntai-kpi-load-factor" class="font-mono font-extrabold text-slate-700">-</span>
+                          </div>
+                          <div class="flex items-center justify-between text-[11px]">
+                            <span class="text-slate-500 font-bold">Status</span>
+                            <span id="lntai-kpi-status" class="font-mono font-extrabold text-slate-700">-</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="xl:col-span-2 glass-card p-5">
+                        <div class="flex items-center justify-between gap-3 mb-3">
+                          <h5 class="text-xs font-extrabold text-slate-700 uppercase tracking-widest">Grafik LNTAI — Anomali Termal vs Waktu</h5>
+                          <span class="text-[9px] font-extrabold px-2 py-1 rounded-full bg-teal-50 text-teal-600">Interaktif</span>
+                        </div>
+                        <div class="relative h-[220px]">
+                          <canvas id="lntai-kpi-bar-chart"></canvas>
+                          <div id="lntai-kpi-bar-empty" class="hidden absolute inset-0 flex items-center justify-center bg-white/80 rounded-xl text-xs font-bold text-slate-400">Menunggu data suhu &amp; beban.</div>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
+                          <div class="bg-slate-50 rounded-xl p-3 border border-slate-200">
+                            <div class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest">Formula LNTAI</div>
+                            <div class="font-mono text-[10px] text-slate-600 mt-1 leading-relaxed">LNTAI = ((T_contact − T_ambient) − (8.2059 × (I_load/1000)² + 26.86)) / 4.6761</div>
+                          </div>
+                          <div class="bg-slate-50 rounded-xl p-3 border border-slate-200">
+                            <div class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest">Standar Referensi</div>
+                            <div class="text-[10px] text-slate-600 mt-1 leading-relaxed">IEC 62271-1:2017 · IEC 60216 · SKDIR PLN 0520 · CIGRE TB 167</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
                     <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
                       <div class="bg-white border border-slate-200 rounded-xl p-4">
                         <div class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest">LNTAI Saat Ini</div>
@@ -2504,6 +2548,8 @@
             '3': { R_Atas: 0, R_Bawah: 0, S_Atas: 0, S_Bawah: 0, T_Atas: 0, T_Bawah: 0, ts: '-' },
             '4': { R_Atas: 0, R_Bawah: 0, S_Atas: 0, S_Bawah: 0, T_Atas: 0, T_Bawah: 0, ts: '-' }
         };
+        // Sumber paket suhu terakhir per trafo: 'mqtt' (fisik, prioritas tertinggi) atau 'firestore' (fallback)
+        let temperatureDataSource = { '2': null, '3': null, '4': null };
 
         // Logger Data Array (Khusus memuat data asli dari Firestore)
         let firestoreLogs = [];
@@ -2728,6 +2774,20 @@
             _scheduleMLRealtimeUpdate('muat ulang histori suhu');
             console.log(`[SHIELD LOGGER] ${mappedDocs.length} log suhu dari ${sourcePath || 'Firestore'}`);
             renderLoggerTable();
+
+            // Jika MQTT fisik belum mengirim paket apa pun, pakai dokumen Firestore
+            // terbaru (log suhu realtime) sebagai nilai tampilan dashboard saat ini.
+            const latest = mappedDocs[0];
+            if (latest && temperatureDataSource[selectedTrafo] !== 'mqtt') {
+                temperatureData[selectedTrafo] = {
+                    R_Atas: latest.R_Atas, R_Bawah: latest.R_Bawah,
+                    S_Atas: latest.S_Atas, S_Bawah: latest.S_Bawah,
+                    T_Atas: latest.T_Atas, T_Bawah: latest.T_Bawah,
+                    ts: latest.formattedTime, timestamp: latest.timestamp, receivedAt: latest.timestamp
+                };
+                temperatureDataSource[selectedTrafo] = 'firestore';
+                if (typeof updateDashboardUI === 'function') updateDashboardUI();
+            }
         }
 
         function _mergeTempLoggerSources() {
@@ -3193,6 +3253,7 @@
 
             // Simpan paket terbaru ke memori untuk Dashboard
             temperatureData[trafoIdx] = mappedData;
+            temperatureDataSource[trafoIdx] = 'mqtt';
             _syncTempTrainingLog(trafoIdx, mappedData);
             _persistTempLogToFirestore(trafoIdx, mappedData);
 
@@ -4928,7 +4989,7 @@
             const hint = document.getElementById(hintId);
             if (hint) hint.textContent = nowActive
                 ? 'Klik & seret untuk pilih area zoom · ESC untuk batal'
-                : 'Scroll=Zoom · Drag=Geser';
+                : 'Scroll=Zoom · Drag=Pan';
 
             lucide.createIcons();
         }
@@ -5631,6 +5692,58 @@
             });
         }
 
+        // Referensi kenaikan suhu terminal maksimum yang diizinkan (IEC 62271-1:2017 §7.4)
+        const LNTAI_OT_REFERENCE_K = 40;
+
+        function _renderLNTAIKPIBarChart(current) {
+            destroyChart('lntai-kpi-bar');
+            const canvas = document.getElementById('lntai-kpi-bar-chart');
+            const empty = document.getElementById('lntai-kpi-bar-empty');
+            if (!canvas) return;
+
+            if (!current) {
+                _setLNTAIText('lntai-kpi-score', '-');
+                _setLNTAIText('lntai-kpi-ot-norm', '-');
+                _setLNTAIText('lntai-kpi-load-factor', '-');
+                _setLNTAIText('lntai-kpi-status', '-');
+                if (empty) empty.classList.remove('hidden');
+                return;
+            }
+            if (empty) empty.classList.add('hidden');
+
+            const otNormPct = (current.delta_T_real / LNTAI_OT_REFERENCE_K) * 100;
+            const loadFactorPct = current.i_norm * 100;
+            const lntaiScore = current.lntai;
+
+            _setLNTAIText('lntai-kpi-score', lntaiScore.toFixed(1));
+            _setLNTAIText('lntai-kpi-ot-norm', (otNormPct / 100).toFixed(3));
+            _setLNTAIText('lntai-kpi-load-factor', `${loadFactorPct.toFixed(1)}%`);
+            const statusEl = document.getElementById('lntai-kpi-status');
+            if (statusEl) statusEl.textContent = `${current.icon} ${current.level}`;
+
+            mlCharts['lntai-kpi-bar'] = new Chart(canvas, {
+                type: 'bar',
+                data: {
+                    labels: ['OT Normalized (%)', 'Load Factor (%)', 'LNTAI Score'],
+                    datasets: [{
+                        data: [Number(otNormPct.toFixed(1)), Number(loadFactorPct.toFixed(1)), Number(lntaiScore.toFixed(1))],
+                        backgroundColor: ['#38bdf8', '#3b82f6', '#f97316'],
+                        borderRadius: 6,
+                        maxBarThickness: 90
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { grid: { display: false }, ticks: { font: { size: 10, weight: 'bold' } } },
+                        y: { grid: { color: '#f1f5f9' }, ticks: { font: { size: 9 } } }
+                    }
+                }
+            });
+        }
+
         function renderLNTAIPanel(force = false) {
             const pane = document.getElementById('itab-content-ml-lntai');
             if (!pane || (pane.classList.contains('hidden') && !force)) return;
@@ -5652,6 +5765,7 @@
                 _renderLNTAITables([], null);
                 _renderLNTAINarrative([], null, series.source);
                 _renderLNTAIChart([]);
+                _renderLNTAIKPIBarChart(null);
                 lucide.createIcons();
                 return;
             }
@@ -5674,6 +5788,7 @@
             _renderLNTAIModelChart(rows);
             _renderLNTAITables(rows, current);
             _renderLNTAINarrative(rows, current, series.source);
+            _renderLNTAIKPIBarChart(current);
             lucide.createIcons();
         }
 
