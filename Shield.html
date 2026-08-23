@@ -52,19 +52,19 @@
                     sidebar.classList.remove('hidden');
                     sidebar.classList.add('flex');
                     
-                    // Connect to MQTT for realtime data (Dashboard & Graphs)
+                    // Hubungkan ke MQTT untuk realtime data (Dashboard & Grafik)
                     if (typeof window.connectToMQTT === 'function') {
                         window.connectToMQTT();
                     }
-                    // Load history from Firestore for the Data Logger
+                    // Ambil histori dari Firestore untuk Data Logger
                     if (typeof window.loadHistoricalLogs === 'function') {
                         window.loadHistoricalLogs();
                     }
-                    // Subscribe to real-time load data from Firestore PM Meter
+                    // Subscribe data beban real-time dari Firestore PM Meter
                     if (typeof window.subscribeBebanData === 'function') {
                         window.subscribeBebanData();
                     }
-                    // Subscribe to sulfur data (R_contact) from Firestore — auto update ML
+                    // Subscribe data dulfur (R_contact) dari Firestore — auto update ML
                     if (typeof window.subscribeDulfurData === 'function') {
                         window.subscribeDulfurData();
                     }
@@ -80,12 +80,12 @@
         window.handleSignIn = async (email, password) => {
             const btn = document.getElementById('connect-btn-ui');
             const originalText = btn.textContent;
-            btn.textContent = "Verifying...";
+            btn.textContent = "Memverifikasi...";
             btn.disabled = true;
             try {
                 await signInWithEmailAndPassword(auth, email, password);
             } catch (err) {
-                alert("Access Denied: Email not registered or incorrect password.");
+                alert("Akses Ditolak: Email tidak terdaftar atau password salah.");
                 btn.textContent = originalText;
                 btn.disabled = false;
             }
@@ -105,21 +105,13 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap');
         /* ── PLN Theme ── */
-        :root {
-            --pln-blue:   #1a7a8c;
-            --pln-teal:   #0d9488;
-            --pln-green:  #4caf50;
-            --pln-green-d:#388e3c;
-            --pln-cyan:   #5bc8d3;
-        }
+        :root { --pln-blue:#1a7a8c; --pln-teal:#0d9488; --pln-green:#4caf50; --pln-green-d:#388e3c; --pln-cyan:#5bc8d3; }
         body { font-family: 'Inter', sans-serif; background: linear-gradient(135deg, #1b6b7c 0%, #2596a8 55%, #68c9d4 100%) fixed; color: #1e293b; overflow: hidden; }
         .login-screen {
             background:
                 linear-gradient(135deg, rgba(4, 11, 30, 0.91) 0%, rgba(168, 14, 14, 0.28) 42%, rgba(5, 72, 90, 0.62) 100%),
                 url('https://images.unsplash.com/photo-1473341304170-971dccb5ac1e?auto=format&fit=crop&q=85&w=1920');
-            background-size: cover;
-            background-position: center 35%;
-            background-attachment: fixed;
+            background-size: cover; background-position: center 35%; background-attachment: fixed;
         }
         #sidebar { background: linear-gradient(180deg, #0e6b7c 0%, #0a5264 100%); border-right: 1px solid rgba(255,255,255,0.1); }
         .sidebar-item { transition: all 0.2s ease; cursor: pointer; color: rgba(255,255,255,0.8); position: relative; }
@@ -139,49 +131,37 @@
         .value-cell { font-weight: 700; text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 1.1rem; width: 50%; color: #388e3c; }
         header { background: rgba(255,255,255,0.97); border-bottom: 2px solid rgba(76,175,80,0.25); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
         #main-content { height: calc(100vh - 80px); overflow-y: auto; background: transparent; }
-
         .btn-action { background: linear-gradient(90deg, #4caf50 0%, #388e3c 100%); color: white; font-weight: 600; border-radius: 8px; transition: all 0.3s; }
         .btn-logout-small { background: #e11d48; color: white; padding: 10px; border-radius: 8px; transition: all 0.2s; display: flex; align-items: center; justify-content: center; }
         .btn-logout-small:hover { background: #be123c; transform: scale(1.05); }
-
-        /* Temperature Status Colors */
         .temp-normal { color: #388e3c; }
         .temp-warning { color: #f59e0b; }
         .temp-danger { color: #ef4444; }
-
-        /* Load Colors */
         .value-cell-beban { font-weight: 700; text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 1.1rem; width: 50%; color: #7c3aed; }
         .status-badge-violet { background: linear-gradient(90deg, #a78bfa 0%, #7c3aed 100%); height: 3px; width: 30px; display: inline-block; margin-right: 8px; border-radius: 2px; }
         .status-badge-blue { background: linear-gradient(90deg, #60a5fa 0%, #2563eb 100%); height: 3px; width: 30px; display: inline-block; margin-right: 8px; border-radius: 2px; }
-
-        /* Chart Filter */
         .chart-filter-btn { padding: 5px 13px; border-radius: 7px; font-size: 11px; font-weight: 800; color: #64748b; transition: all 0.18s; cursor: pointer; background: transparent; border: none; letter-spacing: 0.03em; }
         .chart-filter-btn:hover { background: rgba(255,255,255,0.8); color: #388e3c; }
         .chart-filter-btn.active { background: white; color: #388e3c; box-shadow: 0 1px 6px rgba(0,0,0,0.12); }
         .chart-filter-btn.live.active { color: #4caf50; }
         .chart-filter-sep { width: 1px; height: 18px; background: #e2e8f0; display: inline-block; margin: 0 2px; }
-        /* Load Parameter Filter */
         .param-filter-btn { padding: 5px 14px; border-radius: 7px; font-size: 11px; font-weight: 800; color: #6d28d9; transition: all 0.18s; cursor: pointer; background: transparent; border: none; }
         .param-filter-btn:hover { background: rgba(139,92,246,0.12); }
         .param-filter-btn.active { background: #7c3aed; color: white; box-shadow: 0 1px 6px rgba(109,40,217,0.3); }
-        /* KPI Hotspot */
         .hotspot-normal  { background: linear-gradient(135deg,#d1fae5,#ecfdf5); border-color: #6ee7b7; }
         .hotspot-warning { background: linear-gradient(135deg,#fef3c7,#fffbeb); border-color: #fbbf24; }
         .hotspot-critical{ background: linear-gradient(135deg,#fee2e2,#fff5f5); border-color: #f87171; }
         .kpi-delta-normal  { color: #388e3c; }
         .kpi-delta-warning { color: #d97706; }
         .kpi-delta-critical{ color: #dc2626; }
-        /* Drag-Zoom Mode */
         .drag-zoom-canvas { cursor: crosshair !important; }
         .btn-drag-zoom { display:flex; align-items:center; gap:6px; background:white; border:1.5px solid #e2e8f0; color:#475569; font-size:11px; font-weight:800; padding:6px 12px; border-radius:8px; cursor:pointer; transition:all 0.18s; }
         .btn-drag-zoom:hover { border-color:#4caf50; color:#388e3c; background:#f0fdf4; }
         .btn-drag-zoom.active { background:#4caf50; border-color:#4caf50; color:white; box-shadow:0 0 0 3px rgba(76,175,80,0.2); }
         .btn-drag-zoom.active-beban { background:#7c3aed; border-color:#7c3aed; color:white; box-shadow:0 0 0 3px rgba(124,58,237,0.2); }
-        /* Filter Panel Logger */
         .filter-input { width:100%; border:1px solid #e2e8f0; border-radius:8px; padding:7px 10px; font-size:11px; font-family:'JetBrains Mono',monospace; color:#374151; outline:none; background:white; }
         .filter-input:focus { border-color:#4caf50; box-shadow:0 0 0 2px rgba(76,175,80,0.15); }
         .filter-label { display:block; font-size:9px; font-weight:800; text-transform:uppercase; letter-spacing:0.06em; color:#94a3b8; margin-bottom:4px; }
-        /* Inner Tabs */
         .inner-tab-nav { display:flex; border-bottom:2px solid #e2e8f0; margin-bottom:1.5rem; gap:2px; overflow-x:auto; flex-wrap:nowrap; scroll-behavior:smooth; -webkit-overflow-scrolling:touch; background:rgba(255,255,255,0.97); border-radius:10px 10px 0 0; }
         .inner-tab-nav::-webkit-scrollbar { height:3px; } .inner-tab-nav::-webkit-scrollbar-thumb { background:#e2e8f0; border-radius:2px; }
         .inner-tab-btn { padding:10px 18px; font-size:11.5px; font-weight:800; border:none; border-bottom:3px solid transparent; color:#334155; cursor:pointer; background:transparent; transition:all 0.18s; margin-bottom:-2px; border-radius:8px 8px 0 0; display:flex; align-items:center; gap:6px; white-space:nowrap; flex-shrink:0; }
@@ -189,8 +169,6 @@
         .inner-tab-btn.active { color:#388e3c; border-bottom-color:#4caf50; background:#f0fdf4; }
         .inner-tab-btn.v-beban:hover { color:#7c3aed; background:#faf5ff; }
         .inner-tab-btn.v-beban.active { color:#7c3aed; border-bottom-color:#7c3aed; background:#faf5ff; }
-
-        /* ── Forecast Fullview Modal ── */
         #fc-fullview-modal { background: rgba(15,23,42,0.85); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
         .fv-ds-btn { padding:4px 11px; border-radius:6px; font-size:10px; font-weight:800; cursor:pointer; transition:all 0.15s; border:1.5px solid #e2e8f0; background:white; color:#94a3b8; }
         .fv-ds-btn.active-temp { background:#ef4444; border-color:#ef4444; color:white; }
@@ -211,8 +189,6 @@
         .f-active-temp { background:#ef4444 !important; border-color:#ef4444 !important; color:white !important; }
         .f-active-load { background:#7c3aed !important; border-color:#7c3aed !important; color:white !important; }
         .f-active-fv   { background:#4caf50 !important; border-color:#4caf50 !important; color:white !important; }
-
-        /* ── PLN Lokasi warning ── */
         #lokasi-warning-modal { background: rgba(15,23,42,0.7); backdrop-filter: blur(6px); }
         .pln-selector { background: white; border: 1.5px solid rgba(76,175,80,0.3); border-radius: 12px; padding: 6px 12px; display:flex; align-items:center; gap:8px; transition: border-color 0.2s; }
         .pln-selector:hover { border-color: #4caf50; }
@@ -220,16 +196,12 @@
 </head>
 <body class="flex min-h-screen">
 
-    <!-- Sidebar Navigation Menu -->
+    <!-- Sidebar Menu Navigasi -->
     <aside id="sidebar" class="w-64 flex-col hidden">
         <div class="px-5 py-5 border-b border-white/10 flex items-center gap-4">
-            <!-- SHIELD SVG Logo (white on teal) -->
             <svg width="48" height="56" viewBox="0 0 100 116" fill="none" xmlns="http://www.w3.org/2000/svg" class="shrink-0">
-                <!-- Left guard bracket -->
                 <path fill="white" d="M4,4 L42,4 L42,18 L17,18 L17,74 C17,93 35,106 50,113 C26,103 23,91 23,74 L23,12 L4,12 Z"/>
-                <!-- Top right horizontal bar -->
                 <path fill="white" d="M42,4 L96,4 L96,18 L42,18 Z"/>
-                <!-- Lightning bolt — large & prominent -->
                 <path fill="white" d="M67,11 L44,59 L61,59 L47,109 L83,51 L65,51 Z"/>
             </svg>
             <div class="min-w-0">
@@ -249,10 +221,10 @@
             </div>
             <div id="submenu-dashboard" class="sidebar-submenu">
               <div onclick="goToTab('dashboard','suhu')" id="sub-dashboard-suhu" class="sidebar-sub-item active">
-                <i data-lucide="thermometer" class="w-3.5 h-3.5 shrink-0"></i> Temperature
+                <i data-lucide="thermometer" class="w-3.5 h-3.5 shrink-0"></i> Suhu
               </div>
               <div onclick="goToTab('dashboard','beban')" id="sub-dashboard-beban" class="sidebar-sub-item">
-                <i data-lucide="zap" class="w-3.5 h-3.5 shrink-0"></i> Load
+                <i data-lucide="zap" class="w-3.5 h-3.5 shrink-0"></i> Beban
               </div>
             </div>
           </div>
@@ -267,28 +239,28 @@
             </div>
             <div id="submenu-logger" class="sidebar-submenu">
               <div onclick="goToTab('logger','suhu')" id="sub-logger-suhu" class="sidebar-sub-item">
-                <i data-lucide="thermometer" class="w-3.5 h-3.5 shrink-0"></i> Temperature Log
+                <i data-lucide="thermometer" class="w-3.5 h-3.5 shrink-0"></i> Log Suhu
               </div>
               <div onclick="goToTab('logger','beban')" id="sub-logger-beban" class="sidebar-sub-item">
-                <i data-lucide="zap" class="w-3.5 h-3.5 shrink-0"></i> Load Log
+                <i data-lucide="zap" class="w-3.5 h-3.5 shrink-0"></i> Log Beban
               </div>
             </div>
           </div>
 
-          <!-- Trend Graphs -->
+          <!-- Grafik Tren -->
           <div>
             <div id="menu-graphs" onclick="toggleSubMenu('graphs')"
               class="sidebar-item flex items-center gap-3 px-4 py-3.5 text-sm font-bold rounded-xl">
               <i data-lucide="line-chart" class="w-5 h-5 shrink-0"></i>
-              <span class="flex-1">Trend Graphs</span>
+              <span class="flex-1">Grafik Tren</span>
               <span class="sidebar-arrow text-white/60 text-xs">▶</span>
             </div>
             <div id="submenu-graphs" class="sidebar-submenu">
               <div onclick="goToTab('graphs','suhu')" id="sub-graphs-suhu" class="sidebar-sub-item">
-                <i data-lucide="thermometer" class="w-3.5 h-3.5 shrink-0"></i> Temperature Graph
+                <i data-lucide="thermometer" class="w-3.5 h-3.5 shrink-0"></i> Grafik Suhu
               </div>
               <div onclick="goToTab('graphs','beban')" id="sub-graphs-beban" class="sidebar-sub-item">
-                <i data-lucide="zap" class="w-3.5 h-3.5 shrink-0"></i> Load Graph
+                <i data-lucide="zap" class="w-3.5 h-3.5 shrink-0"></i> Grafik Beban
               </div>
             </div>
           </div>
@@ -304,9 +276,6 @@
             <div id="submenu-ml" class="sidebar-submenu">
               <div onclick="goToTab('ml','aex')" id="sub-ml-aex" class="sidebar-sub-item">
                 <i data-lucide="target" class="w-3.5 h-3.5 shrink-0"></i> Executive Summary
-              </div>
-              <div onclick="goToTab('ml','lntai')" id="sub-ml-lntai" class="sidebar-sub-item">
-                <i data-lucide="thermometer-sun" class="w-3.5 h-3.5 shrink-0"></i> LNTAI
               </div>
               <div onclick="goToTab('ml','a0')" id="sub-ml-a0" class="sidebar-sub-item">
                 <i data-lucide="activity" class="w-3.5 h-3.5 shrink-0"></i> Forecast Realtime
@@ -330,49 +299,48 @@
                 <i data-lucide="trending-up" class="w-3.5 h-3.5 shrink-0"></i> OLS Baseline
               </div>
               <div onclick="goToTab('ml','a7')" id="sub-ml-a7" class="sidebar-sub-item">
-                <i data-lucide="shuffle" class="w-3.5 h-3.5 shrink-0"></i> Stochastic
+                <i data-lucide="shuffle" class="w-3.5 h-3.5 shrink-0"></i> Stokastik
               </div>
             </div>
           </div>
 
         </nav>
         <div class="p-4 border-t border-white/10">
-            <button onclick="reconnectMQTT()" class="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-white/10 text-white text-xs font-bold hover:bg-white/20 transition-all"><i data-lucide="refresh-cw" class="w-4 h-4"></i> Reconnect </button>
+            <button onclick="reconnectMQTT()" class="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-white/10 text-white text-xs font-bold hover:bg-white/20 transition-all"><i data-lucide="refresh-cw" class="w-4 h-4"></i> Hubungkan Ulang </button>
         </div>
     </aside>
 
-    <!-- Main Content -->
+    <!-- Konten Utama -->
     <div class="flex-1 flex flex-col overflow-hidden">
         <header class="h-20 px-6 flex items-center justify-between z-10">
             <div class="flex items-center gap-5 flex-wrap">
                 <div>
-                    <h2 id="page-title" class="text-xl font-extrabold text-[#1e293b]">Temperature Dashboard</h2>
+                    <h2 id="page-title" class="text-xl font-extrabold text-[#1e293b]">Dashboard Suhu</h2>
                     <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Acrel ATP007 Temperature Monitor</p>
                 </div>
-                <!-- Location Selector -->
+                <!-- Pilih Lokasi -->
                 <div class="pln-selector">
                     <i data-lucide="map-pin" class="w-4 h-4 text-[#4caf50] shrink-0"></i>
-                    <span class="text-[10px] font-bold text-slate-500 uppercase">Location:</span>
+                    <span class="text-[10px] font-bold text-slate-500 uppercase">Lokasi:</span>
                     <select id="lokasi-selector" onchange="handleLokasiChange()" class="bg-transparent text-sm font-extrabold outline-none cursor-pointer text-[#388e3c]">
-                        <option value="gi-gandul">Gandul Substation</option>
-                        <option value="gi-cimanggis">Cimanggis Substation</option>
-                        <option value="gi-depok">Depok Substation</option>
-                        <option value="gis-depok-baru">Depok Baru GIS</option>
-                        <option value="gis-ragunan">Ragunan GIS</option>
+                        <option value="gi-gandul">GI Gandul</option>
+                        <option value="gi-cimanggis">GI Cimanggis</option>
+                        <option value="gi-depok">GI Depok</option>
+                        <option value="gis-depok-baru">GIS Depok Baru</option>
+                        <option value="gis-ragunan">GIS Ragunan</option>
                     </select>
                 </div>
-                <!-- Transformer Selector -->
+                <!-- Pilih Trafo -->
                 <div class="pln-selector">
                     <i data-lucide="zap" class="w-4 h-4 text-[#4caf50] shrink-0"></i>
-                    <span class="text-[10px] font-bold text-slate-500 uppercase">Transformer:</span>
+                    <span class="text-[10px] font-bold text-slate-500 uppercase">Trafo:</span>
                     <select id="trafo-selector" onchange="handleTrafoChange()" class="bg-transparent text-sm font-extrabold outline-none cursor-pointer text-[#388e3c]">
-                        <option value="2" selected>Transformer 2</option>
-                        <option value="3">Transformer 3</option>
-                        <option value="4">Transformer 4</option>
+                        <option value="2" selected>Trafo 2</option>
+                        <option value="3">Trafo 3</option>
+                        <option value="4">Trafo 4</option>
                     </select>
                 </div>
             </div>
-
             <div class="flex items-center gap-6">
                 <div class="text-right">
                     <div id="live-clock" class="text-sm font-bold font-mono text-[#388e3c]">00:00:00</div>
@@ -382,7 +350,7 @@
                     </div>
                 </div>
                 <div class="border-l border-slate-200 pl-6">
-                    <button onclick="handleSignOut()" class="btn-logout-small shadow-md" title="Sign Out">
+                    <button onclick="handleSignOut()" class="btn-logout-small shadow-md" title="Keluar">
                         <i data-lucide="log-out" class="w-4 h-4"></i>
                     </button>
                 </div>
@@ -390,50 +358,50 @@
         </header>
 
         <main id="main-content" class="p-8">
-
-            <!-- PAGE 1: DASHBOARD -->
+            
+            <!-- HALAMAN 1: DASHBOARD -->
             <div id="view-dashboard" class="space-y-6">
 
-                <!-- ★ ORDER 1: PMT Incoming Imbalance & Hotspot KPI -->
+                <!-- ★ URUTAN 1: KPI Keseimbangan & Hotspot PMT Incoming -->
                 <div class="glass-card p-6 border-l-4 border-orange-400">
                     <div class="flex items-center gap-3 mb-5">
                         <div class="bg-orange-100 p-2 rounded-lg shrink-0"><i data-lucide="activity" class="w-5 h-5 text-orange-600"></i></div>
                         <div>
-                            <h4 class="text-xs font-extrabold text-orange-700 uppercase tracking-widest">Imbalance Analysis & PMT Incoming Contact Temperature</h4>
-                            <p class="text-[10px] text-slate-400 mt-0.5">SKDIR PLN — PMT incoming contact temperature: Normal ≤ 70°C · Warning 70-90°C · Critical > 90°C · Imbalance ≤ 10%</p>
+                            <h4 class="text-xs font-extrabold text-orange-700 uppercase tracking-widest">Analisis Ketidakseimbangan & Suhu Kontak PMT Incoming</h4>
+                            <p class="text-[10px] text-slate-400 mt-0.5">SKDIR PLN — Suhu kontak PMT incoming: Normal ≤ 70°C · Perhatian 70-90°C · Kritis > 90°C · Imbalance ≤ 10%</p>
                         </div>
                     </div>
                     <div class="grid grid-cols-1 xl:grid-cols-3 gap-5">
                         <div class="bg-gradient-to-br from-rose-50 to-white border border-rose-200 rounded-xl p-4">
-                            <h5 class="text-[10px] font-extrabold text-rose-600 uppercase tracking-widest mb-3 flex items-center gap-1.5"><i data-lucide="thermometer" class="w-3.5 h-3.5"></i> Inter-Phase Temperature Delta</h5>
+                            <h5 class="text-[10px] font-extrabold text-rose-600 uppercase tracking-widest mb-3 flex items-center gap-1.5"><i data-lucide="thermometer" class="w-3.5 h-3.5"></i> Delta Suhu Antar Fasa</h5>
                             <div class="space-y-1.5">
                                 <div class="flex justify-between items-center py-1.5 border-b border-rose-100"><span class="text-[11px] font-bold text-slate-500">Avg R − Avg S</span><span id="kpi-delta-RS" class="font-mono font-extrabold text-sm text-slate-700">-</span></div>
                                 <div class="flex justify-between items-center py-1.5 border-b border-rose-100"><span class="text-[11px] font-bold text-slate-500">Avg S − Avg T</span><span id="kpi-delta-ST" class="font-mono font-extrabold text-sm text-slate-700">-</span></div>
                                 <div class="flex justify-between items-center py-1.5"><span class="text-[11px] font-bold text-slate-500">Avg R − Avg T</span><span id="kpi-delta-RT" class="font-mono font-extrabold text-sm text-slate-700">-</span></div>
                             </div>
                             <div class="mt-3 pt-3 border-t border-rose-200 flex justify-between items-center">
-                                <span class="text-[10px] text-slate-400 font-bold uppercase">Max. Difference</span>
+                                <span class="text-[10px] text-slate-400 font-bold uppercase">Maks. Selisih</span>
                                 <span id="kpi-delta-temp-max" class="font-mono font-black text-lg text-slate-700">-</span>
                             </div>
-                            <p class="text-[9px] text-slate-400 mt-1">Normal &lt;5°C · Warning 5-10°C · Critical &gt;10°C</p>
+                            <p class="text-[9px] text-slate-400 mt-1">Normal &lt;5°C · Perhatian 5-10°C · Kritis &gt;10°C</p>
                         </div>
                         <div class="bg-gradient-to-br from-amber-50 to-white border border-amber-200 rounded-xl p-4">
-                            <h5 class="text-[10px] font-extrabold text-amber-600 uppercase tracking-widest mb-3 flex items-center gap-1.5"><i data-lucide="zap" class="w-3.5 h-3.5"></i> Current Imbalance & Overcurrent</h5>
+                            <h5 class="text-[10px] font-extrabold text-amber-600 uppercase tracking-widest mb-3 flex items-center gap-1.5"><i data-lucide="zap" class="w-3.5 h-3.5"></i> Imbalance & Overcurrent Arus</h5>
                             <div class="space-y-1.5">
                                 <div class="flex justify-between items-center py-1.5 border-b border-amber-100"><span class="text-[11px] font-bold text-slate-500">|I_R − I_S|</span><span id="kpi-delta-IR-IS" class="font-mono font-extrabold text-sm text-slate-700">-</span></div>
                                 <div class="flex justify-between items-center py-1.5 border-b border-amber-100"><span class="text-[11px] font-bold text-slate-500">|I_S − I_T|</span><span id="kpi-delta-IS-IT" class="font-mono font-extrabold text-sm text-slate-700">-</span></div>
                                 <div class="flex justify-between items-center py-1.5"><span class="text-[11px] font-bold text-slate-500">|I_R − I_T|</span><span id="kpi-delta-IR-IT" class="font-mono font-extrabold text-sm text-slate-700">-</span></div>
                             </div>
                             <div class="mt-3 pt-3 border-t border-amber-200 flex justify-between items-center">
-                                <span class="text-[10px] text-slate-400 font-bold uppercase">Imbalance</span>
+                                <span class="text-[10px] text-slate-400 font-bold uppercase">Ketidakseimbangan</span>
                                 <span id="kpi-imbalance-pct" class="font-mono font-black text-lg text-slate-700">-</span>
                             </div>
-                            <p class="text-[9px] text-slate-400 mt-1">Normal &lt;10% · Warning 10-25% · Critical &gt;25%</p>
+                            <p class="text-[9px] text-slate-400 mt-1">Normal &lt;10% · Perhatian 10-25% · Kritis &gt;25%</p>
 
-                            <!-- Load vs I_nominal -->
+                            <!-- Pembebanan vs I_nominal -->
                             <div class="mt-3 pt-3 border-t border-amber-200">
                                 <div class="flex items-center justify-between mb-2">
-                                    <span class="text-[10px] text-slate-400 font-bold uppercase">Load vs I_nom (1780 A)</span>
+                                    <span class="text-[10px] text-slate-400 font-bold uppercase">Beban vs I_nom (1780 A)</span>
                                     <span id="kpi-overcurrent-badge" class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-slate-100 text-slate-500">—</span>
                                 </div>
                                 <div class="grid grid-cols-3 gap-1.5">
@@ -456,43 +424,43 @@
                             </div>
                         </div>
                         <div id="kpi-hotspot-card" class="border-2 rounded-xl p-4 transition-all duration-500 hotspot-normal">
-                            <h5 class="text-[10px] font-extrabold uppercase tracking-widest mb-3 flex items-center gap-1.5 text-slate-600"><i data-lucide="flame" class="w-3.5 h-3.5"></i> PMT Incoming Contact Temperature</h5>
-                            <div class="text-center py-2 mb-3"><span id="kpi-hotspot-badge" class="inline-flex items-center px-4 py-2 rounded-full text-sm font-extrabold bg-white/70 text-slate-400 shadow-sm">— Awaiting Data —</span></div>
+                            <h5 class="text-[10px] font-extrabold uppercase tracking-widest mb-3 flex items-center gap-1.5 text-slate-600"><i data-lucide="flame" class="w-3.5 h-3.5"></i> Suhu Kontak PMT Incoming</h5>
+                            <div class="text-center py-2 mb-3"><span id="kpi-hotspot-badge" class="inline-flex items-center px-4 py-2 rounded-full text-sm font-extrabold bg-white/70 text-slate-400 shadow-sm">— Menunggu Data —</span></div>
                             <div class="space-y-2">
-                                <div class="flex justify-between items-center text-[11px]"><span class="text-slate-500 font-bold">Highest PMT Temperature</span><span id="kpi-hotspot-temp" class="font-mono font-extrabold text-slate-700">- °C</span></div>
-                                <div class="flex justify-between items-center text-[11px]"><span class="text-slate-500 font-bold">Current Imbalance</span><span id="kpi-hotspot-imb" class="font-mono font-extrabold text-slate-700">- %</span></div>
-                                <div class="flex justify-between items-center text-[11px]"><span class="text-slate-500 font-bold">Max. Inter-Phase ΔT</span><span id="kpi-hotspot-dt" class="font-mono font-extrabold text-slate-700">- °C</span></div>
+                                <div class="flex justify-between items-center text-[11px]"><span class="text-slate-500 font-bold">Suhu PMT Tertinggi</span><span id="kpi-hotspot-temp" class="font-mono font-extrabold text-slate-700">- °C</span></div>
+                                <div class="flex justify-between items-center text-[11px]"><span class="text-slate-500 font-bold">Imbalance Arus</span><span id="kpi-hotspot-imb" class="font-mono font-extrabold text-slate-700">- %</span></div>
+                                <div class="flex justify-between items-center text-[11px]"><span class="text-slate-500 font-bold">Maks. ΔT Antar Fasa</span><span id="kpi-hotspot-dt" class="font-mono font-extrabold text-slate-700">- °C</span></div>
                             </div>
-                            <p id="kpi-hotspot-note" class="text-[9px] text-slate-500 mt-3 pt-2 border-t border-white/60 leading-relaxed">IEC 62271-1:2017 §7.4 — PMT 20kV: Normal ≤ 70°C · Warning 70-90°C · Critical >90°C. CIGRE TB 167.</p>
+                            <p id="kpi-hotspot-note" class="text-[9px] text-slate-500 mt-3 pt-2 border-t border-white/60 leading-relaxed">IEC 62271-1:2017 §7.4 — PMT 20kV: Normal ≤ 70°C · Perhatian 70-90°C · Kritis >90°C. CIGRE TB 167.</p>
                         </div>
                     </div>
                 </div>
 
-                <!-- Inner Tabs: Temperature | Load -->
+                <!-- Inner Tabs: Suhu | Beban -->
                 <div>
                     <div class="inner-tab-nav">
                         <button onclick="switchInnerTab('dash','suhu')" id="itab-dash-suhu" class="inner-tab-btn active">
-                            <i data-lucide="thermometer" class="w-4 h-4"></i> Temperature
+                            <i data-lucide="thermometer" class="w-4 h-4"></i> Suhu
                         </button>
                         <button onclick="switchInnerTab('dash','beban')" id="itab-dash-beban" class="inner-tab-btn v-beban">
-                            <i data-lucide="zap" class="w-4 h-4"></i> Load
+                            <i data-lucide="zap" class="w-4 h-4"></i> Beban
                         </button>
                     </div>
 
-                    <!-- ── TEMPERATURE TAB ──────────────────────────────────── -->
+                    <!-- ── TAB SUHU ──────────────────────────────────── -->
                     <div id="itab-content-dash-suhu" class="space-y-6">
-                        <!-- Selected Transformer Summary Widget -->
+                        <!-- Widget Ringkasan Trafo Terpilih -->
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
                     <div class="glass-card p-5 bg-gradient-to-br from-teal-50 to-white border-teal-100">
-                        <span id="avg-title-text" class="text-[10px] font-bold text-teal-600 uppercase tracking-widest">Average Temperature (MQTT)</span>
+                        <span id="avg-title-text" class="text-[10px] font-bold text-teal-600 uppercase tracking-widest">Rata-Rata Suhu (MQTT)</span>
                         <div class="flex items-baseline gap-1 mt-2">
                             <span id="summary-avg-temp" class="text-3xl font-black text-slate-800">-</span>
                             <span class="text-sm font-bold text-slate-500">°C</span>
                         </div>
-                        <p class="text-[10px] text-slate-400 mt-1">Real-time from MQTT Broker</p>
+                        <p class="text-[10px] text-slate-400 mt-1">Real-time dari MQTT Broker</p>
                     </div>
                     <div class="glass-card p-5 bg-gradient-to-br from-rose-50 to-white border-rose-100">
-                        <span class="text-[10px] font-bold text-rose-600 uppercase tracking-widest">Highest Temperature</span>
+                        <span class="text-[10px] font-bold text-rose-600 uppercase tracking-widest">Suhu Tertinggi</span>
                         <div class="flex items-baseline gap-1 mt-2">
                             <span id="summary-max-temp" class="text-3xl font-black text-rose-700">-</span>
                             <span class="text-sm font-bold text-rose-500">°C</span>
@@ -500,7 +468,7 @@
                         <span id="summary-max-sensor" class="text-[10px] text-slate-500 mt-1">Sensor: -</span>
                     </div>
                     <div class="glass-card p-5 bg-gradient-to-br from-emerald-50 to-white border-emerald-100">
-                        <span class="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">Lowest Temperature</span>
+                        <span class="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">Suhu Terendah</span>
                         <div class="flex items-baseline gap-1 mt-2">
                             <span id="summary-min-temp" class="text-3xl font-black text-emerald-700">-</span>
                             <span class="text-sm font-bold text-slate-500">°C</span>
@@ -508,36 +476,36 @@
                         <span id="summary-min-sensor" class="text-[10px] text-slate-500 mt-1">Sensor: -</span>
                     </div>
                     <div class="glass-card p-5">
-                        <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Protection Status</span>
+                        <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Status Proteksi</span>
                         <div class="mt-2">
                             <span id="summary-status-badge" class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-extrabold bg-slate-100 text-slate-600">
                                 -
                             </span>
                         </div>
-                        <p class="text-[10px] text-slate-400 mt-2">Critical Limit: 90.0 °C</p>
+                        <p class="text-[10px] text-slate-400 mt-2">Batas Kritis: 90.0 °C</p>
                     </div>
                 </div>
 
-                <!-- Temperature Detail Panel Per Phase R, S, T -->
+                <!-- Detail Panel Suhu Per Phase R, S, T -->
                 <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
                     <!-- Phase R Card -->
                     <div class="glass-card p-6">
                         <div class="flex justify-between items-center mb-6">
                             <h4 class="text-xs font-extrabold text-[#0d9488] uppercase tracking-widest flex items-center"><span class="status-badge-teal"></span> PHASE R</h4>
-                            <div class="bg-teal-50 text-teal-700 px-2.5 py-1 rounded text-[10px] font-extrabold">Core Temperature</div>
+                            <div class="bg-teal-50 text-teal-700 px-2.5 py-1 rounded text-[10px] font-extrabold">Suhu Inti</div>
                         </div>
                         <table class="w-full compact-table">
                             <tr>
-                                <td class="label-cell">R - Top</td>
+                                <td class="label-cell">R - Atas</td>
                                 <td id="temp-R_Atas" class="value-cell">-</td>
                             </tr>
                             <tr>
-                                <td class="label-cell">R - Bottom</td>
+                                <td class="label-cell">R - Bawah</td>
                                 <td id="temp-R_Bawah" class="value-cell">-</td>
                             </tr>
                         </table>
                         <div class="p-3 bg-slate-50 border-t border-slate-100 flex justify-between items-center text-[10px] mt-4 rounded-lg">
-                            <span class="text-slate-400 font-bold uppercase">Delta T (R_Atas - Bottom)</span>
+                            <span class="text-slate-400 font-bold uppercase">Delta T (R_Atas - Bawah)</span>
                             <span id="delta-R" class="font-mono font-bold text-slate-600">-</span>
                         </div>
                     </div>
@@ -546,20 +514,20 @@
                     <div class="glass-card p-6">
                         <div class="flex justify-between items-center mb-6">
                             <h4 class="text-xs font-extrabold text-[#0d9488] uppercase tracking-widest flex items-center"><span class="status-badge-teal"></span> PHASE S</h4>
-                            <div class="bg-teal-50 text-teal-700 px-2.5 py-1 rounded text-[10px] font-extrabold">Core Temperature</div>
+                            <div class="bg-teal-50 text-teal-700 px-2.5 py-1 rounded text-[10px] font-extrabold">Suhu Inti</div>
                         </div>
                         <table class="w-full compact-table">
                             <tr>
-                                <td class="label-cell">S - Top</td>
+                                <td class="label-cell">S - Atas</td>
                                 <td id="temp-S_Atas" class="value-cell">-</td>
                             </tr>
                             <tr>
-                                <td class="label-cell">S - Bottom</td>
+                                <td class="label-cell">S - Bawah</td>
                                 <td id="temp-S_Bawah" class="value-cell">-</td>
                             </tr>
                         </table>
                         <div class="p-3 bg-slate-50 border-t border-slate-100 flex justify-between items-center text-[10px] mt-4 rounded-lg">
-                            <span class="text-slate-400 font-bold uppercase">Delta T (S_Atas - Bottom)</span>
+                            <span class="text-slate-400 font-bold uppercase">Delta T (S_Atas - Bawah)</span>
                             <span id="delta-S" class="font-mono font-bold text-slate-600">-</span>
                         </div>
                     </div>
@@ -568,28 +536,28 @@
                     <div class="glass-card p-6">
                         <div class="flex justify-between items-center mb-6">
                             <h4 class="text-xs font-extrabold text-[#0d9488] uppercase tracking-widest flex items-center"><span class="status-badge-teal"></span> PHASE T</h4>
-                            <div class="bg-teal-50 text-teal-700 px-2.5 py-1 rounded text-[10px] font-extrabold">Core Temperature</div>
+                            <div class="bg-teal-50 text-teal-700 px-2.5 py-1 rounded text-[10px] font-extrabold">Suhu Inti</div>
                         </div>
                         <table class="w-full compact-table">
                             <tr>
-                                <td class="label-cell">T - Top</td>
+                                <td class="label-cell">T - Atas</td>
                                 <td id="temp-T_Atas" class="value-cell">-</td>
                             </tr>
                             <tr>
-                                <td class="label-cell">T - Bottom</td>
+                                <td class="label-cell">T - Bawah</td>
                                 <td id="temp-T_Bawah" class="value-cell">-</td>
                             </tr>
                         </table>
                         <div class="p-3 bg-slate-50 border-t border-slate-100 flex justify-between items-center text-[10px] mt-4 rounded-lg">
-                            <span class="text-slate-400 font-bold uppercase">Delta T (T_Atas - Bottom)</span>
+                            <span class="text-slate-400 font-bold uppercase">Delta T (T_Atas - Bawah)</span>
                             <span id="delta-T" class="font-mono font-bold text-slate-600">-</span>
                         </div>
                     </div>
                 </div>
 
-                <!-- Simplified Transformer Sensor Diagram -->
+                <!-- Skema Visual Sederhana Trafo -->
                 <div class="glass-card p-6">
-                    <h4 class="text-xs font-extrabold text-[#0d9488] uppercase tracking-widest mb-4 flex items-center"><span class="status-badge-teal"></span> Transformer Physical Sensor Mapping</h4>
+                    <h4 class="text-xs font-extrabold text-[#0d9488] uppercase tracking-widest mb-4 flex items-center"><span class="status-badge-teal"></span> Pemetaan Sensor Fisik Trafo</h4>
                     <div class="bg-slate-50 border border-slate-200 rounded-2xl p-6 grid grid-cols-3 gap-4 text-center">
                         <div class="bg-white border border-slate-100 p-4 rounded-xl shadow-sm">
                             <span class="text-xs font-bold text-slate-400 uppercase">Phase R</span>
@@ -615,25 +583,25 @@
                     </div>
                 </div>
 
-                    </div> <!-- end temperature tab -->
+                    </div> <!-- end tab suhu -->
 
-                    <!-- ── LOAD TAB ──────────────────────────────────── -->
+                    <!-- ── TAB BEBAN ──────────────────────────────────── -->
                     <div id="itab-content-dash-beban" class="hidden space-y-6">
-                        <!-- Load Connection Status -->
+                        <!-- Status Koneksi Beban -->
                         <div class="flex items-center justify-between px-1 flex-wrap gap-2">
                             <div class="flex items-center gap-2">
                                 <span class="status-badge-violet"></span>
-                                <span class="text-xs font-extrabold text-violet-700 uppercase tracking-widest">Transformer Load Data (ION8650)</span>
+                                <span class="text-xs font-extrabold text-violet-700 uppercase tracking-widest">Data Beban Trafo (ION8650)</span>
                             </div>
                             <div class="flex items-center gap-2">
                                 <span id="beban-update-time" class="text-[10px] text-teal-600 font-mono bg-teal-50 px-2 py-1 rounded-lg">Update: -</span>
-                                <button onclick="showBebanDiagnostic()" class="flex items-center gap-1.5 bg-violet-50 border border-violet-200 text-violet-700 text-[11px] font-bold px-3 py-1.5 rounded-lg hover:bg-violet-100 transition-all" title="View raw fields from Firebase">
-                                    <i data-lucide="stethoscope" class="w-3.5 h-3.5"></i> Diagnostics
+                                <button onclick="showBebanDiagnostic()" class="flex items-center gap-1.5 bg-violet-50 border border-violet-200 text-violet-700 text-[11px] font-bold px-3 py-1.5 rounded-lg hover:bg-violet-100 transition-all" title="Lihat field mentah dari Firebase">
+                                    <i data-lucide="stethoscope" class="w-3.5 h-3.5"></i> Diagnostik
                                 </button>
                             </div>
                         </div>
 
-                        <!-- Load Summary 4 Widgets: MVA | MW | PF | % Load -->
+                        <!-- Summary Beban 4 Widget: MVA | MW | PF | % Beban -->
                         <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
                             <div class="glass-card p-5 bg-gradient-to-br from-violet-50 to-white border-violet-100">
                                 <span class="text-[10px] font-bold text-violet-600 uppercase tracking-widest">Total MVA</span>
@@ -641,7 +609,7 @@
                                     <span id="beban-kva" class="text-3xl font-black text-slate-800">-</span>
                                     <span class="text-sm font-bold text-violet-500">MVA</span>
                                 </div>
-                                <p class="text-[10px] text-slate-400 mt-1">Transformer Apparent Power</p>
+                                <p class="text-[10px] text-slate-400 mt-1">Daya Semu Trafo</p>
                             </div>
                             <div class="glass-card p-5 bg-gradient-to-br from-blue-50 to-white border-blue-100">
                                 <span class="text-[10px] font-bold text-blue-600 uppercase tracking-widest">Total MW</span>
@@ -649,17 +617,17 @@
                                     <span id="beban-kw" class="text-3xl font-black text-blue-700">-</span>
                                     <span class="text-sm font-bold text-blue-500">MW</span>
                                 </div>
-                                <p class="text-[10px] text-slate-400 mt-1">Active Power</p>
+                                <p class="text-[10px] text-slate-400 mt-1">Daya Aktif</p>
                             </div>
                             <div class="glass-card p-5 bg-gradient-to-br from-amber-50 to-white border-amber-100">
                                 <span class="text-[10px] font-bold text-amber-600 uppercase tracking-widest">Power Factor</span>
                                 <div class="flex items-baseline gap-1 mt-2">
                                     <span id="beban-pf" class="text-3xl font-black text-amber-700">-</span>
                                 </div>
-                                <p class="text-[10px] text-slate-400 mt-1">Power Factor</p>
+                                <p class="text-[10px] text-slate-400 mt-1">Faktor Daya</p>
                             </div>
                             <div class="glass-card p-5">
-                                <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Transformer Loading</span>
+                                <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Pembebanan Trafo</span>
                                 <div class="flex items-baseline gap-1 mt-2">
                                     <span id="beban-persen" class="text-3xl font-black text-slate-800">-</span>
                                     <span class="text-sm font-bold text-slate-500">%</span>
@@ -670,109 +638,109 @@
                             </div>
                         </div>
 
-                        <!-- Phase Load + Power -->
+                        <!-- Phase Beban + Daya -->
                         <div class="grid grid-cols-1 xl:grid-cols-4 gap-6">
                             <div class="glass-card p-6">
                                 <div class="flex justify-between items-center mb-6">
                                     <h4 class="text-xs font-extrabold text-violet-700 uppercase tracking-widest flex items-center"><span class="status-badge-violet"></span> PHASE R</h4>
-                                    <div class="bg-violet-50 text-violet-700 px-2.5 py-1 rounded text-[10px] font-extrabold">Current & Voltage</div>
+                                    <div class="bg-violet-50 text-violet-700 px-2.5 py-1 rounded text-[10px] font-extrabold">Arus & Tegangan</div>
                                 </div>
                                 <table class="w-full compact-table">
-                                    <tr><td class="label-cell">Current (I_R)</td><td id="beban-I_R" class="value-cell-beban">-</td></tr>
-                                    <tr><td class="label-cell">Voltage (V_R)</td><td id="beban-V_R" class="value-cell-beban">-</td></tr>
+                                    <tr><td class="label-cell">Arus (I_R)</td><td id="beban-I_R" class="value-cell-beban">-</td></tr>
+                                    <tr><td class="label-cell">Tegangan (V_R)</td><td id="beban-V_R" class="value-cell-beban">-</td></tr>
                                 </table>
                             </div>
                             <div class="glass-card p-6">
                                 <div class="flex justify-between items-center mb-6">
                                     <h4 class="text-xs font-extrabold text-violet-700 uppercase tracking-widest flex items-center"><span class="status-badge-violet"></span> PHASE S</h4>
-                                    <div class="bg-violet-50 text-violet-700 px-2.5 py-1 rounded text-[10px] font-extrabold">Current & Voltage</div>
+                                    <div class="bg-violet-50 text-violet-700 px-2.5 py-1 rounded text-[10px] font-extrabold">Arus & Tegangan</div>
                                 </div>
                                 <table class="w-full compact-table">
-                                    <tr><td class="label-cell">Current (I_S)</td><td id="beban-I_S" class="value-cell-beban">-</td></tr>
-                                    <tr><td class="label-cell">Voltage (V_S)</td><td id="beban-V_S" class="value-cell-beban">-</td></tr>
+                                    <tr><td class="label-cell">Arus (I_S)</td><td id="beban-I_S" class="value-cell-beban">-</td></tr>
+                                    <tr><td class="label-cell">Tegangan (V_S)</td><td id="beban-V_S" class="value-cell-beban">-</td></tr>
                                 </table>
                             </div>
                             <div class="glass-card p-6">
                                 <div class="flex justify-between items-center mb-6">
                                     <h4 class="text-xs font-extrabold text-violet-700 uppercase tracking-widest flex items-center"><span class="status-badge-violet"></span> PHASE T</h4>
-                                    <div class="bg-violet-50 text-violet-700 px-2.5 py-1 rounded text-[10px] font-extrabold">Current & Voltage</div>
+                                    <div class="bg-violet-50 text-violet-700 px-2.5 py-1 rounded text-[10px] font-extrabold">Arus & Tegangan</div>
                                 </div>
                                 <table class="w-full compact-table">
-                                    <tr><td class="label-cell">Current (I_T)</td><td id="beban-I_T" class="value-cell-beban">-</td></tr>
-                                    <tr><td class="label-cell">Voltage (V_T)</td><td id="beban-V_T" class="value-cell-beban">-</td></tr>
+                                    <tr><td class="label-cell">Arus (I_T)</td><td id="beban-I_T" class="value-cell-beban">-</td></tr>
+                                    <tr><td class="label-cell">Tegangan (V_T)</td><td id="beban-V_T" class="value-cell-beban">-</td></tr>
                                 </table>
                             </div>
                             <div class="glass-card p-6">
                                 <div class="flex justify-between items-center mb-6">
-                                    <h4 class="text-xs font-extrabold text-blue-700 uppercase tracking-widest flex items-center"><span class="status-badge-blue"></span> TOTAL POWER</h4>
+                                    <h4 class="text-xs font-extrabold text-blue-700 uppercase tracking-widest flex items-center"><span class="status-badge-blue"></span> DAYA TOTAL</h4>
                                     <div class="bg-blue-50 text-blue-700 px-2.5 py-1 rounded text-[10px] font-extrabold">Power</div>
                                 </div>
                                 <table class="w-full compact-table">
-                                    <tr><td class="label-cell">MW (Active)</td><td id="beban-kw-detail" class="value-cell" style="color:#2563eb">-</td></tr>
-                                    <tr><td class="label-cell">MVAR (Reactive)</td><td id="beban-kvar" class="value-cell" style="color:#d97706">-</td></tr>
-                                    <tr><td class="label-cell">MVA (Apparent)</td><td id="beban-kva-detail" class="value-cell" style="color:#7c3aed">-</td></tr>
+                                    <tr><td class="label-cell">MW (Aktif)</td><td id="beban-kw-detail" class="value-cell" style="color:#2563eb">-</td></tr>
+                                    <tr><td class="label-cell">MVAR (Reaktif)</td><td id="beban-kvar" class="value-cell" style="color:#d97706">-</td></tr>
+                                    <tr><td class="label-cell">MVA (Semu)</td><td id="beban-kva-detail" class="value-cell" style="color:#7c3aed">-</td></tr>
                                 </table>
                             </div>
                         </div>
-                    </div> <!-- end load tab -->
+                    </div> <!-- end tab beban -->
 
                 </div> <!-- end inner tabs -->
             </div> <!-- end view-dashboard -->
 
-            <!-- PAGE 2: DATA LOGGER -->
+            <!-- HALAMAN 2: DATA LOGGER -->
             <div id="view-logger" class="hidden space-y-4">
                 <!-- Inner Tabs -->
                 <div class="inner-tab-nav">
                     <button onclick="switchInnerTab('logger','suhu')" id="itab-logger-suhu" class="inner-tab-btn active">
-                        <i data-lucide="thermometer" class="w-4 h-4"></i> Temperature Log
+                        <i data-lucide="thermometer" class="w-4 h-4"></i> Log Suhu
                     </button>
                     <button onclick="switchInnerTab('logger','beban'); loadBebanLogs()" id="itab-logger-beban" class="inner-tab-btn v-beban">
-                        <i data-lucide="zap" class="w-4 h-4"></i> Load Log
+                        <i data-lucide="zap" class="w-4 h-4"></i> Log Beban
                     </button>
                 </div>
 
-                <!-- Tab: Temperature Log -->
+                <!-- Tab: Log Suhu -->
                 <div id="itab-content-logger-suhu">
                 <div class="glass-card overflow-hidden">
                     <div class="p-6 border-b border-slate-100 flex flex-wrap justify-between items-center bg-slate-50/50 gap-4">
                         <div>
                             <div class="flex items-center gap-2 mb-1">
                                 <span class="status-badge-teal inline-block"></span>
-                                <h3 class="text-sm font-extrabold text-[#0f766e]">Temperature Log — Acrel ATP007</h3>
+                                <h3 class="text-sm font-extrabold text-[#0f766e]">Log Suhu — Acrel ATP007</h3>
                             </div>
-                            <p class="text-[11px] text-slate-400 mt-1">Periodic temperature history streamed directly from Firestore (collection: acrel_atp007).</p>
+                            <p class="text-[11px] text-slate-400 mt-1">Histori suhu berkala langsung dari Firestore (collection: acrel_atp007).</p>
                         </div>
                         <div class="flex gap-3 items-center flex-wrap">
                             <button onclick="toggleFilterPanel('fp-suhu')" class="bg-white border border-slate-200 px-4 py-2 text-xs font-bold text-slate-600 rounded-lg hover:bg-slate-50 transition-all flex items-center gap-1.5"><i data-lucide="sliders-horizontal" class="w-4 h-4"></i> Filter <span id="fp-suhu-badge" class="hidden ml-1 bg-teal-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full">ON</span></button>
-                            <button onclick="loadHistoricalLogs()" class="bg-white border border-slate-200 px-4 py-2 text-xs font-bold text-[#0d9488] rounded-lg hover:bg-teal-50 transition-all flex items-center gap-1.5"><i data-lucide="refresh-cw" class="w-4 h-4"></i> Reload</button>
-                            <button onclick="exportLoggerExcel()" class="btn-action px-5 py-2 text-xs flex items-center gap-1.5"><i data-lucide="download" class="w-4 h-4"></i> Download Excel</button>
+                            <button onclick="loadHistoricalLogs()" class="bg-white border border-slate-200 px-4 py-2 text-xs font-bold text-[#0d9488] rounded-lg hover:bg-teal-50 transition-all flex items-center gap-1.5"><i data-lucide="refresh-cw" class="w-4 h-4"></i> Muat Ulang</button>
+                            <button onclick="exportLoggerExcel()" class="btn-action px-5 py-2 text-xs flex items-center gap-1.5"><i data-lucide="download" class="w-4 h-4"></i> Unduh Excel</button>
                         </div>
                     </div>
 
-                    <!-- Temperature Filter Panel -->
+                    <!-- Filter Panel Suhu -->
                     <div id="fp-suhu" class="hidden border-b border-slate-200 bg-slate-50 px-6 py-4">
                         <div class="grid grid-cols-2 md:grid-cols-5 gap-3 items-end">
                             <div>
-                                <label class="filter-label">From Date</label>
+                                <label class="filter-label">Dari Tanggal</label>
                                 <input type="date" id="tf-from" class="filter-input">
                             </div>
                             <div>
-                                <label class="filter-label">To Date</label>
+                                <label class="filter-label">Sampai Tanggal</label>
                                 <input type="date" id="tf-to" class="filter-input">
                             </div>
                             <div>
-                                <label class="filter-label">Max Temp ≥ (°C)</label>
-                                <input type="number" id="tf-mintemp" placeholder="e.g. 60" class="filter-input">
+                                <label class="filter-label">Suhu Maks ≥ (°C)</label>
+                                <input type="number" id="tf-mintemp" placeholder="Contoh: 60" class="filter-input">
                             </div>
                             <div>
-                                <label class="filter-label">Sort Order</label>
+                                <label class="filter-label">Urutan Data</label>
                                 <select id="tf-sort" class="filter-input">
-                                    <option value="desc">Newest ↓</option>
-                                    <option value="asc">Oldest ↑</option>
+                                    <option value="desc">Terbaru ↓</option>
+                                    <option value="asc">Terlama ↑</option>
                                 </select>
                             </div>
                             <div class="flex gap-2">
-                                <button onclick="applyTempFilter()" class="btn-action px-4 py-2 text-xs flex-1 flex items-center justify-center gap-1"><i data-lucide="check" class="w-3.5 h-3.5"></i> Apply</button>
+                                <button onclick="applyTempFilter()" class="btn-action px-4 py-2 text-xs flex-1 flex items-center justify-center gap-1"><i data-lucide="check" class="w-3.5 h-3.5"></i> Terapkan</button>
                                 <button onclick="resetTempFilter()" class="bg-white border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 rounded-lg hover:bg-slate-50 flex items-center gap-1"><i data-lucide="x" class="w-3.5 h-3.5"></i> Reset</button>
                             </div>
                         </div>
@@ -783,8 +751,8 @@
                         <table class="w-full text-left text-xs min-w-[900px]">
                             <thead>
                                 <tr class="bg-slate-100 text-slate-600 font-bold uppercase tracking-wider border-b border-slate-200">
-                                    <th class="px-6 py-3.5">Logging Time (Firestore)</th>
-                                    <th class="px-6 py-3.5 text-center">Transformer</th>
+                                    <th class="px-6 py-3.5">Waktu Logging (Firestore)</th>
+                                    <th class="px-6 py-3.5 text-center">Trafo</th>
                                     <th class="px-6 py-3.5 text-right">R_Atas (°C)</th>
                                     <th class="px-6 py-3.5 text-right">R_Bawah (°C)</th>
                                     <th class="px-6 py-3.5 text-right">S_Atas (°C)</th>
@@ -798,7 +766,7 @@
                                     <td colspan="8" class="text-center py-12 text-slate-400 font-bold">
                                         <div class="flex flex-col items-center justify-center gap-2">
                                             <i data-lucide="loader-2" class="w-8 h-8 text-teal-600 animate-spin"></i>
-                                            <span>Retrieving temperature history from Firestore...</span>
+                                            <span>Sedang mengambil histori suhu dari Firestore...</span>
                                         </div>
                                     </td>
                                 </tr>
@@ -808,48 +776,48 @@
                 </div>
                 </div> <!-- end itab-content-logger-suhu -->
 
-                <!-- Tab: Load Log -->
+                <!-- Tab: Log Beban -->
                 <div id="itab-content-logger-beban" class="hidden">
                 <div class="glass-card overflow-hidden">
                     <div class="p-6 border-b border-violet-100 flex flex-wrap justify-between items-center bg-violet-50/30 gap-4">
                         <div>
                             <div class="flex items-center gap-2 mb-1">
                                 <span class="status-badge-violet inline-block"></span>
-                                <h3 class="text-sm font-extrabold text-violet-700">Load Log — ION8650 (beban_realtime)</h3>
+                                <h3 class="text-sm font-extrabold text-violet-700">Log Beban — ION8650 (beban_realtime)</h3>
                             </div>
-                            <p class="text-[11px] text-slate-400 mt-1">Current, voltage, and power history from Firestore (beban_realtime/{trafo}/logs).</p>
+                            <p class="text-[11px] text-slate-400 mt-1">Histori arus, tegangan, dan daya dari Firestore (beban_realtime/{trafo}/logs).</p>
                         </div>
                         <div class="flex gap-3 items-center flex-wrap">
                             <button onclick="toggleFilterPanel('fp-beban')" class="bg-white border border-violet-200 px-4 py-2 text-xs font-bold text-violet-700 rounded-lg hover:bg-violet-50 transition-all flex items-center gap-1.5"><i data-lucide="sliders-horizontal" class="w-4 h-4"></i> Filter <span id="fp-beban-badge" class="hidden ml-1 bg-violet-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full">ON</span></button>
-                            <button onclick="loadBebanLogs()" class="bg-white border border-violet-200 px-4 py-2 text-xs font-bold text-violet-700 rounded-lg hover:bg-violet-50 transition-all flex items-center gap-1.5"><i data-lucide="refresh-cw" class="w-4 h-4"></i> Reload</button>
-                            <button onclick="exportBebanExcel()" class="btn-action px-5 py-2 text-xs flex items-center gap-1.5"><i data-lucide="download" class="w-4 h-4"></i> Download Excel</button>
+                            <button onclick="loadBebanLogs()" class="bg-white border border-violet-200 px-4 py-2 text-xs font-bold text-violet-700 rounded-lg hover:bg-violet-50 transition-all flex items-center gap-1.5"><i data-lucide="refresh-cw" class="w-4 h-4"></i> Muat Ulang</button>
+                            <button onclick="exportBebanExcel()" class="btn-action px-5 py-2 text-xs flex items-center gap-1.5"><i data-lucide="download" class="w-4 h-4"></i> Unduh Excel</button>
                         </div>
                     </div>
 
-                    <!-- Load Filter Panel -->
+                    <!-- Filter Panel Beban -->
                     <div id="fp-beban" class="hidden border-b border-violet-200 bg-violet-50/40 px-6 py-4">
                         <div class="grid grid-cols-2 md:grid-cols-5 gap-3 items-end">
                             <div>
-                                <label class="filter-label">From Date</label>
+                                <label class="filter-label">Dari Tanggal</label>
                                 <input type="date" id="bf-from" class="filter-input">
                             </div>
                             <div>
-                                <label class="filter-label">To Date</label>
+                                <label class="filter-label">Sampai Tanggal</label>
                                 <input type="date" id="bf-to" class="filter-input">
                             </div>
                             <div>
-                                <label class="filter-label">Current I_max ≥ (A)</label>
-                                <input type="number" id="bf-minI" placeholder="e.g. 500" class="filter-input">
+                                <label class="filter-label">Arus I_max ≥ (A)</label>
+                                <input type="number" id="bf-minI" placeholder="Contoh: 500" class="filter-input">
                             </div>
                             <div>
-                                <label class="filter-label">Sort Order</label>
+                                <label class="filter-label">Urutan Data</label>
                                 <select id="bf-sort" class="filter-input">
-                                    <option value="desc">Newest ↓</option>
-                                    <option value="asc">Oldest ↑</option>
+                                    <option value="desc">Terbaru ↓</option>
+                                    <option value="asc">Terlama ↑</option>
                                 </select>
                             </div>
                             <div class="flex gap-2">
-                                <button onclick="applyBebanFilter()" class="btn-action px-4 py-2 text-xs flex-1 flex items-center justify-center gap-1"><i data-lucide="check" class="w-3.5 h-3.5"></i> Apply</button>
+                                <button onclick="applyBebanFilter()" class="btn-action px-4 py-2 text-xs flex-1 flex items-center justify-center gap-1"><i data-lucide="check" class="w-3.5 h-3.5"></i> Terapkan</button>
                                 <button onclick="resetBebanFilter()" class="bg-white border border-violet-200 px-3 py-2 text-xs font-bold text-violet-700 rounded-lg hover:bg-violet-50 flex items-center gap-1"><i data-lucide="x" class="w-3.5 h-3.5"></i> Reset</button>
                             </div>
                         </div>
@@ -860,8 +828,8 @@
                         <table class="w-full text-left text-xs min-w-[1400px]">
                             <thead>
                                 <tr class="bg-slate-100 text-slate-600 font-bold uppercase tracking-wider border-b border-slate-200">
-                                    <th class="px-6 py-3.5">Time (Firestore)</th>
-                                    <th class="px-6 py-3.5 text-center">Transformer</th>
+                                    <th class="px-6 py-3.5">Waktu (Firestore)</th>
+                                    <th class="px-6 py-3.5 text-center">Trafo</th>
                                     <th class="px-6 py-3.5 text-right">I_R (A)</th>
                                     <th class="px-6 py-3.5 text-right">I_S (A)</th>
                                     <th class="px-6 py-3.5 text-right">I_T (A)</th>
@@ -872,11 +840,11 @@
                                     <th class="px-6 py-3.5 text-right">MVAR</th>
                                     <th class="px-6 py-3.5 text-right">MVA</th>
                                     <th class="px-6 py-3.5 text-right">PF</th>
-                                    <th class="px-6 py-3.5 text-right">Load (%)</th>
+                                    <th class="px-6 py-3.5 text-right">Beban (%)</th>
                                 </tr>
                             </thead>
                             <tbody id="beban-logger-body" class="divide-y divide-slate-100">
-                                <tr><td colspan="13" class="text-center py-12 text-slate-400 font-bold">Click this tab to load the load data.</td></tr>
+                                <tr><td colspan="13" class="text-center py-12 text-slate-400 font-bold">Klik tab ini untuk memuat data beban.</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -884,38 +852,38 @@
                 </div> <!-- end itab-content-logger-beban -->
             </div> <!-- end view-logger -->
 
-            <!-- PAGE 3: TREND GRAPHS -->
+            <!-- HALAMAN 3: GRAFIK TREN -->
             <div id="view-graphs" class="hidden space-y-4">
                 <!-- Inner Tabs -->
                 <div class="inner-tab-nav">
                     <button onclick="switchInnerTab('graphs','suhu'); setTimeFilter(activeTimeFilter)" id="itab-graphs-suhu" class="inner-tab-btn active">
-                        <i data-lucide="thermometer" class="w-4 h-4"></i> Temperature Graph
+                        <i data-lucide="thermometer" class="w-4 h-4"></i> Grafik Suhu
                     </button>
                     <button onclick="switchInnerTab('graphs','beban'); setBebanTimeFilter(activeBebanTimeFilter)" id="itab-graphs-beban" class="inner-tab-btn v-beban">
-                        <i data-lucide="zap" class="w-4 h-4"></i> Load Graph
+                        <i data-lucide="zap" class="w-4 h-4"></i> Grafik Beban
                     </button>
                 </div>
 
-                <!-- Tab: Temperature Graph -->
+                <!-- Tab: Grafik Suhu -->
                 <div id="itab-content-graphs-suhu">
                 <div class="glass-card p-6">
 
-                    <!-- Header Row: Title + Source Badge -->
+                    <!-- Header Row: Judul + Badge Sumber -->
                     <div class="flex flex-wrap justify-between items-start mb-4 gap-3">
                         <div>
                             <h4 id="chart-mode-title" class="text-sm font-extrabold text-[#0d9488] uppercase tracking-widest flex items-center">
-                                <span class="status-badge-teal"></span> Real-time Temperature Trend Graph (MQTT)
+                                <span class="status-badge-teal"></span> Grafik Tren Suhu Real-time (MQTT)
                             </h4>
-                            <p class="text-[11px] text-slate-400 mt-1">Acrel ATP007 sensor temperature fluctuation — select a time range below.</p>
+                            <p class="text-[11px] text-slate-400 mt-1">Fluktuasi suhu sensor Acrel ATP007 — pilih rentang waktu di bawah.</p>
                         </div>
                         <div class="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-[11px] font-bold">
                             <span id="graph-badge-text" class="flex items-center gap-1.5 text-[#0f766e]">
-                                <span class="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse"></span>Source: HiveMQ Stream
+                                <span class="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse"></span>Sumber: HiveMQ Stream
                             </span>
                         </div>
                     </div>
 
-                    <!-- Stock-style Filter Bar -->
+                    <!-- Filter Bar Gaya Saham -->
                     <div class="flex items-center justify-between flex-wrap gap-3 mb-5">
                         <div class="flex items-center gap-1 bg-slate-100 rounded-xl p-1 shadow-inner">
                             <!-- LIVE -->
@@ -923,7 +891,7 @@
                                 <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-pulse"></span>LIVE
                             </button>
                             <span class="chart-filter-sep"></span>
-                            <!-- Historical -->
+                            <!-- Historis -->
                             <button onclick="setTimeFilter('1H')"  id="filter-1H"  class="chart-filter-btn">1H</button>
                             <button onclick="setTimeFilter('6H')"  id="filter-6H"  class="chart-filter-btn">6H</button>
                             <button onclick="setTimeFilter('1D')"  id="filter-1D"  class="chart-filter-btn">1D</button>
@@ -933,7 +901,7 @@
                             <button onclick="setTimeFilter('MAX')" id="filter-MAX" class="chart-filter-btn">MAX</button>
                         </div>
 
-                        <!-- Data point count info -->
+                        <!-- Info jumlah titik data -->
                         <div class="flex items-center gap-3">
                             <span id="chart-point-info" class="text-[10px] text-slate-400 font-mono"></span>
                             <button onclick="refreshCurrentChart()" class="flex items-center gap-1.5 bg-white border border-slate-200 text-[11px] font-bold text-[#0d9488] px-3 py-1.5 rounded-lg hover:bg-teal-50 transition-all">
@@ -942,49 +910,49 @@
                         </div>
                     </div>
 
-                    <!-- Canvas Container + Overlay -->
+                    <!-- Kontainer Canvas + Overlay -->
                     <div class="relative h-[460px]">
                         <canvas id="realtime-temp-chart"></canvas>
 
                         <!-- Loading Overlay -->
                         <div id="chart-loading-overlay" class="hidden absolute inset-0 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center rounded-xl gap-3 z-10">
                             <i data-lucide="loader-2" class="w-10 h-10 text-teal-500 animate-spin"></i>
-                            <span class="text-sm font-bold text-slate-500">Retrieving history from Firestore...</span>
+                            <span class="text-sm font-bold text-slate-500">Mengambil histori dari Firestore...</span>
                         </div>
 
                         <!-- No Data State -->
                         <div id="chart-no-data" class="hidden absolute inset-0 flex flex-col items-center justify-center gap-3 z-10">
                             <i data-lucide="area-chart" class="w-12 h-12 text-slate-300"></i>
-                            <span class="text-sm font-bold text-slate-400">No data for this time range</span>
-                            <button onclick="setTimeFilter('MAX')" class="text-xs text-teal-600 font-bold underline mt-1">Try showing all data →</button>
+                            <span class="text-sm font-bold text-slate-400">Tidak ada data untuk rentang waktu ini</span>
+                            <button onclick="setTimeFilter('MAX')" class="text-xs text-teal-600 font-bold underline mt-1">Coba tampilkan semua data →</button>
                         </div>
                     </div>
 
-                    <!-- Bottom Toolbar: Info + Zoom + Save -->
+                    <!-- Toolbar Bawah: Info + Zoom + Simpan -->
                     <div class="mt-4 border-t border-slate-100 pt-3 flex items-center justify-between gap-3 flex-wrap">
                         <div class="text-[10px] text-slate-400 font-mono flex-1 min-w-0">
-                            <span id="chart-range-info">Mode: LIVE — auto-updating from MQTT</span>
+                            <span id="chart-range-info">Mode: LIVE — update otomatis dari MQTT</span>
                             <span class="mx-2 text-slate-300">·</span>
                             <span id="chart-last-point"></span>
                         </div>
                         <div class="flex items-center gap-2 shrink-0 flex-wrap">
-                            <span id="temp-zoom-hint" class="text-[9px] text-slate-400 hidden md:inline">Scroll=Zoom · Drag=Pan</span>
-                            <button id="btn-temp-drag-zoom" onclick="toggleDragZoom('temp')" class="btn-drag-zoom" title="Hold and drag to select a zoom area">
+                            <span id="temp-zoom-hint" class="text-[9px] text-slate-400 hidden md:inline">Scroll=Zoom · Drag=Geser</span>
+                            <button id="btn-temp-drag-zoom" onclick="toggleDragZoom('temp')" class="btn-drag-zoom" title="Tahan dan seret untuk pilih area zoom">
                                 <i data-lucide="crosshair" class="w-3.5 h-3.5"></i>
-                                <span>Select Area</span>
+                                <span>Pilih Area</span>
                             </button>
                             <button onclick="resetTempChartZoom()" class="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold px-3 py-1.5 rounded-lg transition-all">
                                 <i data-lucide="minimize-2" class="w-3.5 h-3.5"></i> Reset Zoom
                             </button>
                             <button onclick="saveChartImage('realtime-temp-chart','Suhu')" class="flex items-center gap-1.5 bg-white border border-slate-200 hover:bg-teal-50 text-[#0d9488] text-[11px] font-bold px-3 py-1.5 rounded-lg transition-all">
-                                <i data-lucide="image" class="w-3.5 h-3.5"></i> Save Image
+                                <i data-lucide="image" class="w-3.5 h-3.5"></i> Simpan Gambar
                             </button>
                         </div>
                     </div>
                 </div>
                 </div> <!-- end itab-content-graphs-suhu -->
 
-                <!-- Tab: Load Graph -->
+                <!-- Tab: Grafik Beban -->
                 <div id="itab-content-graphs-beban" class="hidden">
                 <div class="glass-card p-6">
 
@@ -992,13 +960,13 @@
                     <div class="flex flex-wrap justify-between items-start mb-4 gap-3">
                         <div>
                             <h4 id="beban-chart-title" class="text-sm font-extrabold text-violet-700 uppercase tracking-widest flex items-center">
-                                <span class="status-badge-violet"></span> Load Trend Graph (PM Meter)
+                                <span class="status-badge-violet"></span> Grafik Tren Beban (PM Meter)
                             </h4>
-                            <p class="text-[11px] text-slate-400 mt-1">Current, voltage, and power trend from Firestore PM Meter.</p>
+                            <p class="text-[11px] text-slate-400 mt-1">Tren arus, tegangan, dan daya dari Firestore PM Meter.</p>
                         </div>
                         <div class="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-[11px] font-bold">
                             <span id="beban-chart-badge" class="flex items-center gap-1.5 text-violet-700">
-                                <span class="w-2 h-2 rounded-full bg-violet-500 inline-block"></span>Source: Firestore PM Meter
+                                <span class="w-2 h-2 rounded-full bg-violet-500 inline-block"></span>Sumber: Firestore PM Meter
                             </span>
                         </div>
                     </div>
@@ -1028,8 +996,8 @@
 
                     <!-- Parameter Filter Bar -->
                     <div class="flex items-center gap-1 bg-violet-50 border border-violet-100 rounded-xl p-1 mb-5 w-fit">
-                        <button onclick="setBebanParam('I')"  id="bparam-I"  class="param-filter-btn active">Current (A)</button>
-                        <button onclick="setBebanParam('V')"  id="bparam-V"  class="param-filter-btn">Voltage (V)</button>
+                        <button onclick="setBebanParam('I')"  id="bparam-I"  class="param-filter-btn active">Arus (A)</button>
+                        <button onclick="setBebanParam('V')"  id="bparam-V"  class="param-filter-btn">Tegangan (V)</button>
                         <button onclick="setBebanParam('P')"  id="bparam-P"  class="param-filter-btn">MW / MVAR / MVA</button>
                         <button onclick="setBebanParam('PF')" id="bparam-PF" class="param-filter-btn">Power Factor</button>
                     </div>
@@ -1039,32 +1007,32 @@
                         <canvas id="beban-trend-chart"></canvas>
                         <div id="beban-chart-loading" class="hidden absolute inset-0 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center rounded-xl gap-3 z-10">
                             <i data-lucide="loader-2" class="w-10 h-10 text-violet-500 animate-spin"></i>
-                            <span class="text-sm font-bold text-slate-500">Retrieving load data from Firestore...</span>
+                            <span class="text-sm font-bold text-slate-500">Mengambil data beban dari Firestore...</span>
                         </div>
                         <div id="beban-chart-nodata" class="hidden absolute inset-0 flex flex-col items-center justify-center gap-3 z-10">
                             <i data-lucide="bar-chart-2" class="w-12 h-12 text-slate-300"></i>
-                            <span class="text-sm font-bold text-slate-400">No load data for this range</span>
+                            <span class="text-sm font-bold text-slate-400">Tidak ada data beban untuk rentang ini</span>
                         </div>
                     </div>
 
-                    <!-- Bottom Load Toolbar: Info + Zoom + Save -->
+                    <!-- Toolbar Bawah Beban: Info + Zoom + Simpan -->
                     <div class="mt-4 border-t border-slate-100 pt-3 flex items-center justify-between gap-3 flex-wrap">
                         <div class="text-[10px] text-slate-400 font-mono flex-1 min-w-0">
-                            <span id="beban-chart-range-info">Mode: LIVE — latest data from Firestore PM Meter</span>
+                            <span id="beban-chart-range-info">Mode: LIVE — data terbaru dari Firestore PM Meter</span>
                             <span class="mx-2 text-slate-300">·</span>
                             <span id="beban-chart-last-point"></span>
                         </div>
                         <div class="flex items-center gap-2 shrink-0 flex-wrap">
-                            <span id="beban-zoom-hint" class="text-[9px] text-slate-400 hidden md:inline">Scroll=Zoom · Drag=Pan</span>
-                            <button id="btn-beban-drag-zoom" onclick="toggleDragZoom('beban')" class="btn-drag-zoom" title="Hold and drag to select a zoom area">
+                            <span id="beban-zoom-hint" class="text-[9px] text-slate-400 hidden md:inline">Scroll=Zoom · Drag=Geser</span>
+                            <button id="btn-beban-drag-zoom" onclick="toggleDragZoom('beban')" class="btn-drag-zoom" title="Tahan dan seret untuk pilih area zoom">
                                 <i data-lucide="crosshair" class="w-3.5 h-3.5"></i>
-                                <span>Select Area</span>
+                                <span>Pilih Area</span>
                             </button>
                             <button onclick="resetBebanChartZoom()" class="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold px-3 py-1.5 rounded-lg transition-all">
                                 <i data-lucide="minimize-2" class="w-3.5 h-3.5"></i> Reset Zoom
                             </button>
                             <button onclick="saveChartImage('beban-trend-chart','Beban')" class="flex items-center gap-1.5 bg-white border border-violet-200 hover:bg-violet-50 text-violet-700 text-[11px] font-bold px-3 py-1.5 rounded-lg transition-all">
-                                <i data-lucide="image" class="w-3.5 h-3.5"></i> Save Image
+                                <i data-lucide="image" class="w-3.5 h-3.5"></i> Simpan Gambar
                             </button>
                         </div>
                     </div>
@@ -1083,18 +1051,18 @@
                     <div class="bg-indigo-100 p-2 rounded-lg"><i data-lucide="brain-circuit" class="w-5 h-5 text-indigo-600"></i></div>
                     <div>
                       <h4 class="text-sm font-extrabold text-indigo-700 uppercase tracking-widest">SHIELD ML Engine</h4>
-                      <p class="text-[10px] text-slate-400">INC Transformer condition analysis based on IEC 62271 · IEEE C37 · CIGRE TB 761</p>
+                      <p class="text-[10px] text-slate-400">Analisis kondisi INC Trafo berbasis IEC 62271 · IEEE C37 · CIGRE TB 761</p>
                     </div>
                   </div>
                   <div class="flex items-center gap-3">
                     <div class="flex items-center gap-4 text-[10px] font-bold text-slate-500">
-                      <span class="flex items-center gap-1"><span id="ml-dot-temp" class="w-2 h-2 rounded-full bg-slate-300 inline-block"></span>MQTT Temperature</span>
-                      <span class="flex items-center gap-1"><span id="ml-dot-beban" class="w-2 h-2 rounded-full bg-slate-300 inline-block"></span>ION8650 Load</span>
-                      <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>Historical Data</span>
+                      <span class="flex items-center gap-1"><span id="ml-dot-temp" class="w-2 h-2 rounded-full bg-slate-300 inline-block"></span>Suhu MQTT</span>
+                      <span class="flex items-center gap-1"><span id="ml-dot-beban" class="w-2 h-2 rounded-full bg-slate-300 inline-block"></span>Beban ION8650</span>
+                      <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>Data Historis</span>
                     </div>
                     <div class="flex flex-col items-end gap-1">
                       <button onclick="runMLAnalysis()" class="btn-action px-4 py-2 text-xs flex items-center gap-2">
-                        <i data-lucide="play" class="w-3.5 h-3.5"></i> Run Analysis
+                        <i data-lucide="play" class="w-3.5 h-3.5"></i> Jalankan Analisis
                       </button>
                       <div class="flex items-center gap-2 text-[9px] text-slate-400 font-bold">
                         <span id="ml-autorefresh-dot" class="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block animate-pulse"></span>
@@ -1113,7 +1081,7 @@
                 <div class="glass-card p-3 cursor-pointer hover:border-cyan-300 transition-all border-l-2 border-cyan-400" onclick="switchInnerTab('ml','a0')">
                   <div class="text-[9px] font-extrabold text-cyan-600 uppercase tracking-widest mb-1">Alg.0 Forecast</div>
                   <div id="ml-ov-a0" class="font-mono font-black text-lg text-slate-700">-</div>
-                  <div class="text-[9px] text-slate-400 mt-0.5">Accuracy (%)</div>
+                  <div class="text-[9px] text-slate-400 mt-0.5">Akurasi (%)</div>
                   <div id="ml-ov-a0-badge" class="mt-1.5 text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 inline-block">—</div>
                 </div>
                 <!-- Alg 1 -->
@@ -1171,7 +1139,6 @@
               <div>
                 <div class="inner-tab-nav">
                   <button onclick="switchInnerTab('ml','aex')" id="itab-ml-aex" class="inner-tab-btn active" style="color:#4f46e5;font-weight:900;">🎯 Executive Summary</button>
-                  <button onclick="switchInnerTab('ml','lntai')" id="itab-ml-lntai" class="inner-tab-btn" style="color:#dc2626;font-weight:900;">LNTAI</button>
                   <button onclick="switchInnerTab('ml','a0')" id="itab-ml-a0" class="inner-tab-btn" style="color:#0891b2;">⚡ Forecast Realtime</button>
                   <button onclick="switchInnerTab('ml','a1')" id="itab-ml-a1" class="inner-tab-btn text-teal-600">Alg.1 Physics Model</button>
                   <button onclick="switchInnerTab('ml','a2')" id="itab-ml-a2" class="inner-tab-btn">Alg.2 Bayesian RUL</button>
@@ -1196,260 +1163,6 @@
                         <div class="text-[11px] font-bold">Jalankan analisis ML untuk melihat Executive Summary.</div>
                       </div>
                     </div>
-                  </div>
-                </div>
-
-                <div id="itab-content-ml-lntai" class="hidden space-y-4">
-                  <div class="glass-card p-5 border-l-4 border-red-500">
-                    <div class="flex items-center justify-between flex-wrap gap-3 mb-4">
-                      <div class="flex items-center gap-3">
-                        <div class="bg-red-100 p-2 rounded-lg"><i data-lucide="thermometer-sun" class="w-5 h-5 text-red-600"></i></div>
-                        <div>
-                          <h5 class="text-xs font-extrabold text-red-700 uppercase tracking-widest">LNTAI — Load Normalized Thermal Anomaly Index</h5>
-                          <p class="text-[10px] text-slate-400">Composite score from contact temperature rise, inter-phase difference, and temperature-vs-load ratio — scale 0–40.</p>
-                        </div>
-                      </div>
-                      <button onclick="renderLNTAIPanel(true)" class="flex items-center gap-1.5 bg-white border border-red-200 text-red-700 text-[11px] font-bold px-3 py-1.5 rounded-lg hover:bg-red-50 transition-all">
-                        <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Refresh LNTAI
-                      </button>
-                    </div>
-
-                    <!-- KPI LNTAI Summary + LNTAI Chart -->
-                    <div class="grid grid-cols-1 xl:grid-cols-3 gap-4 mb-4">
-                      <div class="glass-card p-5 border border-slate-200">
-                        <div class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest">KPI LNTAI</div>
-                        <div id="lntai-kpi-score" class="font-mono font-black text-4xl text-red-600 mt-1">-</div>
-                        <p class="text-[10px] text-slate-400 mt-1">Real-time LNTAI score (scale 0–40)</p>
-                        <div class="mt-4 space-y-2">
-                          <div class="flex items-center justify-between text-[11px]">
-                            <span class="text-slate-500 font-bold">OT Normalized</span>
-                            <span id="lntai-kpi-ot-norm" class="font-mono font-extrabold text-slate-700">-</span>
-                          </div>
-                          <div class="flex items-center justify-between text-[11px]">
-                            <span class="text-slate-500 font-bold">Load Factor</span>
-                            <span id="lntai-kpi-load-factor" class="font-mono font-extrabold text-slate-700">-</span>
-                          </div>
-                          <div class="flex items-center justify-between text-[11px]">
-                            <span class="text-slate-500 font-bold">Status</span>
-                            <span id="lntai-kpi-status" class="font-mono font-extrabold text-slate-700">-</span>
-                          </div>
-                        </div>
-                      </div>
-                      <div class="xl:col-span-2 glass-card p-5">
-                        <div class="flex items-center justify-between gap-3 mb-3">
-                          <h5 class="text-xs font-extrabold text-slate-700 uppercase tracking-widest">LNTAI Chart — Thermal Anomaly vs Time</h5>
-                          <span class="text-[9px] font-extrabold px-2 py-1 rounded-full bg-teal-50 text-teal-600">Interactive</span>
-                        </div>
-                        <div class="relative h-[220px]">
-                          <canvas id="lntai-kpi-bar-chart"></canvas>
-                          <div id="lntai-kpi-bar-empty" class="hidden absolute inset-0 flex items-center justify-center bg-white/80 rounded-xl text-xs font-bold text-slate-400">Waiting for temperature &amp; load data.</div>
-                        </div>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
-                          <div class="bg-slate-50 rounded-xl p-3 border border-slate-200">
-                            <div class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest">LNTAI Formula</div>
-                            <div class="font-mono text-[10px] text-slate-600 mt-1 leading-relaxed">LNTAI = 0.40·S_Temp + 0.30·S_ΔT + 0.30·S_TLR (result scale 0–40)</div>
-                          </div>
-                          <div class="bg-slate-50 rounded-xl p-3 border border-slate-200">
-                            <div class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest">Reference Standards</div>
-                            <div class="text-[10px] text-slate-600 mt-1 leading-relaxed">IEC 62271-1:2017 · IEC 60216 · PLN SKDIR 0520 · CIGRE TB 167</div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-                      <div class="bg-white border border-slate-200 rounded-xl p-4">
-                        <div class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest">Current LNTAI</div>
-                        <div id="lntai-kpi-value" class="font-mono font-black text-2xl text-slate-700 mt-1">-</div>
-                        <div id="lntai-kpi-badge" class="mt-2 text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 inline-block">Awaiting data</div>
-                      </div>
-                      <div class="bg-white border border-slate-200 rounded-xl p-4">
-                        <div class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest">Dominant Component</div>
-                        <div id="lntai-kpi-residual" class="font-mono font-black text-2xl text-slate-700 mt-1">-</div>
-                        <div class="text-[10px] text-slate-400 mt-1">Highest-scoring component (scale 0–40)</div>
-                      </div>
-                      <div class="bg-white border border-slate-200 rounded-xl p-4">
-                        <div class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest">T Contact / Loading</div>
-                        <div id="lntai-kpi-input" class="font-mono font-black text-xl text-slate-700 mt-1">-</div>
-                        <div id="lntai-kpi-phase" class="text-[10px] text-slate-400 mt-1">Hottest phase: -</div>
-                      </div>
-                      <div class="bg-white border border-slate-200 rounded-xl p-4">
-                        <div class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest">Data Points</div>
-                        <div id="lntai-kpi-points" class="font-mono font-black text-2xl text-slate-700 mt-1">-</div>
-                        <div id="lntai-kpi-source" class="text-[10px] text-slate-400 mt-1">-</div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div class="grid grid-cols-1 xl:grid-cols-3 gap-4">
-                    <div class="xl:col-span-2 glass-card p-5">
-                      <div class="flex items-center justify-between gap-3 mb-3">
-                        <div>
-                          <h5 class="text-xs font-extrabold text-slate-700 uppercase tracking-widest">LNTAI Trend & Actual ΔT</h5>
-                          <p id="lntai-chart-subtitle" class="text-[10px] text-slate-400 mt-1">Combines the nearest contact-temperature and load-current history.</p>
-                        </div>
-                        <span id="lntai-chart-status" class="text-[9px] font-extrabold px-2 py-1 rounded-full bg-slate-100 text-slate-500">-</span>
-                      </div>
-                      <div class="relative h-[340px]">
-                        <canvas id="lntai-trend-chart"></canvas>
-                        <div id="lntai-chart-empty" class="hidden absolute inset-0 flex flex-col items-center justify-center gap-2 bg-white/80 rounded-xl">
-                          <i data-lucide="activity" class="w-10 h-10 text-slate-300"></i>
-                          <span class="text-xs font-bold text-slate-400">No valid temperature and load data pairs yet.</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div class="glass-card p-5">
-                      <h5 class="text-xs font-extrabold text-slate-700 uppercase tracking-widest mb-3">Operational Insight</h5>
-                      <div id="lntai-insight-list" class="space-y-2">
-                        <div class="text-[10px] text-slate-400">Awaiting live data.</div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div class="glass-card p-5">
-                    <h5 class="text-xs font-extrabold text-slate-700 uppercase tracking-widest mb-4">KPI Detail Insight</h5>
-                    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
-                      <div class="bg-slate-50 border border-slate-200 rounded-xl p-3">
-                        <div class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest">Current LNTAI</div>
-                        <div id="lntai-insight-kpi-lntai" class="text-[10px] text-slate-600 leading-relaxed mt-1">Awaiting data.</div>
-                      </div>
-                      <div class="bg-slate-50 border border-slate-200 rounded-xl p-3">
-                        <div class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest">Score Components</div>
-                        <div id="lntai-insight-kpi-residual" class="text-[10px] text-slate-600 leading-relaxed mt-1">Awaiting data.</div>
-                      </div>
-                      <div class="bg-slate-50 border border-slate-200 rounded-xl p-3">
-                        <div class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest">T Contact / Loading</div>
-                        <div id="lntai-insight-kpi-input" class="text-[10px] text-slate-600 leading-relaxed mt-1">Awaiting data.</div>
-                      </div>
-                      <div class="bg-slate-50 border border-slate-200 rounded-xl p-3">
-                        <div class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest">Data Points</div>
-                        <div id="lntai-insight-kpi-data" class="text-[10px] text-slate-600 leading-relaxed mt-1">Awaiting data.</div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
-                    <div class="glass-card p-5">
-                      <h5 class="text-xs font-extrabold text-slate-700 uppercase tracking-widest mb-3">LNTAI Component Score Chart</h5>
-                      <p class="text-[10px] text-slate-400 mb-3">Contribution of S_Temp, S_ΔT, and S_TLR (each on a 0–40 scale) to the weighted LNTAI score over time.</p>
-                      <div class="relative h-[300px]">
-                        <canvas id="lntai-temp-model-chart"></canvas>
-                        <div id="lntai-temp-model-empty" class="hidden absolute inset-0 flex items-center justify-center bg-white/80 rounded-xl text-xs font-bold text-slate-400">No model data yet.</div>
-                      </div>
-                    </div>
-                    <div class="glass-card p-5">
-                      <h5 class="text-xs font-extrabold text-slate-700 uppercase tracking-widest mb-3">Auto-Generated Analysis Narrative</h5>
-                      <div id="lntai-generated-narrative" class="text-[11px] text-slate-600 leading-relaxed space-y-2">
-                        <p>Awaiting temperature and load data.</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
-                    <div class="glass-card p-5">
-                      <h5 class="text-xs font-extrabold text-slate-700 uppercase tracking-widest mb-3">Latest Point Calculation Table</h5>
-                      <div class="overflow-x-auto">
-                        <table class="w-full text-left text-xs min-w-[680px]">
-                          <thead>
-                            <tr class="bg-slate-100 text-slate-600 font-bold uppercase tracking-wider">
-                              <th class="px-3 py-2">Parameter</th>
-                              <th class="px-3 py-2 text-right">Value</th>
-                              <th class="px-3 py-2">Meaning</th>
-                            </tr>
-                          </thead>
-                          <tbody id="lntai-calc-table" class="divide-y divide-slate-100">
-                            <tr><td colspan="3" class="px-3 py-6 text-center text-slate-400 font-bold">Awaiting data.</td></tr>
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                    <div class="glass-card p-5">
-                      <h5 class="text-xs font-extrabold text-slate-700 uppercase tracking-widest mb-3">Recent LNTAI History Table</h5>
-                      <div class="overflow-x-auto max-h-[360px]">
-                        <table class="w-full text-left text-xs min-w-[760px]">
-                          <thead class="sticky top-0 bg-slate-100 text-slate-600 font-bold uppercase tracking-wider">
-                            <tr>
-                              <th class="px-3 py-2">Time</th>
-                              <th class="px-3 py-2 text-right">T Contact</th>
-                              <th class="px-3 py-2 text-right">I Avg</th>
-                              <th class="px-3 py-2 text-right">S_Temp / S_ΔT / S_TLR</th>
-                              <th class="px-3 py-2 text-right">LNTAI</th>
-                              <th class="px-3 py-2">Level</th>
-                            </tr>
-                          </thead>
-                          <tbody id="lntai-history-table" class="divide-y divide-slate-100">
-                            <tr><td colspan="6" class="px-3 py-6 text-center text-slate-400 font-bold">Awaiting data.</td></tr>
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
-                    <div class="glass-card p-5">
-                      <h5 class="text-xs font-extrabold text-slate-700 uppercase tracking-widest mb-4">LNTAI Algorithm Workflow</h5>
-                      <div class="grid grid-cols-1 md:grid-cols-4 gap-2">
-                        <div class="bg-slate-50 rounded-xl p-3 border border-slate-200"><div class="text-[9px] font-extrabold text-red-600 uppercase">1. Data Acquisition</div><div class="text-[10px] text-slate-600 mt-1">Contact temperature at 6 points/phase (MQTT), load current I_R/I_S/I_T (power meter), real-time ambient temperature (Open-Meteo API).</div></div>
-                        <div class="bg-slate-50 rounded-xl p-3 border border-slate-200"><div class="text-[9px] font-extrabold text-red-600 uppercase">2. Preprocessing &amp; Validation</div><div class="text-[10px] text-slate-600 mt-1">Check completeness &amp; value range. If invalid, the reading is discarded — the previous LNTAI value is retained.</div></div>
-                        <div class="bg-slate-50 rounded-xl p-3 border border-slate-200"><div class="text-[9px] font-extrabold text-red-600 uppercase">3. Parameter Aggregation</div><div class="text-[10px] text-slate-600 mt-1">Average temperature per phase T_R/T_S/T_T, average current I_avg, Loading% = I_avg/I_nominal x100%.</div></div>
-                        <div class="bg-slate-50 rounded-xl p-3 border border-slate-200"><div class="text-[9px] font-extrabold text-red-600 uppercase">4. Component Scores (0–40)</div><div class="text-[10px] text-slate-600 mt-1">S_Temp = temperature rise above ambient. S_ΔT = inter-phase temperature difference. S_TLR = temperature rise per unit load².</div></div>
-                        <div class="bg-slate-50 rounded-xl p-3 border border-slate-200"><div class="text-[9px] font-extrabold text-red-600 uppercase">5. Weighted LNTAI Score</div><div class="text-[10px] text-slate-600 mt-1">LNTAI = 0.40·S_Temp + 0.30·S_ΔT + 0.30·S_TLR. Result range: 0–40.</div></div>
-                        <div class="bg-slate-50 rounded-xl p-3 border border-slate-200"><div class="text-[9px] font-extrabold text-red-600 uppercase">6. Classification</div><div class="text-[10px] text-slate-600 mt-1">0–10 Normal · 10–25 Warning · 25–40 Critical.</div></div>
-                        <div class="bg-slate-50 rounded-xl p-3 border border-slate-200"><div class="text-[9px] font-extrabold text-red-600 uppercase">7. Logging &amp; Dashboard Update</div><div class="text-[10px] text-slate-600 mt-1">Store the data &amp; LNTAI score, refresh KPIs and trend charts in real time.</div></div>
-                      </div>
-                    </div>
-                    <div class="glass-card p-5">
-                      <h5 class="text-xs font-extrabold text-slate-700 uppercase tracking-widest mb-4">Engineering Interpretation</h5>
-                      <div class="space-y-3 text-[10px] text-slate-600 leading-relaxed">
-                        <p><b>LNTAI is a weighted composite score</b>, not a single temperature variable. Three components are each scored 0–40, then combined with weights 0.40/0.30/0.30 so the final result always falls within 0–40.</p>
-                        <p><b>S_Temp</b> scores the hottest contact's temperature rise above ambient against the 40K terminal rise limit (IEC 62271-1). <b>S_ΔT</b> scores the temperature difference between phases R/S/T — an indicator of contact imbalance. <b>S_TLR</b> scores the temperature rise relative to the square of the load — an indicator of unusual heating relative to the current flowing.</p>
-                        <p><b>Invalid or incomplete data</b> (sensor dropout, out-of-range values) is not used to compute a new score — the dashboard keeps showing the last valid LNTAI value until the next reading is complete.</p>
-                        <div class="bg-red-50 border border-red-100 rounded-xl p-3 font-mono text-[10px] text-red-700">
-                          LNTAI = 0.40·S_Temp + 0.30·S_ΔT + 0.30·S_TLR &nbsp;→&nbsp; result range 0–40
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div class="glass-card p-5">
-                    <h5 class="text-xs font-extrabold text-slate-700 uppercase tracking-widest mb-3">Classification Thresholds (Scale 0–40)</h5>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-                      <div class="bg-emerald-50 border border-emerald-100 rounded-xl p-3">
-                        <div class="text-[9px] font-extrabold text-emerald-700 uppercase tracking-widest">Normal</div>
-                        <div class="font-mono font-black text-lg text-slate-700">0 - 10</div>
-                        <div class="text-[10px] text-slate-500 mt-1">Routine monitoring</div>
-                      </div>
-                      <div class="bg-amber-50 border border-amber-100 rounded-xl p-3">
-                        <div class="text-[9px] font-extrabold text-amber-700 uppercase tracking-widest">Warning</div>
-                        <div class="font-mono font-black text-lg text-slate-700">10 - 25</div>
-                        <div class="text-[10px] text-slate-500 mt-1">Monitor trend, schedule inspection</div>
-                      </div>
-                      <div class="bg-red-50 border border-red-100 rounded-xl p-3">
-                        <div class="text-[9px] font-extrabold text-red-700 uppercase tracking-widest">Critical</div>
-                        <div class="font-mono font-black text-lg text-slate-700">25 - 40</div>
-                        <div class="text-[10px] text-slate-500 mt-1">Immediate action required</div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div class="glass-card p-5">
-                    <h5 class="text-xs font-extrabold text-slate-700 uppercase tracking-widest mb-3">Python Integration</h5>
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                      <div class="bg-slate-50 rounded-xl p-4 border border-slate-200">
-                        <div class="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-2">Module Files</div>
-                        <div class="font-mono text-[11px] text-slate-700 leading-relaxed">
-                          config.py<br>
-                          lntai_calculator.py<br>
-                          realtime_monitor.py<br>
-                          test_lntai.py
-                        </div>
-                      </div>
-                      <div class="bg-slate-50 rounded-xl p-4 border border-slate-200">
-                        <div class="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-2">Dashboard Output</div>
-                        <pre class="text-[10px] text-slate-700 overflow-x-auto">{"lntai":32.4,"level":"CRITICAL","s_temp":36.0,"s_deltaT":28.0,"s_tlr":30.7}</pre>
-                      </div>
-                    </div>
-                    <p class="text-[10px] text-slate-500 mt-4 leading-relaxed">LNTAI is not an absolute temperature alarm. This score combines contact temperature rise, inter-phase imbalance, and the plausibility of heating relative to load into a single 0–40 number, so a high score can indicate rising finger-contact resistance even when the absolute temperature is not yet very high.</p>
                   </div>
                 </div>
 
@@ -2544,8 +2257,6 @@
             '3': { R_Atas: 0, R_Bawah: 0, S_Atas: 0, S_Bawah: 0, T_Atas: 0, T_Bawah: 0, ts: '-' },
             '4': { R_Atas: 0, R_Bawah: 0, S_Atas: 0, S_Bawah: 0, T_Atas: 0, T_Bawah: 0, ts: '-' }
         };
-        // Sumber paket suhu terakhir per trafo: 'mqtt' (fisik, prioritas tertinggi) atau 'firestore' (fallback)
-        let temperatureDataSource = { '2': null, '3': null, '4': null };
 
         // Logger Data Array (Khusus memuat data asli dari Firestore)
         let firestoreLogs = [];
@@ -2732,6 +2443,9 @@
             snapshot.forEach((docSnap) => {
                 const raw = docSnap.data();
                 const parsed = parseFirestoreDoc(raw);
+                const hasSensorValue = ['R_Atas', 'R_Bawah', 'S_Atas', 'S_Bawah', 'T_Atas', 'T_Bawah']
+                    .some(k => Number.isFinite(Number(parsed[k])) && Number(parsed[k]) !== 0);
+                if (!hasSensorValue) return;
                 const rawTrafo = raw?.trafo ?? raw?.Trafo ?? raw?.transformer ?? raw?.id_trafo ?? raw?.device;
                 const rawTrafoText = rawTrafo == null ? '' : String(rawTrafo).toLowerCase();
                 const docIdText = String(docSnap.id || '').toLowerCase();
@@ -2770,20 +2484,6 @@
             _scheduleMLRealtimeUpdate('muat ulang histori suhu');
             console.log(`[SHIELD LOGGER] ${mappedDocs.length} log suhu dari ${sourcePath || 'Firestore'}`);
             renderLoggerTable();
-
-            // Jika MQTT fisik belum mengirim paket apa pun, pakai dokumen Firestore
-            // terbaru (log suhu realtime) sebagai nilai tampilan dashboard saat ini.
-            const latest = mappedDocs[0];
-            if (latest && temperatureDataSource[selectedTrafo] !== 'mqtt') {
-                temperatureData[selectedTrafo] = {
-                    R_Atas: latest.R_Atas, R_Bawah: latest.R_Bawah,
-                    S_Atas: latest.S_Atas, S_Bawah: latest.S_Bawah,
-                    T_Atas: latest.T_Atas, T_Bawah: latest.T_Bawah,
-                    ts: latest.formattedTime, timestamp: latest.timestamp, receivedAt: latest.timestamp
-                };
-                temperatureDataSource[selectedTrafo] = 'firestore';
-                if (typeof updateDashboardUI === 'function') updateDashboardUI();
-            }
         }
 
         function _mergeTempLoggerSources() {
@@ -2897,19 +2597,19 @@
 
         function _syncBebanTrainingLogs(trafo, logsAsc) {
             if (trafo !== selectedTrafo || !Array.isArray(logsAsc) || logsAsc.length === 0) return;
-            const mapped = logsAsc.map(p => ({
+            firestoreBebanLogs = logsAsc.map(p => ({
                 ...p,
                 docSortTime: p._time || _parseAnyTimestamp(p.timestamp),
                 formattedTime: new Date(p._time || _parseAnyTimestamp(p.timestamp)).toLocaleString('id-ID'),
                 trafo: `Trafo ${trafo}`
             })).sort((a, b) => b.docSortTime - a.docSortTime);
-            bebanLogSnapshots[`realtime_logs_trafo_${trafo}`] = mapped;
-            _mergeBebanLoggerSources();
+            _trimTrainingBuffer(firestoreBebanLogs);
 
             Object.keys(bebanChartHistoricalData).forEach(k => {
                 if (k.startsWith(trafo + '_')) delete bebanChartHistoricalData[k];
             });
             _scheduleMLRealtimeUpdate('update log beban');
+            if (activePage === 'logger') renderBebanLoggerTable();
         }
 
         function _syncBebanRealtimeTrainingLog(trafo, parsedData) {
@@ -2922,21 +2622,13 @@
                 trafo: `Trafo ${trafo}`
             };
 
-            const sourceKey = `realtime_doc_trafo_${trafo}`;
-            const currentRows = bebanLogSnapshots[sourceKey] || [];
-            const existingIdx = currentRows.findIndex(r => Math.abs((r.docSortTime || 0) - docSortTime) < 1000);
-            if (existingIdx >= 0) {
-                currentRows[existingIdx] = { ...currentRows[existingIdx], ...log };
-            } else {
-                currentRows.unshift(log);
+            const exists = firestoreBebanLogs.some(r => Math.abs((r.docSortTime || 0) - docSortTime) < 1000);
+            if (!exists) {
+                firestoreBebanLogs.unshift(log);
+                firestoreBebanLogs.sort((a, b) => b.docSortTime - a.docSortTime);
+                _trimTrainingBuffer(firestoreBebanLogs);
             }
-            currentRows.sort((a, b) => b.docSortTime - a.docSortTime);
-            _trimTrainingBuffer(currentRows);
-            bebanLogSnapshots[sourceKey] = currentRows;
-            _mergeBebanLoggerSources();
-            Object.keys(bebanChartHistoricalData).forEach(k => {
-                if (k.startsWith(trafo + '_')) delete bebanChartHistoricalData[k];
-            });
+            if (activePage === 'logger') renderBebanLoggerTable();
             _scheduleMLRealtimeUpdate('update beban realtime');
         }
 
@@ -2989,18 +2681,11 @@
             const pane = document.getElementById(`itab-content-${group}-${tabId}`);
             if (btn) btn.classList.add('active');
             if (pane) pane.classList.remove('hidden');
-            if (group === 'ml' && tabId === 'lntai' && typeof renderLNTAIPanel === 'function') {
-                setTimeout(() => renderLNTAIPanel(false), 80);
-            }
-            if (group === 'logger' && tabId === 'suhu' && _loggerTempDirty) renderLoggerTable();
-            if (group === 'logger' && tabId === 'beban' && _loggerBebanDirty) renderBebanLoggerTable();
         }
 
-        // ── Sidebar submenu: open/close state per group ──────────────────────
+        // ── Sidebar submenu ──────────────────────────────────────────────────
         const _subMenuOpen = { dashboard: true, logger: false, graphs: false, ml: false };
-
-        // Max-height values per submenu (px) for smooth CSS transition
-        const _subMenuH = { dashboard: 88, logger: 88, graphs: 88, ml: 408 };
+        const _subMenuH    = { dashboard: 88, logger: 88, graphs: 88, ml: 368 };
 
         function _applySubMenuState(group) {
             const el  = document.getElementById('submenu-' + group);
@@ -3018,10 +2703,7 @@
         }
 
         function toggleSubMenu(group) {
-            // If clicking a different group: switch page AND open its submenu
-            const pageMap = { dashboard:'dashboard', logger:'logger', graphs:'graphs', ml:'ml' };
-            if (activePage !== pageMap[group]) switchPage(pageMap[group]);
-            // Toggle open/close
+            if (activePage !== group) switchPage(group);
             _subMenuOpen[group] = !_subMenuOpen[group];
             _applySubMenuState(group);
         }
@@ -3036,7 +2718,6 @@
             if (page === 'logger' && tab === 'beban') loadBebanLogs();
             if (page === 'graphs' && tab === 'suhu')  setTimeFilter(activeTimeFilter);
             if (page === 'graphs' && tab === 'beban') setBebanTimeFilter(activeBebanTimeFilter);
-            // Update active sub-item highlight
             _setActiveSubItem(page, tab);
         }
 
@@ -3048,10 +2729,7 @@
             if (target) target.classList.add('active');
         }
 
-        // Initialise submenu states on load
-        (function() {
-            Object.keys(_subMenuOpen).forEach(_applySubMenuState);
-        })();
+        (function() { Object.keys(_subMenuOpen).forEach(_applySubMenuState); })();
 
         // Beralih Halaman Menu Sidebar
         function switchPage(page) {
@@ -3060,7 +2738,6 @@
             if(document.getElementById(menuId)) {
                 document.getElementById(menuId).classList.add('active');
             }
-            // Open this page's submenu, close others
             ['dashboard','logger','graphs','ml'].forEach(g => {
                 _subMenuOpen[g] = (g === page);
                 _applySubMenuState(g);
@@ -3103,24 +2780,18 @@
 
         // Ubah Trafo Dropdown
         const _lokasiLabels = {
-            'gi-gandul':     'GI Gandul',
-            'gi-cimanggis':  'GI Cimanggis',
-            'gi-depok':      'GI Depok',
-            'gis-depok-baru':'GIS Depok Baru',
-            'gis-ragunan':   'GIS Ragunan'
+            'gi-gandul':'GI Gandul','gi-cimanggis':'GI Cimanggis',
+            'gi-depok':'GI Depok','gis-depok-baru':'GIS Depok Baru','gis-ragunan':'GIS Ragunan'
         };
-
         function handleLokasiChange() {
             const sel = document.getElementById('lokasi-selector');
             if (sel.value !== 'gi-gandul') {
-                const label = _lokasiLabels[sel.value] || sel.value;
-                document.getElementById('lokasi-warning-name').textContent = label;
+                document.getElementById('lokasi-warning-name').textContent = _lokasiLabels[sel.value] || sel.value;
                 document.getElementById('lokasi-warning-modal').classList.remove('hidden');
-                sel.value = 'gi-gandul'; // reset immediately
+                sel.value = 'gi-gandul';
                 lucide.createIcons();
             }
         }
-
         function closeLokasWarning() {
             document.getElementById('lokasi-warning-modal').classList.add('hidden');
         }
@@ -3251,7 +2922,6 @@
 
             // Simpan paket terbaru ke memori untuk Dashboard
             temperatureData[trafoIdx] = mappedData;
-            temperatureDataSource[trafoIdx] = 'mqtt';
             _syncTempTrainingLog(trafoIdx, mappedData);
             _persistTempLogToFirestore(trafoIdx, mappedData);
 
@@ -3369,7 +3039,6 @@
 
             // Update KPI Delta & Hotspot
             updateDeltaKPI();
-            if (typeof _refreshLNTAIIfVisible === 'function') _refreshLNTAIIfVisible();
 
             // Update Status Keamanan Trafo
             const statusBadge = document.getElementById('summary-status-badge');
@@ -3389,20 +3058,10 @@
         }
 
         // Render Baris Riwayat dari Firestore ke Tabel Logger
-        // Rebuild tabel logger hanya jika tab-nya sedang terlihat (mencegah reflow DOM
-        // ratusan baris berulang kali di background setiap ada snapshot Firestore baru)
-        let _loggerTempDirty = false;
         function renderLoggerTable() {
-            const pane = document.getElementById('itab-content-logger-suhu');
-            if (activePage !== 'logger' || (pane && pane.classList.contains('hidden'))) {
-                _loggerTempDirty = true;
-                return;
-            }
-            _loggerTempDirty = false;
-
             const tableBody = document.getElementById('logger-body');
             if (!tableBody) return;
-
+            
             tableBody.innerHTML = '';
 
             if (firestoreLogs.length === 0) {
@@ -3849,9 +3508,7 @@
                     return v;
                 };
                 const keyArr = Array.isArray(keys) ? keys : [keys];
-                const norm = (s) => String(s).toLowerCase().replace(/[^a-z0-9]/g, '');
                 for (const key of keyArr) {
-                    if (!key) continue;
                     // Format Firestore REST (fields wrapper)
                     if (docData.fields && docData.fields[key]) {
                         const v = docData.fields[key];
@@ -3865,11 +3522,9 @@
                         return unwrap(docData[key]);
                     }
                     const lowerKey = String(key).toLowerCase();
-                    const normKey = norm(key);
                     const nestedKey = Object.keys(flatDocData).find(k => {
                         const lk = k.toLowerCase();
-                        const tail = k.split('.').pop() || k;
-                        return lk === lowerKey || lk.endsWith('.' + lowerKey) || norm(tail) === normKey;
+                        return lk === lowerKey || lk.endsWith('.' + lowerKey);
                     });
                     if (nestedKey) {
                         return unwrap(flatDocData[nestedKey]);
@@ -3885,22 +3540,22 @@
 
             const result = {
                 // Arus — coba semua variasi nama ION8650 / modbus
-                I_R: num(extract(['I_R','Ir','IR','I_a','Ia','I1','I_L1','IL1','I L1','Current_R','Current R','Current_A','Current A','Current_L1','Current L1','ia','current_a','current a','current_l1','iR','I_ph1','I ph1','I_phase_A','I phase A','phase_a_current','phase a current','Ampere_R','Ampere R','Arus_R','Arus R','Arus_A','Arus A','i_r','i_a'])),
-                I_S: num(extract(['I_S','Is','IS','I_b','Ib','I2','I_L2','IL2','I L2','Current_S','Current S','Current_B','Current B','Current_L2','Current L2','ib','current_b','current b','current_l2','iS','I_ph2','I ph2','I_phase_B','I phase B','phase_b_current','phase b current','Ampere_S','Ampere S','Arus_S','Arus S','Arus_B','Arus B','i_s','i_b'])),
-                I_T: num(extract(['I_T','It','IT','I_c','Ic','I3','I_L3','IL3','I L3','Current_T','Current T','Current_C','Current C','Current_L3','Current L3','ic','current_c','current c','current_l3','iT','I_ph3','I ph3','I_phase_C','I phase C','phase_c_current','phase c current','Ampere_T','Ampere T','Arus_T','Arus T','Arus_C','Arus C','i_t','i_c'])),
+                I_R: num(extract(['I_R','Ir','IR','I_a','Ia','I1','Current_R','ia','current_a','iR','I_ph1','i_r','i_a'])),
+                I_S: num(extract(['I_S','Is','IS','I_b','Ib','I2','Current_S','ib','current_b','iS','I_ph2','i_s','i_b'])),
+                I_T: num(extract(['I_T','It','IT','I_c','Ic','I3','Current_T','ic','current_c','iT','I_ph3','i_t','i_c'])),
                 // Tegangan
-                V_R: num(extract(['V_R','Vr','VR','V_a','Va','V1','V_L1','VL1','Voltage_R','Voltage R','Voltage_A','Voltage A','Voltage_L1','Voltage L1','V_an','V AN','V_RS','van','voltage_a','voltage a','vR','Van','Vab','v_r','v_a'])),
-                V_S: num(extract(['V_S','Vs','VS','V_b','Vb','V2','V_L2','VL2','Voltage_S','Voltage S','Voltage_B','Voltage B','Voltage_L2','Voltage L2','V_bn','V BN','V_ST','vbn','voltage_b','voltage b','vS','Vbn','Vbc','v_s','v_b'])),
-                V_T: num(extract(['V_T','Vt','VT','V_c','Vc','V3','V_L3','VL3','Voltage_T','Voltage T','Voltage_C','Voltage C','Voltage_L3','Voltage L3','V_cn','V CN','V_TR','vcn','voltage_c','voltage c','vT','Vcn','Vca','v_t','v_c'])),
+                V_R: num(extract(['V_R','Vr','VR','V_a','Va','V1','Voltage_R','V_an','V_RS','van','voltage_a','vR','Van','Vab','v_r','v_a'])),
+                V_S: num(extract(['V_S','Vs','VS','V_b','Vb','V2','Voltage_S','V_bn','V_ST','vbn','voltage_b','vS','Vbn','Vbc','v_s','v_b'])),
+                V_T: num(extract(['V_T','Vt','VT','V_c','Vc','V3','Voltage_T','V_cn','V_TR','vcn','voltage_c','vT','Vcn','Vca','v_t','v_c'])),
                 // Daya — auto-detect override + alias lengkap
                 // Nilai dari ION8650 dalam satuan kW/kVAR/kVA — dibagi 1000 → MW/MVAR/MVA
-                kW:   num(extract([ovr.kW, 'MW','mw','P_MW','kW','KW','P','P_total','P Total','kw','p_total','ActivePower','Active Power','active_power','real_power','watt','Watt','watts','active_power_kw'].filter(Boolean))) / 1000,
-                kVAR: num(extract([ovr.kVAR,'MVAR','mvar','Q_MVAR','kVAR','KVAR','Q','Q_total','Q Total','kvar','q_total','ReactivePower','Reactive Power','reactive_power','var','Var'].filter(Boolean))) / 1000,
-                kVA:  num(extract([ovr.kVA, 'MVA','mva','S_MVA','kVA','KVA','S','S_total','S Total','kva','s_total','ApparentPower','Apparent Power','apparent_power','va','Va'].filter(Boolean))) / 1000,
+                kW:   num(extract([ovr.kW, 'MW','mw','P_MW','kW','KW','P','kw','p_total','ActivePower','active_power','real_power','P_total','watt','Watt','watts','active_power_kw'].filter(Boolean))) / 1000,
+                kVAR: num(extract([ovr.kVAR,'MVAR','mvar','Q_MVAR','kVAR','KVAR','Q','kvar','q_total','ReactivePower','reactive_power','Q_total','var','Var'].filter(Boolean))) / 1000,
+                kVA:  num(extract([ovr.kVA, 'MVA','mva','S_MVA','kVA','KVA','S','kva','s_total','ApparentPower','apparent_power','S_total','va','Va'].filter(Boolean))) / 1000,
                 // Power Factor — ION8650 sering pakai desimal 0.xx atau integer 0-100
                 PF:   num(extract([ovr.PF,  'PF','pf','PowerFactor','power_factor','cos_phi','PF_total','pf_total','CosPhi','cosphi','pfTotal','pf_avg','PF_avg'].filter(Boolean))),
                 // % Beban
-                beban_persen: num(extract(['beban_persen','beban persen','load_percent','LoadPercent','Load Percent','beban','load','load_pct','load pct','Beban','loadPercent','load_pct_avg'])),
+                beban_persen: num(extract(['beban_persen','load_percent','LoadPercent','beban','load','load_pct','Beban','loadPercent','load_pct_avg'])),
                 // Timestamp
                 timestamp: extract(['timestamp','ts','Timestamp','time','datetime','created_at','waktu','time_stamp']) || new Date().toLocaleString('id-ID')
             };
@@ -4097,6 +3752,10 @@
                 const raw = docSnap.data();
                 if (filterByTrafo && !_isBebanDocForTrafo(docSnap.id, raw, selectedTrafo)) return;
                 const parsed = parseBebanDoc(raw);
+                if (!parsed) return;
+                const hasMeterValue = ['I_R', 'I_S', 'I_T', 'V_R', 'V_S', 'V_T', 'kW', 'kVAR', 'kVA', 'PF', 'beban_persen']
+                    .some(k => Number.isFinite(Number(parsed[k])) && Number(parsed[k]) !== 0);
+                if (!hasMeterValue) return;
                 const docTime = _parseAnyTimestamp(parsed.timestamp);
                 parsed._time = docTime;
                 mapped.push({
@@ -4127,29 +3786,31 @@
             const seen = new Set();
             const deduped = [];
             merged
-                .filter(row => row && Number.isFinite(row.docSortTime))
                 .sort((a, b) => b.docSortTime - a.docSortTime)
                 .forEach(row => {
                     const key = [
                         Math.round((row.docSortTime || 0) / 1000),
                         row.trafo,
-                        Number(row.I_R || 0).toFixed(2),
-                        Number(row.I_S || 0).toFixed(2),
-                        Number(row.I_T || 0).toFixed(2),
-                        Number(row.kW || 0).toFixed(4),
-                        Number(row.kVA || 0).toFixed(4)
+                        row.I_R,
+                        row.I_S,
+                        row.I_T,
+                        row.V_R,
+                        row.V_S,
+                        row.V_T,
+                        row.kW,
+                        row.kVA
                     ].join('|');
                     if (seen.has(key)) return;
                     seen.add(key);
                     deduped.push(row);
                 });
-            _applyBebanLoggerDocs(deduped, 'gabungan Firestore beban');
+            _applyBebanLoggerDocs(deduped, 'gabungan Firestore realtime beban');
         }
 
-        async function _fetchAllAvailableBebanLogs() {
+        async function _fetchFirstAvailableBebanLogs() {
             const docIds = _getBebanDocIdCandidates(selectedTrafo);
             const rootCollections = _getBebanRootCollectionCandidates();
-            bebanLogSnapshots = {};
+            let firstEmpty = null;
 
             for (const root of rootCollections) {
                 for (const id of docIds) {
@@ -4157,10 +3818,11 @@
                     try {
                         const snap = await window.fs.getDocs(window.fs.collection(window.db, root, id, 'logs'));
                         const mapped = _mapBebanDocsSnapshot(snap, sourcePath, false);
-                        bebanLogSnapshots[sourcePath] = mapped;
+                        if (!firstEmpty) firstEmpty = { mapped, sourcePath, kind: 'logs', root, docId: id };
                         console.log(`[BEBAN LOGGER] ${sourcePath} -> ${snap.size} dokumen`);
                         if (mapped.length > 0) {
                             bebanDocIdMap[selectedTrafo] = id;
+                            return { mapped, sourcePath, kind: 'logs', root, docId: id };
                         }
                     } catch (err) {
                         console.warn(`[BEBAN LOGGER] Gagal membaca ${sourcePath}:`, err.message);
@@ -4176,13 +3838,14 @@
                     if (mapped.length === 0 && snap.size > 0) {
                         mapped = _mapBebanDocsSnapshot(snap, `${sourcePath} (fallback semua dokumen)`, false);
                     }
-                    bebanLogSnapshots[sourcePath] = mapped;
+                    if (!firstEmpty) firstEmpty = { mapped, sourcePath, kind: 'root', root };
+                    if (mapped.length > 0) return { mapped, sourcePath, kind: 'root', root };
                 } catch (err) {
                     console.warn(`[BEBAN LOGGER] Gagal membaca ${root}:`, err.message);
                 }
             }
 
-            _mergeBebanLoggerSources();
+            return firstEmpty || { mapped: [], sourcePath: 'beban_realtime', kind: 'root' };
         }
 
         async function subscribeBebanLogsForSelectedTrafo() {
@@ -4190,17 +3853,17 @@
             if (typeof bebanLogsUnsubscribe === 'function') {
                 bebanLogsUnsubscribe();
                 bebanLogsUnsubscribe = null;
-            } else if (Array.isArray(bebanLogsUnsubscribe)) {
-                bebanLogsUnsubscribe.forEach(u => { if (typeof u === 'function') u(); });
-                bebanLogsUnsubscribe = null;
             }
 
-            await _fetchAllAvailableBebanLogs();
+            const initial = await _fetchFirstAvailableBebanLogs();
+            bebanLogSnapshots = { [initial.sourcePath]: initial.mapped };
+            _mergeBebanLoggerSources();
 
-            const docIds = _getBebanDocIdCandidates(selectedTrafo);
-            const rootCollections = _getBebanRootCollectionCandidates();
-            const unsubscribes = [];
             try {
+                const unsubscribes = [];
+                const rootCollections = _getBebanRootCollectionCandidates();
+                const docIds = _getBebanDocIdCandidates(selectedTrafo);
+
                 rootCollections.forEach(root => {
                     docIds.forEach(id => {
                         const sourcePath = `${root}/${id}/logs`;
@@ -4209,30 +3872,30 @@
                             const unsub = window.fs.onSnapshot(ref, (snapshot) => {
                                 bebanLogSnapshots[sourcePath] = _mapBebanDocsSnapshot(snapshot, sourcePath, false);
                                 _mergeBebanLoggerSources();
-                            }, err => console.warn(`[BEBAN LOGGER] onSnapshot ${sourcePath}:`, err.message));
+                            }, err => console.error(`[BEBAN LOGGER] onSnapshot ${sourcePath}:`, err.message));
                             unsubscribes.push(unsub);
                         } catch (err) {
-                            console.warn(`[BEBAN LOGGER] Gagal listener ${sourcePath}:`, err.message);
+                            console.warn(`[BEBAN LOGGER] Lewati listener ${sourcePath}:`, err.message);
                         }
                     });
 
                     try {
-                        const sourcePath = root;
                         const ref = window.fs.collection(window.db, root);
                         const unsub = window.fs.onSnapshot(ref, (snapshot) => {
-                            let mapped = _mapBebanDocsSnapshot(snapshot, sourcePath, true);
+                            let mapped = _mapBebanDocsSnapshot(snapshot, root, true);
                             if (mapped.length === 0 && snapshot.size > 0) {
-                                mapped = _mapBebanDocsSnapshot(snapshot, `${sourcePath} (fallback semua dokumen)`, false);
+                                mapped = _mapBebanDocsSnapshot(snapshot, `${root} (fallback semua dokumen)`, false);
                             }
-                            bebanLogSnapshots[sourcePath] = mapped;
+                            bebanLogSnapshots[root] = mapped;
                             _mergeBebanLoggerSources();
-                        }, err => console.warn(`[BEBAN LOGGER] onSnapshot ${sourcePath}:`, err.message));
+                        }, err => console.error(`[BEBAN LOGGER] onSnapshot ${root}:`, err.message));
                         unsubscribes.push(unsub);
                     } catch (err) {
-                        console.warn(`[BEBAN LOGGER] Gagal listener ${root}:`, err.message);
+                        console.warn(`[BEBAN LOGGER] Lewati listener ${root}:`, err.message);
                     }
                 });
-                bebanLogsUnsubscribe = unsubscribes;
+
+                bebanLogsUnsubscribe = () => unsubscribes.forEach(u => { if (typeof u === 'function') u(); });
             } catch (err) {
                 console.error('[BEBAN LOGGER] Gagal memasang listener:', err.message);
             }
@@ -4287,7 +3950,6 @@
 
             // Update KPI imbalance & hotspot (setelah data beban masuk)
             updateDeltaKPI();
-            if (typeof _refreshLNTAIIfVisible === 'function') _refreshLNTAIIfVisible();
 
             // Timestamp update terakhir
             const updateEl = document.getElementById('beban-update-time');
@@ -4432,15 +4094,7 @@
         }
 
         // Render tabel histori beban
-        let _loggerBebanDirty = false;
         function renderBebanLoggerTable() {
-            const pane = document.getElementById('itab-content-logger-beban');
-            if (activePage !== 'logger' || (pane && pane.classList.contains('hidden'))) {
-                _loggerBebanDirty = true;
-                return;
-            }
-            _loggerBebanDirty = false;
-
             const tableBody = document.getElementById('beban-logger-body');
             if (!tableBody) return;
             tableBody.innerHTML = '';
@@ -5005,7 +4659,7 @@
             const hint = document.getElementById(hintId);
             if (hint) hint.textContent = nowActive
                 ? 'Klik & seret untuk pilih area zoom · ESC untuk batal'
-                : 'Scroll=Zoom · Drag=Pan';
+                : 'Scroll=Zoom · Drag=Geser';
 
             lucide.createIcons();
         }
@@ -5286,22 +4940,6 @@
         // Digunakan sebagai basis normalisasi thermal_stress index: (I/I_rated)²·(R/R₀)
         const I_CB_RATED = 2000; // Ampere
 
-        let mlCharts = {};
-
-        // Konfigurasi LNTAI mengikuti flowchart: skor komponen 0-40, digabung berbobot
-        // (0.40 S_Temp + 0.30 S_ΔT + 0.30 S_TLR) sehingga hasil akhir selalu 0-40.
-        const LNTAI_CFG = {
-            scoreMax: 40,
-            weights: { temp: 0.40, deltaT: 0.30, tlr: 0.30 },
-            refTempRise: 40,      // IEC 62271-1:2017 §7.4 — batas kenaikan suhu terminal kontak (K)
-            refPhaseDelta: 15,    // batas kritikal selisih suhu antar fasa (K), selaras dgn severity PMT lain
-            refTLR: 20,           // referensi rasio kenaikan suhu per (I_norm)² pada kondisi anomali (K/unit²)
-            tlrLoadFloor: 0.15,   // floor I_norm agar TLR tidak meledak saat beban sangat rendah
-            ambient: 30,
-            iRated: I_NOMINAL_TRAFO,
-            thresholds: { warning: 10, critical: 25 }
-        };
-
         const GANDUL_WEATHER_POINT = {
             label: 'GI Gandul',
             latitude: -6.346667,
@@ -5335,9 +4973,8 @@
             const micro = Math.sin(now / (1000 * 53)) * 0.22 + Math.sin(now / (1000 * 131)) * 0.16;
             const nextTemp = _clampNumber(ambientWeatherState.baseTemp + micro, 24, 38);
             ambientWeatherState.temp = Number(nextTemp.toFixed(2));
-            LNTAI_CFG.ambient = ambientWeatherState.temp;
             T_AMBIENT_REF = ambientWeatherState.temp;
-            if (typeof _refreshLNTAIIfVisible === 'function') _refreshLNTAIIfVisible();
+            if (typeof _scheduleMLRealtimeUpdate === 'function') _scheduleMLRealtimeUpdate('update suhu ambient GI Gandul');
         }
 
         function _setAmbientWeatherBase(temp, source, apiOk = false) {
@@ -5370,479 +5007,7 @@
         setInterval(refreshGandulAmbientTemperature, GANDUL_WEATHER_POINT.refreshMs);
         setInterval(_applyAmbientVariation, GANDUL_WEATHER_POINT.variationMs);
 
-        // Langkah 3-6 flowchart: agregasi parameter → skor komponen 0-40 → skor berbobot → klasifikasi.
-        // `ph` adalah hasil _phaseAveragesFromTemp (berisi tContact/hottestPhase/deltaPhase/T_R/T_S/T_T).
-        function _calcLNTAIFrontend(ph, iAvg, tAmbient = LNTAI_CFG.ambient, iRated = LNTAI_CFG.iRated) {
-            const tc = Number(ph?.tContact);
-            const dPhase = Number(ph?.deltaPhase);
-            const ia = Number(iAvg);
-            const ta = Number(tAmbient);
-            const ir = Number(iRated);
-            if (![tc, dPhase, ia, ta, ir].every(Number.isFinite) || ir === 0) return null;
-
-            const iNorm = ia / ir;
-            const loadingPct = iNorm * 100;
-            const deltaReal = tc - ta;
-            // Floor mencegah rasio TLR meledak saat beban mendekati nol
-            const iNormFloor = Math.max(iNorm, LNTAI_CFG.tlrLoadFloor);
-            const tlr = deltaReal / Math.pow(iNormFloor, 2);
-
-            const S_Temp = _clampNumber((deltaReal / LNTAI_CFG.refTempRise) * LNTAI_CFG.scoreMax, 0, LNTAI_CFG.scoreMax);
-            const S_DeltaT = _clampNumber((dPhase / LNTAI_CFG.refPhaseDelta) * LNTAI_CFG.scoreMax, 0, LNTAI_CFG.scoreMax);
-            const S_TLR = _clampNumber((tlr / LNTAI_CFG.refTLR) * LNTAI_CFG.scoreMax, 0, LNTAI_CFG.scoreMax);
-
-            const lntai = LNTAI_CFG.weights.temp * S_Temp + LNTAI_CFG.weights.deltaT * S_DeltaT + LNTAI_CFG.weights.tlr * S_TLR;
-
-            const level = lntai >= LNTAI_CFG.thresholds.critical ? 'CRITICAL'
-                : lntai >= LNTAI_CFG.thresholds.warning ? 'WARNING'
-                : 'NORMAL';
-            const meta = {
-                NORMAL:   { icon: '🟢', cls: 'bg-emerald-100 text-emerald-700', rec: 'Normal condition. Continue routine monitoring.' },
-                WARNING:  { icon: '🟡', cls: 'bg-amber-100 text-amber-700', rec: 'Monitor the component score trend and sensor validity, schedule an inspection.' },
-                CRITICAL: { icon: '🔴', cls: 'bg-red-100 text-red-700 animate-pulse', rec: 'Take immediate action, inspect the finger contacts, and evaluate the load.' }
-            }[level];
-            return {
-                t_contact: tc,
-                t_ambient: ta,
-                i_avg: ia,
-                i_rated: ir,
-                i_norm: iNorm,
-                loading_pct: loadingPct,
-                delta_T_real: deltaReal,
-                delta_phase: dPhase,
-                tlr,
-                S_Temp, S_DeltaT, S_TLR,
-                lntai,
-                level,
-                ...meta
-            };
-        }
-
-        function _phaseAveragesFromTemp(row) {
-            if (!row) return null;
-            const vals = ['R_Atas','R_Bawah','S_Atas','S_Bawah','T_Atas','T_Bawah'].map(k => Number(row[k]));
-            if (!vals.every(Number.isFinite) || vals.every(v => v <= 0)) return null;
-            const phases = {
-                R: (Number(row.R_Atas) + Number(row.R_Bawah)) / 2,
-                S: (Number(row.S_Atas) + Number(row.S_Bawah)) / 2,
-                T: (Number(row.T_Atas) + Number(row.T_Bawah)) / 2
-            };
-            const hottest = Object.keys(phases).reduce((a, b) => phases[a] >= phases[b] ? a : b);
-            return {
-                T_R: phases.R,
-                T_S: phases.S,
-                T_T: phases.T,
-                tContact: phases[hottest],
-                hottestPhase: hottest,
-                deltaPhase: Math.max(phases.R, phases.S, phases.T) - Math.min(phases.R, phases.S, phases.T)
-            };
-        }
-
-        // Cache LNTAI valid terakhir per trafo — langkah 2 flowchart: jika bacaan baru tidak
-        // lengkap/valid, data tidak dipakai dan nilai LNTAI sebelumnya dipertahankan.
-        let _lastValidLNTAIResult = { '2': null, '3': null, '4': null };
-
-        function _currentLNTAIResult() {
-            const td = temperatureData[selectedTrafo];
-            const bd = latestBebanData[selectedTrafo];
-            const ph = _phaseAveragesFromTemp(td);
-            const validTemp = ph && hasValidTemperaturePacket(td);
-            const validBeban = bd && hasValidBebanPacket(bd);
-            if (!validTemp || !validBeban) return _lastValidLNTAIResult[selectedTrafo];
-
-            const iAvg = (Number(bd.I_R) || 0) + (Number(bd.I_S) || 0) + (Number(bd.I_T) || 0);
-            const calc = _calcLNTAIFrontend(ph, iAvg / 3);
-            if (!calc) return _lastValidLNTAIResult[selectedTrafo];
-            const result = { ...calc, ...ph, timestamp: td.timestamp || bd.timestamp || new Date().toISOString(), source: 'realtime snapshot' };
-            _lastValidLNTAIResult[selectedTrafo] = result;
-            return result;
-        }
-
-        function _rowTime(row) {
-            if (!row) return NaN;
-            if (Number.isFinite(row._time)) return row._time;
-            if (Number.isFinite(row.docSortTime)) return row.docSortTime;
-            return _parseAnyTimestamp(row.timestamp || row.ts || row.receivedAt || row.formattedTime);
-        }
-
-        function _buildLNTAISeries() {
-            const paired = [];
-            const tempRows = [...(firestoreLogs || [])]
-                .map(r => ({ ...r, _time: _rowTime(r) }))
-                .filter(r => Number.isFinite(r._time) && _phaseAveragesFromTemp(r))
-                .sort((a, b) => a._time - b._time);
-            const bebanRows = [...(firestoreBebanLogs || [])]
-                .map(r => ({ ...r, _time: _rowTime(r) }))
-                .filter(r => Number.isFinite(r._time) && ['I_R','I_S','I_T'].some(k => Number(r[k]) > 0))
-                .sort((a, b) => a._time - b._time);
-
-            if (tempRows.length && bebanRows.length) {
-                let j = 0;
-                tempRows.slice(-240).forEach(t => {
-                    while (j + 1 < bebanRows.length && bebanRows[j + 1]._time <= t._time) j++;
-                    const candidates = [bebanRows[j], bebanRows[j + 1]].filter(Boolean);
-                    const nearest = candidates.sort((a, b) => Math.abs(a._time - t._time) - Math.abs(b._time - t._time))[0];
-                    if (!nearest || Math.abs(nearest._time - t._time) > 30 * 60 * 1000) return;
-                    const ph = _phaseAveragesFromTemp(t);
-                    const iAvg = ((Number(nearest.I_R) || 0) + (Number(nearest.I_S) || 0) + (Number(nearest.I_T) || 0)) / 3;
-                    const calc = _calcLNTAIFrontend(ph, iAvg);
-                    if (calc) paired.push({ ...calc, ...ph, time: t._time, source: 'Firestore temperature + load history' });
-                });
-            }
-
-            if (paired.length >= 2) return { rows: paired.slice(-120), source: 'Firestore temperature + load history' };
-
-            const n = Math.min(chartDataPoints.timestamps.length, (bebanLiveChartBuffer[selectedTrafo] || []).length, 60);
-            if (n > 0) {
-                const loadRows = (bebanLiveChartBuffer[selectedTrafo] || []).slice(-n);
-                for (let idx = 0; idx < n; idx++) {
-                    const tempIdx = chartDataPoints.timestamps.length - n + idx;
-                    const tempRow = {
-                        R_Atas: chartDataPoints.R_Atas[tempIdx],
-                        R_Bawah: chartDataPoints.R_Bawah[tempIdx],
-                        S_Atas: chartDataPoints.S_Atas[tempIdx],
-                        S_Bawah: chartDataPoints.S_Bawah[tempIdx],
-                        T_Atas: chartDataPoints.T_Atas[tempIdx],
-                        T_Bawah: chartDataPoints.T_Bawah[tempIdx]
-                    };
-                    const ph = _phaseAveragesFromTemp(tempRow);
-                    const load = loadRows[idx];
-                    const iAvg = ((Number(load.I_R) || 0) + (Number(load.I_S) || 0) + (Number(load.I_T) || 0)) / 3;
-                    const calc = ph ? _calcLNTAIFrontend(ph, iAvg) : null;
-                    if (calc) paired.push({ ...calc, ...ph, time: Date.now() - (n - idx) * 60000, source: 'live buffer' });
-                }
-                if (paired.length) return { rows: paired, source: 'live chart buffer' };
-            }
-
-            const current = _currentLNTAIResult();
-            return current ? { rows: [{ ...current, time: Date.now() }], source: current.source } : { rows: [], source: 'awaiting data' };
-        }
-
-        function _setLNTAIText(id, text) {
-            const el = document.getElementById(id);
-            if (el) el.textContent = text;
-        }
-
-        function _updateLNTAIInsight(rows, current) {
-            const root = document.getElementById('lntai-insight-list');
-            if (!root) return;
-            if (!current) {
-                root.innerHTML = '<div class="text-[10px] text-slate-400">Valid contact temperature and load current data are needed to compute LNTAI.</div>';
-                return;
-            }
-            const recent = rows.slice(-12);
-            const maxRow = rows.reduce((m, r) => r.lntai > m.lntai ? r : m, rows[0] || current);
-            const avgRecent = recent.length ? recent.reduce((s, r) => s + r.lntai, 0) / recent.length : current.lntai;
-            const trend = recent.length >= 3 ? recent[recent.length - 1].lntai - recent[0].lntai : 0;
-            const items = [
-                { title: `${current.icon} Status ${current.level}`, body: `${current.rec} Current LNTAI is ${current.lntai.toFixed(2)} on a 0–40 scale.` },
-                { title: 'Score components', body: `S_Temp ${current.S_Temp.toFixed(1)} · S_ΔT ${current.S_DeltaT.toFixed(1)} · S_TLR ${current.S_TLR.toFixed(1)} (each on a 0–40 scale).` },
-                { title: 'Hottest phase', body: `Phase ${current.hottestPhase} averages ${current.t_contact.toFixed(1)} °C, inter-phase difference ${current.delta_phase.toFixed(1)} °C.` },
-                { title: 'Load context', body: `Average current ${current.i_avg.toFixed(1)} A, Loading ${current.loading_pct.toFixed(1)}% of I_nominal ${current.i_rated} A.` },
-                { title: 'Recent trend', body: `Average LNTAI over the last ${recent.length} points is ${avgRecent.toFixed(2)}. ${trend > 0.3 ? 'Trending up, needs closer monitoring.' : trend < -0.3 ? 'Trending down, thermal condition improving.' : 'Relatively stable trend.'}` },
-                { title: 'Period peak', body: `Maximum LNTAI in the displayed data is ${maxRow.lntai.toFixed(2)} (${maxRow.level}).` }
-            ];
-            root.innerHTML = items.map(item => `
-                <div class="bg-slate-50 border border-slate-200 rounded-xl p-3">
-                  <div class="text-[10px] font-extrabold text-slate-700 uppercase tracking-widest">${item.title}</div>
-                  <div class="text-[10px] text-slate-600 leading-relaxed mt-1">${item.body}</div>
-                </div>
-            `).join('');
-        }
-
-        function _updateLNTAIKPIInsights(rows, current, source) {
-            if (!current) {
-                ['lntai-insight-kpi-lntai','lntai-insight-kpi-residual','lntai-insight-kpi-input','lntai-insight-kpi-data'].forEach(id => _setLNTAIText(id, 'Awaiting data.'));
-                return;
-            }
-            const levelText = current.level === 'NORMAL'
-                ? 'The score is in the normal zone (0–10). All three components — temperature rise, phase difference, and load ratio — remain within acceptable limits.'
-                : current.level === 'WARNING'
-                    ? 'The score is in the warning zone (10–25). One or more components is already significant; monitor the trend and schedule an inspection.'
-                    : 'Critical score (25–40). A combination of temperature rise, phase imbalance, and/or load ratio shows a strong indication of thermal anomaly.';
-            const dominant = [
-                { name: 'S_Temp (temperature rise)', value: current.S_Temp },
-                { name: 'S_ΔT (inter-phase difference)', value: current.S_DeltaT },
-                { name: 'S_TLR (temperature/load² ratio)', value: current.S_TLR }
-            ].reduce((a, b) => b.value > a.value ? b : a);
-            const residualText = `The current dominant component is ${dominant.name} with a score of ${dominant.value.toFixed(1)} on a 0–40 scale. Breakdown: S_Temp ${current.S_Temp.toFixed(1)}, S_ΔT ${current.S_DeltaT.toFixed(1)}, S_TLR ${current.S_TLR.toFixed(1)}.`;
-            const inputText = `Phase ${current.hottestPhase} is used as the reference since it has the highest average temperature at ${current.t_contact.toFixed(1)} °C. Average current ${current.i_avg.toFixed(1)} A equals ${current.loading_pct.toFixed(1)}% of I_nominal.`;
-            const recent = rows.slice(-12);
-            const recentAvg = recent.length ? recent.reduce((s, r) => s + r.lntai, 0) / recent.length : current.lntai;
-            const dataText = rows.length > 1
-                ? `Analysis uses ${rows.length} points from ${source}. The average of the last 12 points is ${recentAvg.toFixed(2)}, so the trend is readable rather than a single snapshot.`
-                : `Analysis is currently based on the latest snapshot from ${source}. Add more temperature and load history to strengthen the LNTAI trend.`;
-            _setLNTAIText('lntai-insight-kpi-lntai', levelText);
-            _setLNTAIText('lntai-insight-kpi-residual', residualText);
-            _setLNTAIText('lntai-insight-kpi-input', inputText);
-            _setLNTAIText('lntai-insight-kpi-data', dataText);
-        }
-
-        function _renderLNTAIModelChart(rows) {
-            destroyChart('lntai-temp-model');
-            const canvas = document.getElementById('lntai-temp-model-chart');
-            const empty = document.getElementById('lntai-temp-model-empty');
-            if (!canvas) return;
-            if (!rows.length) {
-                if (empty) empty.classList.remove('hidden');
-                return;
-            }
-            if (empty) empty.classList.add('hidden');
-            const labels = rows.map(r => new Date(r.time || Date.now()).toLocaleTimeString('id-ID', { hour12:false, hour:'2-digit', minute:'2-digit' }));
-            mlCharts['lntai-temp-model'] = new Chart(canvas, {
-                type: 'line',
-                data: {
-                    labels,
-                    datasets: [
-                        { label: 'S_Temp', data: rows.map(r => Number(r.S_Temp.toFixed(1))), borderColor: '#dc2626', backgroundColor: 'rgba(220,38,38,0.08)', borderWidth: 2.5, pointRadius: rows.length > 1 ? 2 : 5, tension: 0.25, fill: true },
-                        { label: 'S_ΔT', data: rows.map(r => Number(r.S_DeltaT.toFixed(1))), borderColor: '#f59e0b', borderWidth: 2, pointRadius: 0, tension: 0.25 },
-                        { label: 'S_TLR', data: rows.map(r => Number(r.S_TLR.toFixed(1))), borderColor: '#0d9488', borderWidth: 2, pointRadius: 0, tension: 0.25 },
-                        { label: 'LNTAI', data: rows.map(r => Number(r.lntai.toFixed(1))), borderColor: '#7c3aed', borderWidth: 2.2, borderDash: [5,4], pointRadius: 0, tension: 0.2 }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    interaction: { mode: 'index', intersect: false },
-                    plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } },
-                    scales: {
-                        x: { grid: { display: false }, ticks: { font: { size: 9 }, maxTicksLimit: 9 } },
-                        y: { title: { display: true, text: 'Score (0-40)' }, grid: { color: '#f1f5f9' }, suggestedMin: 0, suggestedMax: 40, ticks: { font: { size: 9 } } }
-                    }
-                }
-            });
-        }
-
-        function _renderLNTAITables(rows, current) {
-            const calcBody = document.getElementById('lntai-calc-table');
-            const histBody = document.getElementById('lntai-history-table');
-            if (calcBody) {
-                if (!current) {
-                    calcBody.innerHTML = '<tr><td colspan="3" class="px-3 py-6 text-center text-slate-400 font-bold">Awaiting data.</td></tr>';
-                } else {
-                    const ambientUpdated = ambientWeatherState.updatedAt
-                        ? `Updated ${ambientWeatherState.updatedAt.toLocaleTimeString('id-ID', { hour12: false })}`
-                        : 'Awaiting weather refresh';
-                    const calcRows = [
-                        ['T_contact', `${current.t_contact.toFixed(2)} °C`, `Average temperature of phase ${current.hottestPhase}, selected as the hottest contact.`],
-                        ['T_ambient', `${current.t_ambient.toFixed(2)} °C`, `${ambientWeatherState.source} (${GANDUL_WEATHER_POINT.latitude.toFixed(6)}, ${GANDUL_WEATHER_POINT.longitude.toFixed(4)}) + local micro-variation. ${ambientUpdated}.`],
-                        ['I_avg', `${current.i_avg.toFixed(2)} A`, 'Average current across the three phases I_R/I_S/I_T.'],
-                        ['Loading %', `${current.loading_pct.toFixed(1)} %`, `I_avg / I_nominal (${current.i_rated} A) × 100%.`],
-                        ['ΔT real (rise)', `${current.delta_T_real.toFixed(2)} °C`, 'Temperature rise of the hottest contact above ambient.'],
-                        ['ΔT inter-phase', `${current.delta_phase.toFixed(2)} °C`, 'Highest-minus-lowest temperature difference among phases R/S/T.'],
-                        ['TLR', `${current.tlr.toFixed(2)} K/unit²`, 'Temperature rise relative to the squared normalized load.'],
-                        ['S_Temp', `${current.S_Temp.toFixed(1)} / 40`, `Temperature-rise score vs the ${LNTAI_CFG.refTempRise}K terminal rise limit (IEC 62271-1).`],
-                        ['S_ΔT', `${current.S_DeltaT.toFixed(1)} / 40`, `Inter-phase difference score vs the ${LNTAI_CFG.refPhaseDelta}K reference.`],
-                        ['S_TLR', `${current.S_TLR.toFixed(1)} / 40`, `Temperature/load² ratio score vs the ${LNTAI_CFG.refTLR} K/unit² reference.`],
-                        ['LNTAI', `${current.lntai.toFixed(2)} / 40`, `0.40·S_Temp + 0.30·S_ΔT + 0.30·S_TLR, giving level ${current.level}.`]
-                    ];
-                    calcBody.innerHTML = calcRows.map(([p,v,m]) => `
-                        <tr class="hover:bg-slate-50">
-                          <td class="px-3 py-2 font-bold text-slate-600">${p}</td>
-                          <td class="px-3 py-2 text-right font-mono font-bold text-slate-700">${v}</td>
-                          <td class="px-3 py-2 text-slate-500">${m}</td>
-                        </tr>
-                    `).join('');
-                }
-            }
-            if (histBody) {
-                if (!rows.length) {
-                    histBody.innerHTML = '<tr><td colspan="6" class="px-3 py-6 text-center text-slate-400 font-bold">Awaiting data.</td></tr>';
-                } else {
-                    histBody.innerHTML = rows.slice(-20).reverse().map(r => `
-                        <tr class="hover:bg-slate-50">
-                          <td class="px-3 py-2 font-mono text-slate-500">${new Date(r.time || Date.now()).toLocaleString('id-ID', { dateStyle:'short', timeStyle:'medium' })}</td>
-                          <td class="px-3 py-2 text-right font-mono font-bold text-slate-700">${r.t_contact.toFixed(1)} °C</td>
-                          <td class="px-3 py-2 text-right font-mono text-violet-700">${r.i_avg.toFixed(1)} A</td>
-                          <td class="px-3 py-2 text-right font-mono text-slate-600">${r.S_Temp.toFixed(0)} / ${r.S_DeltaT.toFixed(0)} / ${r.S_TLR.toFixed(0)}</td>
-                          <td class="px-3 py-2 text-right font-mono font-black text-slate-700">${r.lntai.toFixed(2)}</td>
-                          <td class="px-3 py-2"><span class="text-[9px] font-extrabold px-2 py-0.5 rounded-full ${r.cls}">${r.icon} ${r.level}</span></td>
-                        </tr>
-                    `).join('');
-                }
-            }
-        }
-
-        function _renderLNTAINarrative(rows, current, source) {
-            const root = document.getElementById('lntai-generated-narrative');
-            if (!root) return;
-            if (!current) {
-                root.innerHTML = '<p>Contact temperature and load current data are incomplete, so the LNTAI analysis narrative cannot be generated yet.</p>';
-                return;
-            }
-            const recent = rows.slice(-12);
-            const avg = recent.length ? recent.reduce((s,r)=>s+r.lntai,0)/recent.length : current.lntai;
-            const maxRow = rows.reduce((m, r) => r.lntai > m.lntai ? r : m, rows[0] || current);
-            const trend = recent.length >= 3 ? recent[recent.length - 1].lntai - recent[0].lntai : 0;
-            const trendText = trend > 0.3 ? 'rising' : trend < -0.3 ? 'falling' : 'relatively stable';
-            const action = current.level === 'NORMAL'
-                ? 'Recommendation: maintain routine monitoring and keep the data history retained.'
-                : current.level === 'WARNING'
-                    ? 'Recommendation: validate the sensors, watch the trend over the next few intervals, and check which component is driving the score up.'
-                    : 'Recommendation: take immediate action, inspect the finger contacts, and consider reducing the load until the thermal cause is identified.';
-            root.innerHTML = `
-                <p>The LNTAI model reads the latest condition as <b>${current.level}</b> with a score of <b>${current.lntai.toFixed(2)}</b> on a 0–40 scale. Component breakdown: S_Temp <b>${current.S_Temp.toFixed(1)}</b>, S_ΔT <b>${current.S_DeltaT.toFixed(1)}</b>, S_TLR <b>${current.S_TLR.toFixed(1)}</b> — combined with weights 0.40/0.30/0.30.</p>
-                <p>The hottest phase is <b>${current.hottestPhase}</b> at <b>${current.t_contact.toFixed(1)} °C</b> (a rise of <b>${current.delta_T_real.toFixed(1)} °C</b> above ambient), while the average current is <b>${current.i_avg.toFixed(1)} A</b> (Loading ${current.loading_pct.toFixed(1)}%). Using data source <b>${source}</b>, the trend over the last ${recent.length} points looks <b>${trendText}</b> with an average LNTAI of <b>${avg.toFixed(2)}</b>. The peak in the displayed data is <b>${maxRow.lntai.toFixed(2)}</b> (${maxRow.level}).</p>
-                <p>${action}</p>
-            `;
-        }
-
-        function _renderLNTAIChart(rows) {
-            destroyChart('lntai-trend');
-            const canvas = document.getElementById('lntai-trend-chart');
-            const empty = document.getElementById('lntai-chart-empty');
-            if (!canvas) return;
-            if (!rows.length) {
-                if (empty) empty.classList.remove('hidden');
-                return;
-            }
-            if (empty) empty.classList.add('hidden');
-            const labels = rows.map(r => new Date(r.time || Date.now()).toLocaleTimeString('id-ID', { hour12:false, hour:'2-digit', minute:'2-digit' }));
-            const thresholdLine = (value, label, color) => ({ label, data: rows.map(() => value), borderColor: color, borderWidth: 1.5, borderDash: [6, 5], pointRadius: 0, yAxisID: 'y' });
-            mlCharts['lntai-trend'] = new Chart(canvas, {
-                type: 'line',
-                data: {
-                    labels,
-                    datasets: [
-                        { label: 'LNTAI', data: rows.map(r => Number(r.lntai.toFixed(2))), borderColor: '#dc2626', backgroundColor: 'rgba(220,38,38,0.08)', borderWidth: 2.5, pointRadius: rows.length > 1 ? 2 : 5, tension: 0.28, yAxisID: 'y', fill: true },
-                        { label: 'Actual ΔT (°C)', data: rows.map(r => Number(r.delta_T_real.toFixed(2))), borderColor: '#2563eb', borderWidth: 2, pointRadius: 0, tension: 0.28, yAxisID: 'y1' },
-                        thresholdLine(10, 'Warning Threshold', '#f59e0b'),
-                        thresholdLine(25, 'Critical Threshold', '#991b1b')
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    interaction: { mode: 'index', intersect: false },
-                    plugins: {
-                        legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } },
-                        tooltip: {
-                            callbacks: {
-                                afterBody: (items) => {
-                                    const r = rows[items[0].dataIndex];
-                                    return [`Level: ${r.level}`, `T_contact: ${r.t_contact.toFixed(1)} °C`, `I_avg: ${r.i_avg.toFixed(1)} A`, `S_Temp/S_ΔT/S_TLR: ${r.S_Temp.toFixed(0)}/${r.S_DeltaT.toFixed(0)}/${r.S_TLR.toFixed(0)}`];
-                                }
-                            }
-                        }
-                    },
-                    scales: {
-                        x: { grid: { display: false }, ticks: { font: { size: 9 }, maxTicksLimit: 10 } },
-                        y: { title: { display: true, text: 'LNTAI (0-40)' }, grid: { color: '#f1f5f9' }, suggestedMin: 0, suggestedMax: 40, ticks: { font: { size: 9 } } },
-                        y1: { position: 'right', title: { display: true, text: 'Actual ΔT °C' }, grid: { drawOnChartArea: false }, ticks: { font: { size: 9 } } }
-                    }
-                }
-            });
-        }
-
-        function _renderLNTAIKPIBarChart(current) {
-            destroyChart('lntai-kpi-bar');
-            const canvas = document.getElementById('lntai-kpi-bar-chart');
-            const empty = document.getElementById('lntai-kpi-bar-empty');
-            if (!canvas) return;
-
-            if (!current) {
-                _setLNTAIText('lntai-kpi-score', '-');
-                _setLNTAIText('lntai-kpi-ot-norm', '-');
-                _setLNTAIText('lntai-kpi-load-factor', '-');
-                _setLNTAIText('lntai-kpi-status', '-');
-                if (empty) empty.classList.remove('hidden');
-                return;
-            }
-            if (empty) empty.classList.add('hidden');
-
-            // S_Temp/S_DeltaT/S_TLR dan lntai sudah dijamin 0-40 oleh engine (_calcLNTAIFrontend)
-            const otNormPct = (current.S_Temp / LNTAI_CFG.scoreMax) * 100;
-            const loadFactorPct = current.i_norm * 100;
-
-            _setLNTAIText('lntai-kpi-score', current.lntai.toFixed(1));
-            _setLNTAIText('lntai-kpi-ot-norm', (otNormPct / 100).toFixed(3));
-            _setLNTAIText('lntai-kpi-load-factor', `${loadFactorPct.toFixed(1)}%`);
-            const statusEl = document.getElementById('lntai-kpi-status');
-            if (statusEl) statusEl.textContent = `${current.icon} ${current.level}`;
-
-            mlCharts['lntai-kpi-bar'] = new Chart(canvas, {
-                type: 'bar',
-                data: {
-                    labels: ['OT Normalized (%)', 'Load Factor (%)', 'LNTAI Score'],
-                    datasets: [{
-                        data: [Number(otNormPct.toFixed(1)), Number(loadFactorPct.toFixed(1)), Number(current.lntai.toFixed(1))],
-                        backgroundColor: ['#38bdf8', '#3b82f6', '#f97316'],
-                        borderRadius: 6,
-                        maxBarThickness: 90
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: {
-                        x: { grid: { display: false }, ticks: { font: { size: 10, weight: 'bold' } } },
-                        y: { grid: { color: '#f1f5f9' }, ticks: { font: { size: 9 } } }
-                    }
-                }
-            });
-        }
-
-        function renderLNTAIPanel(force = false) {
-            const pane = document.getElementById('itab-content-ml-lntai');
-            if (!pane || (pane.classList.contains('hidden') && !force)) return;
-            const series = _buildLNTAISeries();
-            const rows = series.rows;
-            const current = _currentLNTAIResult() || rows[rows.length - 1] || null;
-
-            if (!current) {
-                _setLNTAIText('lntai-kpi-value', '-');
-                _setLNTAIText('lntai-kpi-residual', '-');
-                _setLNTAIText('lntai-kpi-input', '-');
-                _setLNTAIText('lntai-kpi-phase', 'Hottest phase: -');
-                _setLNTAIText('lntai-kpi-points', '0');
-                _setLNTAIText('lntai-kpi-source', series.source);
-                _setLNTAIText('lntai-chart-status', 'Data kurang');
-                _updateLNTAIInsight([], null);
-                _updateLNTAIKPIInsights([], null, series.source);
-                _renderLNTAIModelChart([]);
-                _renderLNTAITables([], null);
-                _renderLNTAINarrative([], null, series.source);
-                _renderLNTAIChart([]);
-                _renderLNTAIKPIBarChart(null);
-                lucide.createIcons();
-                return;
-            }
-
-            const dominantComp = [
-                { name: 'S_Temp', value: current.S_Temp },
-                { name: 'S_ΔT', value: current.S_DeltaT },
-                { name: 'S_TLR', value: current.S_TLR }
-            ].reduce((a, b) => b.value > a.value ? b : a);
-            _setLNTAIText('lntai-kpi-value', current.lntai.toFixed(2));
-            _setLNTAIText('lntai-kpi-residual', `${dominantComp.name} ${dominantComp.value.toFixed(1)}`);
-            _setLNTAIText('lntai-kpi-input', `${current.t_contact.toFixed(1)} °C / ${current.loading_pct.toFixed(1)}%`);
-            _setLNTAIText('lntai-kpi-phase', `Hottest phase: ${current.hottestPhase} · Δ phase ${current.delta_phase.toFixed(1)} °C`);
-            _setLNTAIText('lntai-kpi-points', String(rows.length));
-            _setLNTAIText('lntai-kpi-source', series.source);
-            _setLNTAIText('lntai-chart-status', `${rows.length} titik · ${series.source}`);
-            const badge = document.getElementById('lntai-kpi-badge');
-            if (badge) {
-                badge.textContent = `${current.icon} ${current.level}`;
-                badge.className = `mt-2 text-[9px] font-extrabold px-2 py-0.5 rounded-full inline-block ${current.cls}`;
-            }
-            _updateLNTAIInsight(rows, current);
-            _updateLNTAIKPIInsights(rows, current, series.source);
-            _renderLNTAIChart(rows);
-            _renderLNTAIModelChart(rows);
-            _renderLNTAITables(rows, current);
-            _renderLNTAINarrative(rows, current, series.source);
-            _renderLNTAIKPIBarChart(current);
-            lucide.createIcons();
-        }
-
-        function _refreshLNTAIIfVisible() {
-            if (activePage !== 'ml') return;
-            const pane = document.getElementById('itab-content-ml-lntai');
-            if (!pane || pane.classList.contains('hidden')) return;
-            clearTimeout(window._lntaiRefreshTimer);
-            window._lntaiRefreshTimer = setTimeout(() => renderLNTAIPanel(false), 250);
-        }
+        let mlCharts = {};
 
         function getValidatedRContactData(trafo) {
             return ML_R_CONTACT
@@ -6654,11 +5819,9 @@
                 actual   = null;
                 time     = ts[ts.length-1] + (fi+1)*fc.avgStepMs;
             }
-            // Move cursor
             if (sm.step > 0) sm.chart.data.datasets[6].data[sm.step-1] = null;
             sm.chart.data.datasets[6].data[sm.step] = actual != null ? actual : forecast;
             sm.chart.update('none');
-
             const timeStr = new Date(time).toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'});
             const setT = (id,v) => { const el=document.getElementById(id); if(el) el.textContent=v; };
             setT('fc-sim-md-time', timeStr);
@@ -6710,7 +5873,6 @@
             sm.step++;
         }
 
-        // ESC to close simulation modal
         document.addEventListener('keydown', e => {
             if (e.key==='Escape' && document.getElementById('fc-sim-modal') &&
                 !document.getElementById('fc-sim-modal').classList.contains('hidden'))
@@ -8872,7 +8034,7 @@
     <!-- /SIMULATION FULLSCREEN MODAL -->
 
     <!-- ── LOKASI WARNING MODAL ─────────────────────────────────────── -->
-    <div id="lokasi-warning-modal" class="hidden fixed inset-0 z-[9999] flex items-center justify-center" id="lokasi-warning-modal">
+    <div id="lokasi-warning-modal" class="hidden fixed inset-0 z-[9999] flex items-center justify-center">
       <div class="absolute inset-0" style="background:rgba(15,23,42,0.65);backdrop-filter:blur(6px)" onclick="closeLokasWarning()"></div>
       <div class="relative bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full mx-4 text-center">
         <div class="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style="background:linear-gradient(135deg,#fef3c7,#fde68a)">
