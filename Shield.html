@@ -1166,6 +1166,297 @@
                   </div>
                 </div>
 
+<<<<<<< HEAD
+=======
+                <div id="itab-content-ml-lntai" class="hidden space-y-4">
+                  <div class="glass-card p-5 border-l-4 border-red-500">
+                    <div class="flex items-center justify-between flex-wrap gap-3 mb-4">
+                      <div class="flex items-center gap-3">
+                        <div class="bg-red-100 p-2 rounded-lg"><i data-lucide="thermometer-sun" class="w-5 h-5 text-red-600"></i></div>
+                        <div>
+                          <h5 class="text-xs font-extrabold text-red-700 uppercase tracking-widest">LNTAI — Load Normalized Thermal Anomaly Index</h5>
+                          <p class="text-[10px] text-slate-400">Composite score from contact temperature rise, inter-phase difference, and temperature-vs-load ratio — scale 0–40.</p>
+                        </div>
+                      </div>
+                      <button onclick="renderLNTAIPanel(true)" class="flex items-center gap-1.5 bg-white border border-red-200 text-red-700 text-[11px] font-bold px-3 py-1.5 rounded-lg hover:bg-red-50 transition-all">
+                        <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Refresh LNTAI
+                      </button>
+                    </div>
+
+                    <!-- KPI LNTAI Summary + LNTAI Chart -->
+                    <div class="grid grid-cols-1 xl:grid-cols-3 gap-4 mb-4">
+                      <div class="glass-card p-5 border border-slate-200">
+                        <div class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest">KPI LNTAI</div>
+                        <div id="lntai-kpi-score" class="font-mono font-black text-4xl text-red-600 mt-1">-</div>
+                        <p class="text-[10px] text-slate-400 mt-1">Real-time LNTAI score (scale 0–40)</p>
+                        <div class="mt-4 space-y-2">
+                          <div class="flex items-center justify-between text-[11px]">
+                            <span class="text-slate-500 font-bold">OT Normalized</span>
+                            <span id="lntai-kpi-ot-norm" class="font-mono font-extrabold text-slate-700">-</span>
+                          </div>
+                          <div class="flex items-center justify-between text-[11px]">
+                            <span class="text-slate-500 font-bold">Load Factor</span>
+                            <span id="lntai-kpi-load-factor" class="font-mono font-extrabold text-slate-700">-</span>
+                          </div>
+                          <div class="flex items-center justify-between text-[11px]">
+                            <span class="text-slate-500 font-bold">Status</span>
+                            <span id="lntai-kpi-status" class="font-mono font-extrabold text-slate-700">-</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="xl:col-span-2 glass-card p-5">
+                        <div class="flex items-center justify-between gap-3 mb-3">
+                          <h5 class="text-xs font-extrabold text-slate-700 uppercase tracking-widest">LNTAI Chart — Thermal Anomaly vs Time</h5>
+                          <span class="text-[9px] font-extrabold px-2 py-1 rounded-full bg-teal-50 text-teal-600">Interactive</span>
+                        </div>
+                        <div class="relative h-[220px]">
+                          <canvas id="lntai-kpi-bar-chart"></canvas>
+                          <div id="lntai-kpi-bar-empty" class="hidden absolute inset-0 flex items-center justify-center bg-white/80 rounded-xl text-xs font-bold text-slate-400">Waiting for temperature &amp; load data.</div>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
+                          <div class="bg-slate-50 rounded-xl p-3 border border-slate-200">
+                            <div class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest">LNTAI Formula</div>
+                            <div class="font-mono text-[10px] text-slate-600 mt-1 leading-relaxed">LNTAI = 0.40·S_Temp + 0.30·S_ΔT + 0.30·S_TLR (result scale 0–40)</div>
+                          </div>
+                          <div class="bg-slate-50 rounded-xl p-3 border border-slate-200">
+                            <div class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest">Reference Standards</div>
+                            <div class="text-[10px] text-slate-600 mt-1 leading-relaxed">IEC 62271-1:2017 · IEC 60216 · PLN SKDIR 0520 · CIGRE TB 167</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      <div class="bg-white border border-slate-200 rounded-xl p-4">
+                        <div class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest">Current LNTAI</div>
+                        <div id="lntai-kpi-value" class="font-mono font-black text-2xl text-slate-700 mt-1">-</div>
+                        <div id="lntai-kpi-badge" class="mt-2 text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 inline-block">Awaiting data</div>
+                      </div>
+                      <div class="bg-white border border-slate-200 rounded-xl p-4">
+                        <div class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest">Dominant Component</div>
+                        <div id="lntai-kpi-residual" class="font-mono font-black text-2xl text-slate-700 mt-1">-</div>
+                        <div class="text-[10px] text-slate-400 mt-1">Highest-scoring component (scale 0–40)</div>
+                      </div>
+                      <div class="bg-white border border-slate-200 rounded-xl p-4">
+                        <div class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest">T Contact / Loading</div>
+                        <div id="lntai-kpi-input" class="font-mono font-black text-xl text-slate-700 mt-1">-</div>
+                        <div id="lntai-kpi-phase" class="text-[10px] text-slate-400 mt-1">Hottest phase: -</div>
+                      </div>
+                      <div class="bg-white border border-slate-200 rounded-xl p-4">
+                        <div class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest">Data Points</div>
+                        <div id="lntai-kpi-points" class="font-mono font-black text-2xl text-slate-700 mt-1">-</div>
+                        <div id="lntai-kpi-source" class="text-[10px] text-slate-400 mt-1">-</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="glass-card p-5">
+                    <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3 mb-4">
+                      <div>
+                        <h5 class="text-xs font-extrabold text-slate-700 uppercase tracking-widest">Timeline LNTAI Score</h5>
+                        <p class="text-[10px] text-slate-400 mt-1">Trend skor per jam, per 4 jam, atau per hari seperti grafik saham — siap di filter dan diekspor.</p>
+                      </div>
+                      <div class="flex flex-wrap items-center gap-2">
+                        <div class="flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 p-1">
+                          <button type="button" onclick="setLNTAITimelineMode('hour')" id="lntai-timeline-hour" class="text-[9px] font-extrabold px-2 py-1 rounded bg-red-600 text-white">Per Jam</button>
+                          <button type="button" onclick="setLNTAITimelineMode('four-hour')" id="lntai-timeline-four-hour" class="text-[9px] font-extrabold px-2 py-1 rounded text-slate-600">Per 4 Jam</button>
+                          <button type="button" onclick="setLNTAITimelineMode('day')" id="lntai-timeline-day" class="text-[9px] font-extrabold px-2 py-1 rounded text-slate-600">Per Hari</button>
+                        </div>
+                        <input id="lntai-find-input" type="text" placeholder="Cari data / level / jam" class="w-44 border border-slate-200 rounded-lg px-2.5 py-1.5 text-[10px] text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-red-200" />
+                        <button type="button" onclick="findLNTAITimelineData()" class="flex items-center gap-1.5 bg-white border border-slate-200 text-slate-700 text-[10px] font-bold px-3 py-1.5 rounded-lg hover:bg-slate-50 transition-all">
+                          <i data-lucide="search" class="w-3.5 h-3.5"></i> Find Data
+                        </button>
+                        <button type="button" onclick="saveChartImage('lntai-timeline-chart','LNTAI Timeline')" class="flex items-center gap-1.5 bg-red-50 border border-red-200 text-red-700 text-[10px] font-bold px-3 py-1.5 rounded-lg hover:bg-red-100 transition-all">
+                          <i data-lucide="download" class="w-3.5 h-3.5"></i> Save Grafik
+                        </button>
+                      </div>
+                    </div>
+                    <div class="mb-3 flex items-center justify-between text-[10px] text-slate-500">
+                      <span id="lntai-timeline-summary">0 data point</span>
+                      <span id="lntai-timeline-filter-tag" class="font-bold text-red-600">Mode: Per Jam</span>
+                    </div>
+                    <div class="relative h-[280px]">
+                      <canvas id="lntai-timeline-chart"></canvas>
+                      <div id="lntai-timeline-empty" class="hidden absolute inset-0 flex flex-col items-center justify-center gap-2 bg-white/80 rounded-xl">
+                        <i data-lucide="chart-column" class="w-10 h-10 text-slate-300"></i>
+                        <span class="text-xs font-bold text-slate-400">Tidak ada data LNTAI pada rentang yang dipilih.</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="grid grid-cols-1 xl:grid-cols-3 gap-4">
+                    <div class="xl:col-span-2 glass-card p-5">
+                      <div class="flex items-center justify-between gap-3 mb-3">
+                        <div>
+                          <h5 class="text-xs font-extrabold text-slate-700 uppercase tracking-widest">LNTAI Trend & Actual ΔT</h5>
+                          <p id="lntai-chart-subtitle" class="text-[10px] text-slate-400 mt-1">Combines the nearest contact-temperature and load-current history.</p>
+                        </div>
+                        <span id="lntai-chart-status" class="text-[9px] font-extrabold px-2 py-1 rounded-full bg-slate-100 text-slate-500">-</span>
+                      </div>
+                      <div class="relative h-[340px]">
+                        <canvas id="lntai-trend-chart"></canvas>
+                        <div id="lntai-chart-empty" class="hidden absolute inset-0 flex flex-col items-center justify-center gap-2 bg-white/80 rounded-xl">
+                          <i data-lucide="activity" class="w-10 h-10 text-slate-300"></i>
+                          <span class="text-xs font-bold text-slate-400">No valid temperature and load data pairs yet.</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="glass-card p-5">
+                      <h5 class="text-xs font-extrabold text-slate-700 uppercase tracking-widest mb-3">Operational Insight</h5>
+                      <div id="lntai-insight-list" class="space-y-2">
+                        <div class="text-[10px] text-slate-400">Awaiting live data.</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="glass-card p-5">
+                    <h5 class="text-xs font-extrabold text-slate-700 uppercase tracking-widest mb-4">KPI Detail Insight</h5>
+                    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+                      <div class="bg-slate-50 border border-slate-200 rounded-xl p-3">
+                        <div class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest">Current LNTAI</div>
+                        <div id="lntai-insight-kpi-lntai" class="text-[10px] text-slate-600 leading-relaxed mt-1">Awaiting data.</div>
+                      </div>
+                      <div class="bg-slate-50 border border-slate-200 rounded-xl p-3">
+                        <div class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest">Score Components</div>
+                        <div id="lntai-insight-kpi-residual" class="text-[10px] text-slate-600 leading-relaxed mt-1">Awaiting data.</div>
+                      </div>
+                      <div class="bg-slate-50 border border-slate-200 rounded-xl p-3">
+                        <div class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest">T Contact / Loading</div>
+                        <div id="lntai-insight-kpi-input" class="text-[10px] text-slate-600 leading-relaxed mt-1">Awaiting data.</div>
+                      </div>
+                      <div class="bg-slate-50 border border-slate-200 rounded-xl p-3">
+                        <div class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest">Data Points</div>
+                        <div id="lntai-insight-kpi-data" class="text-[10px] text-slate-600 leading-relaxed mt-1">Awaiting data.</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                    <div class="glass-card p-5">
+                      <h5 class="text-xs font-extrabold text-slate-700 uppercase tracking-widest mb-3">LNTAI Component Score Chart</h5>
+                      <p class="text-[10px] text-slate-400 mb-3">Contribution of S_Temp, S_ΔT, and S_TLR (each on a 0–40 scale) to the weighted LNTAI score over time.</p>
+                      <div class="relative h-[300px]">
+                        <canvas id="lntai-temp-model-chart"></canvas>
+                        <div id="lntai-temp-model-empty" class="hidden absolute inset-0 flex items-center justify-center bg-white/80 rounded-xl text-xs font-bold text-slate-400">No model data yet.</div>
+                      </div>
+                    </div>
+                    <div class="glass-card p-5">
+                      <h5 class="text-xs font-extrabold text-slate-700 uppercase tracking-widest mb-3">Auto-Generated Analysis Narrative</h5>
+                      <div id="lntai-generated-narrative" class="text-[11px] text-slate-600 leading-relaxed space-y-2">
+                        <p>Awaiting temperature and load data.</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                    <div class="glass-card p-5">
+                      <h5 class="text-xs font-extrabold text-slate-700 uppercase tracking-widest mb-3">Latest Point Calculation Table</h5>
+                      <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs min-w-[680px]">
+                          <thead>
+                            <tr class="bg-slate-100 text-slate-600 font-bold uppercase tracking-wider">
+                              <th class="px-3 py-2">Parameter</th>
+                              <th class="px-3 py-2 text-right">Value</th>
+                              <th class="px-3 py-2">Meaning</th>
+                            </tr>
+                          </thead>
+                          <tbody id="lntai-calc-table" class="divide-y divide-slate-100">
+                            <tr><td colspan="3" class="px-3 py-6 text-center text-slate-400 font-bold">Awaiting data.</td></tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                    <div class="glass-card p-5">
+                      <h5 class="text-xs font-extrabold text-slate-700 uppercase tracking-widest mb-3">Recent LNTAI History Table</h5>
+                      <div class="overflow-x-auto max-h-[360px]">
+                        <table class="w-full text-left text-xs min-w-[760px]">
+                          <thead class="sticky top-0 bg-slate-100 text-slate-600 font-bold uppercase tracking-wider">
+                            <tr>
+                              <th class="px-3 py-2">Time</th>
+                              <th class="px-3 py-2 text-right">T Contact</th>
+                              <th class="px-3 py-2 text-right">I Avg</th>
+                              <th class="px-3 py-2 text-right">S_Temp / S_ΔT / S_TLR</th>
+                              <th class="px-3 py-2 text-right">LNTAI</th>
+                              <th class="px-3 py-2">Level</th>
+                            </tr>
+                          </thead>
+                          <tbody id="lntai-history-table" class="divide-y divide-slate-100">
+                            <tr><td colspan="6" class="px-3 py-6 text-center text-slate-400 font-bold">Awaiting data.</td></tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                    <div class="glass-card p-5">
+                      <h5 class="text-xs font-extrabold text-slate-700 uppercase tracking-widest mb-4">LNTAI Algorithm Workflow</h5>
+                      <div class="grid grid-cols-1 md:grid-cols-4 gap-2">
+                        <div class="bg-slate-50 rounded-xl p-3 border border-slate-200"><div class="text-[9px] font-extrabold text-red-600 uppercase">1. Data Acquisition</div><div class="text-[10px] text-slate-600 mt-1">Contact temperature at 6 points/phase (MQTT), load current I_R/I_S/I_T (power meter), real-time ambient temperature (Open-Meteo API).</div></div>
+                        <div class="bg-slate-50 rounded-xl p-3 border border-slate-200"><div class="text-[9px] font-extrabold text-red-600 uppercase">2. Preprocessing &amp; Validation</div><div class="text-[10px] text-slate-600 mt-1">Check completeness &amp; value range. If invalid, the reading is discarded — the previous LNTAI value is retained.</div></div>
+                        <div class="bg-slate-50 rounded-xl p-3 border border-slate-200"><div class="text-[9px] font-extrabold text-red-600 uppercase">3. Parameter Aggregation</div><div class="text-[10px] text-slate-600 mt-1">Average temperature per phase T_R/T_S/T_T, average current I_avg, Loading% = I_avg/I_nominal x100%.</div></div>
+                        <div class="bg-slate-50 rounded-xl p-3 border border-slate-200"><div class="text-[9px] font-extrabold text-red-600 uppercase">4. Component Scores (0–40)</div><div class="text-[10px] text-slate-600 mt-1">S_Temp = temperature rise above ambient. S_ΔT = inter-phase temperature difference. S_TLR = temperature rise per unit load².</div></div>
+                        <div class="bg-slate-50 rounded-xl p-3 border border-slate-200"><div class="text-[9px] font-extrabold text-red-600 uppercase">5. Weighted LNTAI Score</div><div class="text-[10px] text-slate-600 mt-1">LNTAI = 0.40·S_Temp + 0.30·S_ΔT + 0.30·S_TLR. Result range: 0–40.</div></div>
+                        <div class="bg-slate-50 rounded-xl p-3 border border-slate-200"><div class="text-[9px] font-extrabold text-red-600 uppercase">6. Classification</div><div class="text-[10px] text-slate-600 mt-1">0–15 Normal · 15–30 Warning · 30–40 Critical.</div></div>
+                        <div class="bg-slate-50 rounded-xl p-3 border border-slate-200"><div class="text-[9px] font-extrabold text-red-600 uppercase">7. Logging &amp; Dashboard Update</div><div class="text-[10px] text-slate-600 mt-1">Store the data &amp; LNTAI score, refresh KPIs and trend charts in real time.</div></div>
+                      </div>
+                    </div>
+                    <div class="glass-card p-5">
+                      <h5 class="text-xs font-extrabold text-slate-700 uppercase tracking-widest mb-4">Engineering Interpretation</h5>
+                      <div class="space-y-3 text-[10px] text-slate-600 leading-relaxed">
+                        <p><b>LNTAI is a weighted composite score</b>, not a single temperature variable. Three components are each scored 0–40, then combined with weights 0.40/0.30/0.30 so the final result always falls within 0–40.</p>
+                        <p><b>S_Temp</b> scores the hottest contact's temperature rise above ambient against the 40K terminal rise limit (IEC 62271-1). <b>S_ΔT</b> scores the temperature difference between phases R/S/T — an indicator of contact imbalance. <b>S_TLR</b> scores the temperature rise relative to the square of the load — an indicator of unusual heating relative to the current flowing.</p>
+                        <p><b>Invalid or incomplete data</b> (sensor dropout, out-of-range values) is not used to compute a new score — the dashboard keeps showing the last valid LNTAI value until the next reading is complete.</p>
+                        <div class="bg-red-50 border border-red-100 rounded-xl p-3 font-mono text-[10px] text-red-700">
+                          LNTAI = 0.40·S_Temp + 0.30·S_ΔT + 0.30·S_TLR &nbsp;→&nbsp; result range 0–40
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="glass-card p-5">
+                    <h5 class="text-xs font-extrabold text-slate-700 uppercase tracking-widest mb-3">Classification Thresholds (Scale 0–40)</h5>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div class="bg-emerald-50 border border-emerald-100 rounded-xl p-3">
+                        <div class="text-[9px] font-extrabold text-emerald-700 uppercase tracking-widest">Normal</div>
+                        <div class="font-mono font-black text-lg text-slate-700">0 - 10</div>
+                        <div class="text-[10px] text-slate-500 mt-1">Routine monitoring</div>
+                      </div>
+                      <div class="bg-amber-50 border border-amber-100 rounded-xl p-3">
+                        <div class="text-[9px] font-extrabold text-amber-700 uppercase tracking-widest">Warning</div>
+                        <div class="font-mono font-black text-lg text-slate-700">10 - 25</div>
+                        <div class="text-[10px] text-slate-500 mt-1">Monitor trend, schedule inspection</div>
+                      </div>
+                      <div class="bg-red-50 border border-red-100 rounded-xl p-3">
+                        <div class="text-[9px] font-extrabold text-red-700 uppercase tracking-widest">Critical</div>
+                        <div class="font-mono font-black text-lg text-slate-700">25 - 40</div>
+                        <div class="text-[10px] text-slate-500 mt-1">Immediate action required</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="glass-card p-5">
+                    <h5 class="text-xs font-extrabold text-slate-700 uppercase tracking-widest mb-3">Python Integration</h5>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                      <div class="bg-slate-50 rounded-xl p-4 border border-slate-200">
+                        <div class="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-2">Module Files</div>
+                        <div class="font-mono text-[11px] text-slate-700 leading-relaxed">
+                          config.py<br>
+                          lntai_calculator.py<br>
+                          realtime_monitor.py<br>
+                          test_lntai.py
+                        </div>
+                      </div>
+                      <div class="bg-slate-50 rounded-xl p-4 border border-slate-200">
+                        <div class="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-2">Dashboard Output</div>
+                        <pre class="text-[10px] text-slate-700 overflow-x-auto">{"lntai":32.4,"level":"CRITICAL","s_temp":36.0,"s_deltaT":28.0,"s_tlr":30.7}</pre>
+                      </div>
+                    </div>
+                    <p class="text-[10px] text-slate-500 mt-4 leading-relaxed">LNTAI is not an absolute temperature alarm. This score combines contact temperature rise, inter-phase imbalance, and the plausibility of heating relative to load into a single 0–40 number, so a high score can indicate rising finger-contact resistance even when the absolute temperature is not yet very high.</p>
+                  </div>
+                </div>
+
+>>>>>>> 5eed129 (Add LNTAI timeline chart and data filters)
                 <!-- ════════════════════════════════════════════════════════
                      Tab A0: REALTIME FORECASTING BEBAN & SUHU
                      Metode: Holt-Winters Double Exponential Smoothing (DES)
@@ -4940,6 +5231,22 @@
         // Digunakan sebagai basis normalisasi thermal_stress index: (I/I_rated)²·(R/R₀)
         const I_CB_RATED = 2000; // Ampere
 
+        let mlCharts = {};
+
+        // Konfigurasi LNTAI mengikuti flowchart: skor komponen 0-40, digabung berbobot
+        // (0.40 S_Temp + 0.30 S_ΔT + 0.30 S_TLR) sehingga hasil akhir selalu 0-40.
+        const LNTAI_CFG = {
+            scoreMax: 40,
+            weights: { temp: 0.40, deltaT: 0.30, tlr: 0.30 },
+            refTempRise: 55,      // Kenaikan suhu terminal kontak yang masih masuk rentang pengamatan wajar
+            refPhaseDelta: 22,    // Ambang selisih antar fasa yang lebih realistis untuk menjaga alarm tidak terlalu cepat
+            refTLR: 110,          // Referensi TLR yang lebih konservatif agar rasio beban tidak menjadikan semua data warning
+            tlrLoadFloor: 0.25,   // Floor I_norm meminimalkan dominasi TLR pada beban sangat rendah
+            ambient: 30,
+            iRated: I_NOMINAL_TRAFO,
+            thresholds: { warning: 18, critical: 30 }
+        };
+
         const GANDUL_WEATHER_POINT = {
             label: 'GI Gandul',
             latitude: -6.346667,
@@ -5007,7 +5314,658 @@
         setInterval(refreshGandulAmbientTemperature, GANDUL_WEATHER_POINT.refreshMs);
         setInterval(_applyAmbientVariation, GANDUL_WEATHER_POINT.variationMs);
 
-        let mlCharts = {};
+        // Langkah 3-6 flowchart: agregasi parameter → skor komponen 0-40 → skor berbobot → klasifikasi.
+        // `ph` adalah hasil _phaseAveragesFromTemp (berisi tContact/hottestPhase/deltaPhase/T_R/T_S/T_T).
+        function _calcLNTAIFrontend(ph, iAvg, tAmbient = LNTAI_CFG.ambient, iRated = LNTAI_CFG.iRated) {
+            const tc = Number(ph?.tContact);
+            const dPhase = Number(ph?.deltaPhase);
+            const ia = Number(iAvg);
+            const ta = Number(tAmbient);
+            const ir = Number(iRated);
+            if (![tc, dPhase, ia, ta, ir].every(Number.isFinite) || ir === 0) return null;
+
+            const iNorm = ia / ir;
+            const loadingPct = iNorm * 100;
+            const deltaReal = tc - ta;
+            // Floor mencegah rasio TLR meledak saat beban mendekati nol
+            const iNormFloor = Math.max(iNorm, LNTAI_CFG.tlrLoadFloor);
+            const tlr = deltaReal / Math.pow(iNormFloor, 2);
+
+            const S_Temp = _clampNumber((deltaReal / LNTAI_CFG.refTempRise) * LNTAI_CFG.scoreMax, 0, LNTAI_CFG.scoreMax);
+            const S_DeltaT = _clampNumber((dPhase / LNTAI_CFG.refPhaseDelta) * LNTAI_CFG.scoreMax, 0, LNTAI_CFG.scoreMax);
+            const S_TLR = _clampNumber((tlr / LNTAI_CFG.refTLR) * LNTAI_CFG.scoreMax, 0, LNTAI_CFG.scoreMax);
+
+            const lntai = LNTAI_CFG.weights.temp * S_Temp + LNTAI_CFG.weights.deltaT * S_DeltaT + LNTAI_CFG.weights.tlr * S_TLR;
+
+            const level = lntai >= LNTAI_CFG.thresholds.critical ? 'CRITICAL'
+                : lntai >= LNTAI_CFG.thresholds.warning ? 'WARNING'
+                : 'NORMAL';
+            const meta = {
+                NORMAL:   { icon: '🟢', cls: 'bg-emerald-100 text-emerald-700', rec: 'Normal condition. Continue routine monitoring.' },
+                WARNING:  { icon: '🟡', cls: 'bg-amber-100 text-amber-700', rec: 'Monitor the component score trend and sensor validity, schedule an inspection.' },
+                CRITICAL: { icon: '🔴', cls: 'bg-red-100 text-red-700 animate-pulse', rec: 'Take immediate action, inspect the finger contacts, and evaluate the load.' }
+            }[level];
+            return {
+                t_contact: tc,
+                t_ambient: ta,
+                i_avg: ia,
+                i_rated: ir,
+                i_norm: iNorm,
+                loading_pct: loadingPct,
+                delta_T_real: deltaReal,
+                delta_phase: dPhase,
+                tlr,
+                S_Temp, S_DeltaT, S_TLR,
+                lntai,
+                level,
+                ...meta
+            };
+        }
+
+        function _phaseAveragesFromTemp(row) {
+            if (!row) return null;
+            const vals = ['R_Atas','R_Bawah','S_Atas','S_Bawah','T_Atas','T_Bawah'].map(k => Number(row[k]));
+            if (!vals.every(Number.isFinite) || vals.every(v => v <= 0)) return null;
+            const phases = {
+                R: (Number(row.R_Atas) + Number(row.R_Bawah)) / 2,
+                S: (Number(row.S_Atas) + Number(row.S_Bawah)) / 2,
+                T: (Number(row.T_Atas) + Number(row.T_Bawah)) / 2
+            };
+            const hottest = Object.keys(phases).reduce((a, b) => phases[a] >= phases[b] ? a : b);
+            return {
+                T_R: phases.R,
+                T_S: phases.S,
+                T_T: phases.T,
+                tContact: phases[hottest],
+                hottestPhase: hottest,
+                deltaPhase: Math.max(phases.R, phases.S, phases.T) - Math.min(phases.R, phases.S, phases.T)
+            };
+        }
+
+        // Cache LNTAI valid terakhir per trafo — langkah 2 flowchart: jika bacaan baru tidak
+        // lengkap/valid, data tidak dipakai dan nilai LNTAI sebelumnya dipertahankan.
+        let _lastValidLNTAIResult = { '2': null, '3': null, '4': null };
+
+        function _currentLNTAIResult() {
+            const td = temperatureData[selectedTrafo];
+            const bd = latestBebanData[selectedTrafo];
+            const ph = _phaseAveragesFromTemp(td);
+            const validTemp = ph && hasValidTemperaturePacket(td);
+            const validBeban = bd && hasValidBebanPacket(bd);
+            if (!validTemp || !validBeban) return _lastValidLNTAIResult[selectedTrafo];
+
+            const iAvg = (Number(bd.I_R) || 0) + (Number(bd.I_S) || 0) + (Number(bd.I_T) || 0);
+            const calc = _calcLNTAIFrontend(ph, iAvg / 3);
+            if (!calc) return _lastValidLNTAIResult[selectedTrafo];
+            const result = { ...calc, ...ph, timestamp: td.timestamp || bd.timestamp || new Date().toISOString(), source: 'realtime snapshot' };
+            _lastValidLNTAIResult[selectedTrafo] = result;
+            return result;
+        }
+
+        function _rowTime(row) {
+            if (!row) return NaN;
+            if (Number.isFinite(row._time)) return row._time;
+            if (Number.isFinite(row.docSortTime)) return row.docSortTime;
+            return _parseAnyTimestamp(row.timestamp || row.ts || row.receivedAt || row.formattedTime);
+        }
+
+        function _buildLNTAISeries() {
+            const paired = [];
+            const tempRows = [...(firestoreLogs || [])]
+                .map(r => ({ ...r, _time: _rowTime(r) }))
+                .filter(r => Number.isFinite(r._time) && _phaseAveragesFromTemp(r))
+                .sort((a, b) => a._time - b._time);
+            const bebanRows = [...(firestoreBebanLogs || [])]
+                .map(r => ({ ...r, _time: _rowTime(r) }))
+                .filter(r => Number.isFinite(r._time) && ['I_R','I_S','I_T'].some(k => Number(r[k]) > 0))
+                .sort((a, b) => a._time - b._time);
+
+            if (tempRows.length && bebanRows.length) {
+                let j = 0;
+                tempRows.slice(-240).forEach(t => {
+                    while (j + 1 < bebanRows.length && bebanRows[j + 1]._time <= t._time) j++;
+                    const candidates = [bebanRows[j], bebanRows[j + 1]].filter(Boolean);
+                    const nearest = candidates.sort((a, b) => Math.abs(a._time - t._time) - Math.abs(b._time - t._time))[0];
+                    if (!nearest || Math.abs(nearest._time - t._time) > 30 * 60 * 1000) return;
+                    const ph = _phaseAveragesFromTemp(t);
+                    const iAvg = ((Number(nearest.I_R) || 0) + (Number(nearest.I_S) || 0) + (Number(nearest.I_T) || 0)) / 3;
+                    const calc = _calcLNTAIFrontend(ph, iAvg);
+                    if (calc) paired.push({ ...calc, ...ph, time: t._time, source: 'Firestore temperature + load history' });
+                });
+            }
+
+            if (paired.length >= 2) return { rows: paired.slice(-120), source: 'Firestore temperature + load history' };
+
+            const n = Math.min(chartDataPoints.timestamps.length, (bebanLiveChartBuffer[selectedTrafo] || []).length, 60);
+            if (n > 0) {
+                const loadRows = (bebanLiveChartBuffer[selectedTrafo] || []).slice(-n);
+                for (let idx = 0; idx < n; idx++) {
+                    const tempIdx = chartDataPoints.timestamps.length - n + idx;
+                    const tempRow = {
+                        R_Atas: chartDataPoints.R_Atas[tempIdx],
+                        R_Bawah: chartDataPoints.R_Bawah[tempIdx],
+                        S_Atas: chartDataPoints.S_Atas[tempIdx],
+                        S_Bawah: chartDataPoints.S_Bawah[tempIdx],
+                        T_Atas: chartDataPoints.T_Atas[tempIdx],
+                        T_Bawah: chartDataPoints.T_Bawah[tempIdx]
+                    };
+                    const ph = _phaseAveragesFromTemp(tempRow);
+                    const load = loadRows[idx];
+                    const iAvg = ((Number(load.I_R) || 0) + (Number(load.I_S) || 0) + (Number(load.I_T) || 0)) / 3;
+                    const calc = ph ? _calcLNTAIFrontend(ph, iAvg) : null;
+                    if (calc) paired.push({ ...calc, ...ph, time: Date.now() - (n - idx) * 60000, source: 'live buffer' });
+                }
+                if (paired.length) return { rows: paired, source: 'live chart buffer' };
+            }
+
+            const current = _currentLNTAIResult();
+            return current ? { rows: [{ ...current, time: Date.now() }], source: current.source } : { rows: [], source: 'awaiting data' };
+        }
+
+        function _setLNTAIText(id, text) {
+            const el = document.getElementById(id);
+            if (el) el.textContent = text;
+        }
+
+        function _updateLNTAIInsight(rows, current) {
+            const root = document.getElementById('lntai-insight-list');
+            if (!root) return;
+            if (!current) {
+                root.innerHTML = '<div class="text-[10px] text-slate-400">Valid contact temperature and load current data are needed to compute LNTAI.</div>';
+                return;
+            }
+            const recent = rows.slice(-12);
+            const maxRow = rows.reduce((m, r) => r.lntai > m.lntai ? r : m, rows[0] || current);
+            const avgRecent = recent.length ? recent.reduce((s, r) => s + r.lntai, 0) / recent.length : current.lntai;
+            const trend = recent.length >= 3 ? recent[recent.length - 1].lntai - recent[0].lntai : 0;
+            const items = [
+                { title: `${current.icon} Status ${current.level}`, body: `${current.rec} Current LNTAI is ${current.lntai.toFixed(2)} on a 0–40 scale.` },
+                { title: 'Score components', body: `S_Temp ${current.S_Temp.toFixed(1)} · S_ΔT ${current.S_DeltaT.toFixed(1)} · S_TLR ${current.S_TLR.toFixed(1)} (each on a 0–40 scale).` },
+                { title: 'Hottest phase', body: `Phase ${current.hottestPhase} averages ${current.t_contact.toFixed(1)} °C, inter-phase difference ${current.delta_phase.toFixed(1)} °C.` },
+                { title: 'Load context', body: `Average current ${current.i_avg.toFixed(1)} A, Loading ${current.loading_pct.toFixed(1)}% of I_nominal ${current.i_rated} A.` },
+                { title: 'Recent trend', body: `Average LNTAI over the last ${recent.length} points is ${avgRecent.toFixed(2)}. ${trend > 0.3 ? 'Trending up, needs closer monitoring.' : trend < -0.3 ? 'Trending down, thermal condition improving.' : 'Relatively stable trend.'}` },
+                { title: 'Period peak', body: `Maximum LNTAI in the displayed data is ${maxRow.lntai.toFixed(2)} (${maxRow.level}).` }
+            ];
+            root.innerHTML = items.map(item => `
+                <div class="bg-slate-50 border border-slate-200 rounded-xl p-3">
+                  <div class="text-[10px] font-extrabold text-slate-700 uppercase tracking-widest">${item.title}</div>
+                  <div class="text-[10px] text-slate-600 leading-relaxed mt-1">${item.body}</div>
+                </div>
+            `).join('');
+        }
+
+        function _updateLNTAIKPIInsights(rows, current, source) {
+            if (!current) {
+                ['lntai-insight-kpi-lntai','lntai-insight-kpi-residual','lntai-insight-kpi-input','lntai-insight-kpi-data'].forEach(id => _setLNTAIText(id, 'Awaiting data.'));
+                return;
+            }
+            const levelText = current.level === 'NORMAL'
+                ? 'The score is in the normal zone (0–15). All three components — temperature rise, phase difference, and load ratio — remain within acceptable limits.'
+                : current.level === 'WARNING'
+                    ? 'The score is in the warning zone (15–30). One or more components is already significant; monitor the trend and schedule an inspection.'
+                    : 'Critical score (30–40). A combination of temperature rise, phase imbalance, and/or load ratio shows a strong indication of thermal anomaly.';
+            const dominant = [
+                { name: 'S_Temp (temperature rise)', value: current.S_Temp },
+                { name: 'S_ΔT (inter-phase difference)', value: current.S_DeltaT },
+                { name: 'S_TLR (temperature/load² ratio)', value: current.S_TLR }
+            ].reduce((a, b) => b.value > a.value ? b : a);
+            const residualText = `The current dominant component is ${dominant.name} with a score of ${dominant.value.toFixed(1)} on a 0–40 scale. Breakdown: S_Temp ${current.S_Temp.toFixed(1)}, S_ΔT ${current.S_DeltaT.toFixed(1)}, S_TLR ${current.S_TLR.toFixed(1)}.`;
+            const inputText = `Phase ${current.hottestPhase} is used as the reference since it has the highest average temperature at ${current.t_contact.toFixed(1)} °C. Average current ${current.i_avg.toFixed(1)} A equals ${current.loading_pct.toFixed(1)}% of I_nominal.`;
+            const recent = rows.slice(-12);
+            const recentAvg = recent.length ? recent.reduce((s, r) => s + r.lntai, 0) / recent.length : current.lntai;
+            const dataText = rows.length > 1
+                ? `Analysis uses ${rows.length} points from ${source}. The average of the last 12 points is ${recentAvg.toFixed(2)}, so the trend is readable rather than a single snapshot.`
+                : `Analysis is currently based on the latest snapshot from ${source}. Add more temperature and load history to strengthen the LNTAI trend.`;
+            _setLNTAIText('lntai-insight-kpi-lntai', levelText);
+            _setLNTAIText('lntai-insight-kpi-residual', residualText);
+            _setLNTAIText('lntai-insight-kpi-input', inputText);
+            _setLNTAIText('lntai-insight-kpi-data', dataText);
+        }
+
+        function _renderLNTAIModelChart(rows) {
+            destroyChart('lntai-temp-model');
+            const canvas = document.getElementById('lntai-temp-model-chart');
+            const empty = document.getElementById('lntai-temp-model-empty');
+            if (!canvas) return;
+            if (!rows.length) {
+                if (empty) empty.classList.remove('hidden');
+                return;
+            }
+            if (empty) empty.classList.add('hidden');
+            const labels = rows.map(r => new Date(r.time || Date.now()).toLocaleTimeString('id-ID', { hour12:false, hour:'2-digit', minute:'2-digit' }));
+            mlCharts['lntai-temp-model'] = new Chart(canvas, {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [
+                        { label: 'S_Temp', data: rows.map(r => Number(r.S_Temp.toFixed(1))), borderColor: '#dc2626', backgroundColor: 'rgba(220,38,38,0.08)', borderWidth: 2.5, pointRadius: rows.length > 1 ? 2 : 5, tension: 0.25, fill: true },
+                        { label: 'S_ΔT', data: rows.map(r => Number(r.S_DeltaT.toFixed(1))), borderColor: '#f59e0b', borderWidth: 2, pointRadius: 0, tension: 0.25 },
+                        { label: 'S_TLR', data: rows.map(r => Number(r.S_TLR.toFixed(1))), borderColor: '#0d9488', borderWidth: 2, pointRadius: 0, tension: 0.25 },
+                        { label: 'LNTAI', data: rows.map(r => Number(r.lntai.toFixed(1))), borderColor: '#7c3aed', borderWidth: 2.2, borderDash: [5,4], pointRadius: 0, tension: 0.2 }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } },
+                    scales: {
+                        x: { grid: { display: false }, ticks: { font: { size: 9 }, maxTicksLimit: 9 } },
+                        y: { title: { display: true, text: 'Score (0-40)' }, grid: { color: '#f1f5f9' }, suggestedMin: 0, suggestedMax: 40, ticks: { font: { size: 9 } } }
+                    }
+                }
+            });
+        }
+
+        function _renderLNTAITables(rows, current) {
+            const calcBody = document.getElementById('lntai-calc-table');
+            const histBody = document.getElementById('lntai-history-table');
+            if (calcBody) {
+                if (!current) {
+                    calcBody.innerHTML = '<tr><td colspan="3" class="px-3 py-6 text-center text-slate-400 font-bold">Awaiting data.</td></tr>';
+                } else {
+                    const ambientUpdated = ambientWeatherState.updatedAt
+                        ? `Updated ${ambientWeatherState.updatedAt.toLocaleTimeString('id-ID', { hour12: false })}`
+                        : 'Awaiting weather refresh';
+                    const calcRows = [
+                        ['T_contact', `${current.t_contact.toFixed(2)} °C`, `Average temperature of phase ${current.hottestPhase}, selected as the hottest contact.`],
+                        ['T_ambient', `${current.t_ambient.toFixed(2)} °C`, `${ambientWeatherState.source} (${GANDUL_WEATHER_POINT.latitude.toFixed(6)}, ${GANDUL_WEATHER_POINT.longitude.toFixed(4)}) + local micro-variation. ${ambientUpdated}.`],
+                        ['I_avg', `${current.i_avg.toFixed(2)} A`, 'Average current across the three phases I_R/I_S/I_T.'],
+                        ['Loading %', `${current.loading_pct.toFixed(1)} %`, `I_avg / I_nominal (${current.i_rated} A) × 100%.`],
+                        ['ΔT real (rise)', `${current.delta_T_real.toFixed(2)} °C`, 'Temperature rise of the hottest contact above ambient.'],
+                        ['ΔT inter-phase', `${current.delta_phase.toFixed(2)} °C`, 'Highest-minus-lowest temperature difference among phases R/S/T.'],
+                        ['TLR', `${current.tlr.toFixed(2)} K/unit²`, 'Temperature rise relative to the squared normalized load.'],
+                        ['S_Temp', `${current.S_Temp.toFixed(1)} / 40`, `Temperature-rise score vs the ${LNTAI_CFG.refTempRise}K terminal rise limit (IEC 62271-1).`],
+                        ['S_ΔT', `${current.S_DeltaT.toFixed(1)} / 40`, `Inter-phase difference score vs the ${LNTAI_CFG.refPhaseDelta}K reference.`],
+                        ['S_TLR', `${current.S_TLR.toFixed(1)} / 40`, `Temperature/load² ratio score vs the ${LNTAI_CFG.refTLR} K/unit² reference.`],
+                        ['LNTAI', `${current.lntai.toFixed(2)} / 40`, `0.40·S_Temp + 0.30·S_ΔT + 0.30·S_TLR, giving level ${current.level}.`]
+                    ];
+                    calcBody.innerHTML = calcRows.map(([p,v,m]) => `
+                        <tr class="hover:bg-slate-50">
+                          <td class="px-3 py-2 font-bold text-slate-600">${p}</td>
+                          <td class="px-3 py-2 text-right font-mono font-bold text-slate-700">${v}</td>
+                          <td class="px-3 py-2 text-slate-500">${m}</td>
+                        </tr>
+                    `).join('');
+                }
+            }
+            if (histBody) {
+                if (!rows.length) {
+                    histBody.innerHTML = '<tr><td colspan="6" class="px-3 py-6 text-center text-slate-400 font-bold">Awaiting data.</td></tr>';
+                } else {
+                    histBody.innerHTML = rows.slice(-20).reverse().map(r => `
+                        <tr class="hover:bg-slate-50">
+                          <td class="px-3 py-2 font-mono text-slate-500">${new Date(r.time || Date.now()).toLocaleString('id-ID', { dateStyle:'short', timeStyle:'medium' })}</td>
+                          <td class="px-3 py-2 text-right font-mono font-bold text-slate-700">${r.t_contact.toFixed(1)} °C</td>
+                          <td class="px-3 py-2 text-right font-mono text-violet-700">${r.i_avg.toFixed(1)} A</td>
+                          <td class="px-3 py-2 text-right font-mono text-slate-600">${r.S_Temp.toFixed(0)} / ${r.S_DeltaT.toFixed(0)} / ${r.S_TLR.toFixed(0)}</td>
+                          <td class="px-3 py-2 text-right font-mono font-black text-slate-700">${r.lntai.toFixed(2)}</td>
+                          <td class="px-3 py-2"><span class="text-[9px] font-extrabold px-2 py-0.5 rounded-full ${r.cls}">${r.icon} ${r.level}</span></td>
+                        </tr>
+                    `).join('');
+                }
+            }
+        }
+
+        function _renderLNTAINarrative(rows, current, source) {
+            const root = document.getElementById('lntai-generated-narrative');
+            if (!root) return;
+            if (!current) {
+                root.innerHTML = '<p>Contact temperature and load current data are incomplete, so the LNTAI analysis narrative cannot be generated yet.</p>';
+                return;
+            }
+            const recent = rows.slice(-12);
+            const avg = recent.length ? recent.reduce((s,r)=>s+r.lntai,0)/recent.length : current.lntai;
+            const maxRow = rows.reduce((m, r) => r.lntai > m.lntai ? r : m, rows[0] || current);
+            const trend = recent.length >= 3 ? recent[recent.length - 1].lntai - recent[0].lntai : 0;
+            const trendText = trend > 0.3 ? 'rising' : trend < -0.3 ? 'falling' : 'relatively stable';
+            const action = current.level === 'NORMAL'
+                ? 'Recommendation: maintain routine monitoring and keep the data history retained.'
+                : current.level === 'WARNING'
+                    ? 'Recommendation: validate the sensors, watch the trend over the next few intervals, and check which component is driving the score up.'
+                    : 'Recommendation: take immediate action, inspect the finger contacts, and consider reducing the load until the thermal cause is identified.';
+            root.innerHTML = `
+                <p>The LNTAI model reads the latest condition as <b>${current.level}</b> with a score of <b>${current.lntai.toFixed(2)}</b> on a 0–40 scale. Component breakdown: S_Temp <b>${current.S_Temp.toFixed(1)}</b>, S_ΔT <b>${current.S_DeltaT.toFixed(1)}</b>, S_TLR <b>${current.S_TLR.toFixed(1)}</b> — combined with weights 0.40/0.30/0.30.</p>
+                <p>The hottest phase is <b>${current.hottestPhase}</b> at <b>${current.t_contact.toFixed(1)} °C</b> (a rise of <b>${current.delta_T_real.toFixed(1)} °C</b> above ambient), while the average current is <b>${current.i_avg.toFixed(1)} A</b> (Loading ${current.loading_pct.toFixed(1)}%). Using data source <b>${source}</b>, the trend over the last ${recent.length} points looks <b>${trendText}</b> with an average LNTAI of <b>${avg.toFixed(2)}</b>. The peak in the displayed data is <b>${maxRow.lntai.toFixed(2)}</b> (${maxRow.level}).</p>
+                <p>${action}</p>
+            `;
+        }
+
+        function _renderLNTAIChart(rows) {
+            destroyChart('lntai-trend');
+            const canvas = document.getElementById('lntai-trend-chart');
+            const empty = document.getElementById('lntai-chart-empty');
+            if (!canvas) return;
+            if (!rows.length) {
+                if (empty) empty.classList.remove('hidden');
+                return;
+            }
+            if (empty) empty.classList.add('hidden');
+            const labels = rows.map(r => new Date(r.time || Date.now()).toLocaleTimeString('id-ID', { hour12:false, hour:'2-digit', minute:'2-digit' }));
+            const thresholdLine = (value, label, color) => ({ label, data: rows.map(() => value), borderColor: color, borderWidth: 1.5, borderDash: [6, 5], pointRadius: 0, yAxisID: 'y' });
+            mlCharts['lntai-trend'] = new Chart(canvas, {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [
+                        { label: 'LNTAI', data: rows.map(r => Number(r.lntai.toFixed(2))), borderColor: '#dc2626', backgroundColor: 'rgba(220,38,38,0.08)', borderWidth: 2.5, pointRadius: rows.length > 1 ? 2 : 5, tension: 0.28, yAxisID: 'y', fill: true },
+                        { label: 'Actual ΔT (°C)', data: rows.map(r => Number(r.delta_T_real.toFixed(2))), borderColor: '#2563eb', borderWidth: 2, pointRadius: 0, tension: 0.28, yAxisID: 'y1' },
+                        thresholdLine(10, 'Warning Threshold', '#f59e0b'),
+                        thresholdLine(25, 'Critical Threshold', '#991b1b')
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } },
+                        tooltip: {
+                            callbacks: {
+                                afterBody: (items) => {
+                                    const r = rows[items[0].dataIndex];
+                                    return [`Level: ${r.level}`, `T_contact: ${r.t_contact.toFixed(1)} °C`, `I_avg: ${r.i_avg.toFixed(1)} A`, `S_Temp/S_ΔT/S_TLR: ${r.S_Temp.toFixed(0)}/${r.S_DeltaT.toFixed(0)}/${r.S_TLR.toFixed(0)}`];
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { grid: { display: false }, ticks: { font: { size: 9 }, maxTicksLimit: 10 } },
+                        y: { title: { display: true, text: 'LNTAI (0-40)' }, grid: { color: '#f1f5f9' }, suggestedMin: 0, suggestedMax: 40, ticks: { font: { size: 9 } } },
+                        y1: { position: 'right', title: { display: true, text: 'Actual ΔT °C' }, grid: { drawOnChartArea: false }, ticks: { font: { size: 9 } } }
+                    }
+                }
+            });
+        }
+
+        function _groupLNTAITimelineRows(rows, mode = 'hour') {
+            const safeRows = (Array.isArray(rows) ? rows : []).filter(r => r && Number.isFinite(Number(r.time)));
+            if (!safeRows.length) return { labels: [], values: [], raw: [] };
+
+            const formatter = (date) => {
+                const day = date.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: '2-digit' });
+                const time = date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', hour12: false });
+                return `${day} ${time}`;
+            };
+
+            const buckets = new Map();
+            safeRows.forEach(r => {
+                const date = new Date(Number(r.time));
+                let key;
+                let label;
+
+                if (mode === 'day') {
+                    key = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+                    label = new Date(key).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: '2-digit' });
+                } else if (mode === 'four-hour') {
+                    const hour = date.getHours();
+                    const bucketHour = Math.floor(hour / 4) * 4;
+                    const bucketDate = new Date(date.getFullYear(), date.getMonth(), date.getDate(), bucketHour, 0, 0, 0);
+                    key = bucketDate.getTime();
+                    label = `${bucketDate.toLocaleDateString('id-ID', { day: '2-digit', month: 'short' })} ${bucketDate.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', hour12: false })}`;
+                } else {
+                    key = new Date(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours()).getTime();
+                    label = new Date(key).toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false });
+                }
+
+                const existing = buckets.get(key) || { total: 0, count: 0, label, level: 'NORMAL', max: 0, min: 0 };
+                existing.total += Number(r.lntai) || 0;
+                existing.count += 1;
+                existing.max = Math.max(existing.max, Number(r.lntai) || 0);
+                existing.min = existing.count === 1 ? Number(r.lntai) || 0 : Math.min(existing.min, Number(r.lntai) || 0);
+                if (!existing.level || r.level === 'CRITICAL' || (r.level === 'WARNING' && existing.level === 'NORMAL')) existing.level = r.level;
+                buckets.set(key, existing);
+            });
+
+            const ordered = [...buckets.entries()].sort((a, b) => a[0] - b[0]);
+            return {
+                labels: ordered.map(([, item]) => item.label),
+                values: ordered.map(([, item]) => Number((item.total / item.count).toFixed(2))),
+                raw: ordered.map(([, item]) => ({ ...item, avg: Number((item.total / item.count).toFixed(2)), date: new Date(item.label) })),
+                formatter
+            };
+        }
+
+        function _renderLNTAITimelineChart(rows, mode = 'hour', query = '') {
+            destroyChart('lntai-timeline');
+            const canvas = document.getElementById('lntai-timeline-chart');
+            const empty = document.getElementById('lntai-timeline-empty');
+            const summary = document.getElementById('lntai-timeline-summary');
+            const filterTag = document.getElementById('lntai-timeline-filter-tag');
+            if (!canvas) return;
+
+            const cleanedRows = (Array.isArray(rows) ? rows : []).filter(r => {
+                const haystack = [
+                    r.level || '',
+                    r.hottestPhase || '',
+                    new Date(Number(r.time || Date.now())).toLocaleString('id-ID'),
+                    (r.source || '')
+                ].join(' ').toLowerCase();
+                if (!query) return true;
+                return haystack.includes(query.toLowerCase());
+            });
+
+            const grouped = _groupLNTAITimelineRows(cleanedRows, mode);
+            if (!grouped.labels.length) {
+                if (empty) empty.classList.remove('hidden');
+                if (summary) summary.textContent = '0 data point';
+                if (filterTag) filterTag.textContent = `Mode: ${mode === 'day' ? 'Per Hari' : mode === 'four-hour' ? 'Per 4 Jam' : 'Per Jam'}`;
+                return;
+            }
+            if (empty) empty.classList.add('hidden');
+            if (summary) summary.textContent = `${cleanedRows.length} data point · ${grouped.labels.length} interval`;
+            if (filterTag) filterTag.textContent = `Mode: ${mode === 'day' ? 'Per Hari' : mode === 'four-hour' ? 'Per 4 Jam' : 'Per Jam'}`;
+
+            const lineColor = '#dc2626';
+            mlCharts['lntai-timeline'] = new Chart(canvas, {
+                type: 'line',
+                data: {
+                    labels: grouped.labels,
+                    datasets: [
+                        {
+                            label: 'Avg LNTAI',
+                            data: grouped.values,
+                            borderColor: lineColor,
+                            backgroundColor: 'rgba(220,38,38,0.10)',
+                            borderWidth: 2.2,
+                            pointRadius: grouped.values.length > 1 ? 3 : 5,
+                            pointHoverRadius: 5,
+                            fill: true,
+                            tension: 0.25,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: 'Warning 18',
+                            data: grouped.values.map(() => 18),
+                            borderColor: '#f59e0b',
+                            borderWidth: 1,
+                            borderDash: [4, 4],
+                            pointRadius: 0,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: 'Critical 30',
+                            data: grouped.values.map(() => 30),
+                            borderColor: '#991b1b',
+                            borderWidth: 1,
+                            borderDash: [4, 4],
+                            pointRadius: 0,
+                            yAxisID: 'y'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'nearest', intersect: false },
+                    plugins: {
+                        legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } },
+                        tooltip: {
+                            callbacks: {
+                                afterBody: (items) => {
+                                    const idx = items[0].dataIndex;
+                                    const value = grouped.values[idx];
+                                    const filtered = cleanedRows.filter(row => {
+                                        const date = new Date(Number(row.time));
+                                        const label = (mode === 'day')
+                                            ? new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime()
+                                            : (mode === 'four-hour')
+                                                ? new Date(date.getFullYear(), date.getMonth(), date.getDate(), Math.floor(date.getHours() / 4) * 4, 0, 0, 0).getTime()
+                                                : new Date(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours()).getTime();
+                                        return label === grouped.raw[idx]?.date?.getTime?.() || (label === new Date(grouped.labels[idx]).getTime && false);
+                                    });
+                                    const count = filtered.length;
+                                    return [`Rata-rata: ${value.toFixed(2)}`, `Jumlah sample: ${count}`, `Status: ${value >= 30 ? 'CRITICAL' : value >= 18 ? 'WARNING' : 'NORMAL'}`];
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { grid: { display: false }, ticks: { font: { size: 9 }, maxTicksLimit: 8 } },
+                        y: { title: { display: true, text: 'LNTAI (0-40)' }, suggestedMin: 0, suggestedMax: 40, grid: { color: '#f1f5f9' }, ticks: { font: { size: 9 } } }
+                    }
+                }
+            });
+        }
+
+        function setLNTAITimelineMode(mode) {
+            window._lntaiTimelineMode = mode;
+            const ids = ['lntai-timeline-hour', 'lntai-timeline-four-hour', 'lntai-timeline-day'];
+            ids.forEach(id => {
+                const btn = document.getElementById(id);
+                if (!btn) return;
+                const active = id === {
+                    hour: 'lntai-timeline-hour',
+                    'four-hour': 'lntai-timeline-four-hour',
+                    day: 'lntai-timeline-day'
+                }[mode];
+                btn.className = active === id
+                    ? 'text-[9px] font-extrabold px-2 py-1 rounded bg-red-600 text-white'
+                    : 'text-[9px] font-extrabold px-2 py-1 rounded text-slate-600';
+            });
+            const series = _buildLNTAISeries();
+            _renderLNTAITimelineChart(series.rows, mode, document.getElementById('lntai-find-input')?.value || '');
+        }
+
+        function findLNTAITimelineData() {
+            const input = document.getElementById('lntai-find-input');
+            const query = input ? input.value.trim() : '';
+            const mode = window._lntaiTimelineMode || 'hour';
+            const series = _buildLNTAISeries();
+            _renderLNTAITimelineChart(series.rows, mode, query);
+        }
+
+        function _renderLNTAIKPIBarChart(current) {
+            destroyChart('lntai-kpi-bar');
+            const canvas = document.getElementById('lntai-kpi-bar-chart');
+            const empty = document.getElementById('lntai-kpi-bar-empty');
+            if (!canvas) return;
+
+            if (!current) {
+                _setLNTAIText('lntai-kpi-score', '-');
+                _setLNTAIText('lntai-kpi-ot-norm', '-');
+                _setLNTAIText('lntai-kpi-load-factor', '-');
+                _setLNTAIText('lntai-kpi-status', '-');
+                if (empty) empty.classList.remove('hidden');
+                return;
+            }
+            if (empty) empty.classList.add('hidden');
+
+            // S_Temp/S_DeltaT/S_TLR dan lntai sudah dijamin 0-40 oleh engine (_calcLNTAIFrontend)
+            const otNormPct = (current.S_Temp / LNTAI_CFG.scoreMax) * 100;
+            const loadFactorPct = current.i_norm * 100;
+
+            _setLNTAIText('lntai-kpi-score', current.lntai.toFixed(1));
+            _setLNTAIText('lntai-kpi-ot-norm', (otNormPct / 100).toFixed(3));
+            _setLNTAIText('lntai-kpi-load-factor', `${loadFactorPct.toFixed(1)}%`);
+            const statusEl = document.getElementById('lntai-kpi-status');
+            if (statusEl) statusEl.textContent = `${current.icon} ${current.level}`;
+
+            mlCharts['lntai-kpi-bar'] = new Chart(canvas, {
+                type: 'bar',
+                data: {
+                    labels: ['OT Normalized (%)', 'Load Factor (%)', 'LNTAI Score'],
+                    datasets: [{
+                        data: [Number(otNormPct.toFixed(1)), Number(loadFactorPct.toFixed(1)), Number(current.lntai.toFixed(1))],
+                        backgroundColor: ['#38bdf8', '#3b82f6', '#f97316'],
+                        borderRadius: 6,
+                        maxBarThickness: 90
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { grid: { display: false }, ticks: { font: { size: 10, weight: 'bold' } } },
+                        y: { grid: { color: '#f1f5f9' }, ticks: { font: { size: 9 } } }
+                    }
+                }
+            });
+        }
+
+        function renderLNTAIPanel(force = false) {
+            const pane = document.getElementById('itab-content-ml-lntai');
+            if (!pane || (pane.classList.contains('hidden') && !force)) return;
+            const series = _buildLNTAISeries();
+            const rows = series.rows;
+            const current = _currentLNTAIResult() || rows[rows.length - 1] || null;
+
+            if (!current) {
+                _setLNTAIText('lntai-kpi-value', '-');
+                _setLNTAIText('lntai-kpi-residual', '-');
+                _setLNTAIText('lntai-kpi-input', '-');
+                _setLNTAIText('lntai-kpi-phase', 'Hottest phase: -');
+                _setLNTAIText('lntai-kpi-points', '0');
+                _setLNTAIText('lntai-kpi-source', series.source);
+                _setLNTAIText('lntai-chart-status', 'Data kurang');
+                _updateLNTAIInsight([], null);
+                _updateLNTAIKPIInsights([], null, series.source);
+                _renderLNTAIModelChart([]);
+                _renderLNTAITables([], null);
+                _renderLNTAINarrative([], null, series.source);
+                _renderLNTAIChart([]);
+                _renderLNTAITimelineChart([], window._lntaiTimelineMode || 'hour', document.getElementById('lntai-find-input')?.value || '');
+                _renderLNTAIKPIBarChart(null);
+                lucide.createIcons();
+                return;
+            }
+
+            const dominantComp = [
+                { name: 'S_Temp', value: current.S_Temp },
+                { name: 'S_ΔT', value: current.S_DeltaT },
+                { name: 'S_TLR', value: current.S_TLR }
+            ].reduce((a, b) => b.value > a.value ? b : a);
+            _setLNTAIText('lntai-kpi-value', current.lntai.toFixed(2));
+            _setLNTAIText('lntai-kpi-residual', `${dominantComp.name} ${dominantComp.value.toFixed(1)}`);
+            _setLNTAIText('lntai-kpi-input', `${current.t_contact.toFixed(1)} °C / ${current.loading_pct.toFixed(1)}%`);
+            _setLNTAIText('lntai-kpi-phase', `Hottest phase: ${current.hottestPhase} · Δ phase ${current.delta_phase.toFixed(1)} °C`);
+            _setLNTAIText('lntai-kpi-points', String(rows.length));
+            _setLNTAIText('lntai-kpi-source', series.source);
+            _setLNTAIText('lntai-chart-status', `${rows.length} titik · ${series.source}`);
+            const badge = document.getElementById('lntai-kpi-badge');
+            if (badge) {
+                badge.textContent = `${current.icon} ${current.level}`;
+                badge.className = `mt-2 text-[9px] font-extrabold px-2 py-0.5 rounded-full inline-block ${current.cls}`;
+            }
+            _updateLNTAIInsight(rows, current);
+            _updateLNTAIKPIInsights(rows, current, series.source);
+            _renderLNTAIChart(rows);
+            _renderLNTAIModelChart(rows);
+            _renderLNTAITables(rows, current);
+            _renderLNTAINarrative(rows, current, series.source);
+            _renderLNTAITimelineChart(rows, window._lntaiTimelineMode || 'hour', document.getElementById('lntai-find-input')?.value || '');
+            _renderLNTAIKPIBarChart(current);
+            lucide.createIcons();
+        }
+
+        function _refreshLNTAIIfVisible() {
+            if (activePage !== 'ml') return;
+            const pane = document.getElementById('itab-content-ml-lntai');
+            if (!pane || pane.classList.contains('hidden')) return;
+            clearTimeout(window._lntaiRefreshTimer);
+            window._lntaiRefreshTimer = setTimeout(() => renderLNTAIPanel(false), 250);
+        }
 
         function getValidatedRContactData(trafo) {
             return ML_R_CONTACT
