@@ -17,7 +17,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
         import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-analytics.js";
-        import { getFirestore, doc, setDoc, getDoc, onSnapshot, collection, query, getDocs } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+        import { getFirestore, doc, setDoc, getDoc, onSnapshot, collection, query, getDocs, orderBy, limit } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
         import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
 
         // Your web app's Firebase configuration
@@ -38,7 +38,7 @@
         const auth = getAuth(app);
 
         window.db = db;
-        window.fs = { doc, setDoc, getDoc, onSnapshot, collection, query, getDocs };
+        window.fs = { doc, setDoc, getDoc, onSnapshot, collection, query, getDocs, orderBy, limit };
 
         // Inisialisasi Auth & Listener Status Login
         const initFirebase = () => {
@@ -1964,11 +1964,18 @@
             _scheduleMLRealtimeUpdate('update suhu');
         }
 
+        // Kuota Firestore diborong habis karena listener suhu dulu menebak 6 collection
+        // sekaligus TANPA limit, semuanya di-listen permanen — setiap dokumen di keenamnya
+        // kena biaya read setiap kali listener nyala. Collection pertama di bawah ini adalah
+        // satu-satunya yang benar-benar ditulis aplikasi (lihat _persistTempLogToFirestore),
+        // jadi ditandai `primary` dan diberi limit()+orderBy(). Sisanya cuma fallback historis
+        // yang dicoba SEKALI saja (getDocs, bukan listener permanen) dan cuma kalau primary kosong.
         function _getTempLogCollectionCandidates(trafo) {
             return [
                 {
                     label: `devices/acrel_atp007/trafo_${trafo}_temperature_logs`,
-                    ref: window.fs.collection(window.db, 'devices', 'acrel_atp007', `trafo_${trafo}_temperature_logs`)
+                    ref: window.fs.collection(window.db, 'devices', 'acrel_atp007', `trafo_${trafo}_temperature_logs`),
+                    primary: true
                 },
                 {
                     label: `acrel_atp007/trafo_${trafo}/temperature_logs`,
@@ -1991,6 +1998,19 @@
                     ref: window.fs.collection(window.db, 'temperature_realtime')
                 }
             ];
+        }
+
+        const TEMP_LOG_READ_LIMIT = 300; // ≈5 hari data pada interval tulis 1 menit/trafo
+
+        // Query dibatasi (limit + orderBy) HANYA untuk primary — field `timestamp` (string ISO)
+        // dijamin ada karena kita sendiri yang menulisnya di _persistTempLogToFirestore. Untuk
+        // fallback legacy, field timestamp-nya tidak diketahui/konsisten, jadi query polos saja
+        // (fallback tetap dibatasi karena hanya dipanggil sekali, bukan listener permanen).
+        function _tempLogQueryFor(candidate) {
+            if (candidate.primary) {
+                return window.fs.query(candidate.ref, window.fs.orderBy('timestamp', 'desc'), window.fs.limit(TEMP_LOG_READ_LIMIT));
+            }
+            return window.fs.query(candidate.ref);
         }
 
         function _mapTempDocsSnapshot(snapshot, sourcePath, filterByTrafo = true) {
@@ -2076,19 +2096,49 @@
             _applyTempLoggerDocs(deduped, 'gabungan Firestore realtime');
         }
 
+        // Cache per trafo: label collection yang terbukti berisi data, supaya sesi berikutnya
+        // (ganti trafo, buka ulang tab Logger/ML) tidak perlu getDocs 5 collection fallback lagi.
+        let _tempLogKnownGoodCandidate = { '2': null, '3': null, '4': null };
+
         async function _fetchAllAvailableTempLogs() {
-            const candidates = _getTempLogCollectionCandidates(selectedTrafo);
+            const allCandidates = _getTempLogCollectionCandidates(selectedTrafo);
+            const primary = allCandidates.find(c => c.primary);
+            const knownGoodLabel = _tempLogKnownGoodCandidate[selectedTrafo];
             tempLogSnapshots = {};
-            for (const c of candidates) {
+
+            const readOne = async (c) => {
                 try {
-                    const snap = await window.fs.getDocs(window.fs.query(c.ref));
+                    const snap = await window.fs.getDocs(_tempLogQueryFor(c));
                     let mapped = _mapTempDocsSnapshot(snap, c.label, true);
                     if (mapped.length === 0 && snap.size > 0) {
                         mapped = _mapTempDocsSnapshot(snap, `${c.label} (fallback semua dokumen)`, false);
                     }
                     tempLogSnapshots[c.label] = mapped;
+                    return mapped.length > 0;
                 } catch (err) {
                     console.warn(`[SHIELD LOGGER] Gagal membaca ${c.label}:`, err.message);
+                    return false;
+                }
+            };
+
+            // Selalu coba primary dulu (query dibatasi limit+orderBy — murah).
+            const primaryOk = primary ? await readOne(primary) : false;
+            if (primaryOk) {
+                _tempLogKnownGoodCandidate[selectedTrafo] = primary.label;
+            } else {
+                // Primary kosong. Kalau sesi sebelumnya sudah tahu collection lain yang berisi
+                // data untuk trafo ini, langsung baca itu saja — jangan tebak 5 collection lagi.
+                const known = allCandidates.find(c => c.label === knownGoodLabel);
+                if (known) {
+                    const ok = await readOne(known);
+                    if (!ok) _tempLogKnownGoodCandidate[selectedTrafo] = null;
+                } else {
+                    // Baru pertama kali & primary kosong — probe fallback legacy SEKALI saja
+                    // (bukan listener permanen), berhenti begitu satu ditemukan berisi data.
+                    for (const c of allCandidates.filter(x => !x.primary)) {
+                        const ok = await readOne(c);
+                        if (ok) { _tempLogKnownGoodCandidate[selectedTrafo] = c.label; break; }
+                    }
                 }
             }
             _mergeTempLoggerSources();
@@ -2106,11 +2156,19 @@
 
             await _fetchAllAvailableTempLogs();
 
-            const candidates = _getTempLogCollectionCandidates(selectedTrafo);
+            // Hanya pasang listener PERMANEN untuk collection yang benar-benar berisi data untuk
+            // trafo ini (primary, atau fallback yang sudah terbukti) — bukan keenam-enamnya
+            // sekaligus. Ini yang tadinya membakar kuota Firestore tiap kali halaman dibuka.
+            const allCandidates = _getTempLogCollectionCandidates(selectedTrafo);
+            const primary = allCandidates.find(c => c.primary);
+            const knownGoodLabel = _tempLogKnownGoodCandidate[selectedTrafo];
+            const activeCandidates = allCandidates.filter(c => c.primary || c.label === knownGoodLabel);
+            const toListen = activeCandidates.length ? activeCandidates : [primary].filter(Boolean);
+
             const unsubscribes = [];
             try {
-                candidates.forEach(c => {
-                    const unsub = window.fs.onSnapshot(window.fs.query(c.ref), (snapshot) => {
+                toListen.forEach(c => {
+                    const unsub = window.fs.onSnapshot(_tempLogQueryFor(c), (snapshot) => {
                         let mapped = _mapTempDocsSnapshot(snapshot, c.label, true);
                         if (mapped.length === 0 && snapshot.size > 0) {
                             mapped = _mapTempDocsSnapshot(snapshot, `${c.label} (fallback semua dokumen)`, false);
@@ -3456,6 +3514,43 @@
             const initial = await _fetchFirstAvailableBebanLogs();
             bebanLogSnapshots = { [initial.sourcePath]: initial.mapped };
             _mergeBebanLoggerSources();
+
+            // _fetchFirstAvailableBebanLogs() sudah tahu path mana yang benar-benar berisi data
+            // (berhenti di percobaan pertama yang sukses). Kalau sudah ketemu, pasang listener
+            // permanen HANYA untuk path itu — bukan 56 listener menebak root×docId sekaligus,
+            // yang sebelumnya jadi sumber boros kuota Firestore yang sama seperti pada suhu.
+            // Kalau belum ketemu sama sekali (data belum pernah ada), baru pakai jaring lebar
+            // sebagai fallback aman.
+            if (initial.mapped.length > 0 && initial.kind === 'logs') {
+                try {
+                    const ref = window.fs.collection(window.db, initial.root, initial.docId, 'logs');
+                    const unsub = window.fs.onSnapshot(ref, (snapshot) => {
+                        bebanLogSnapshots[initial.sourcePath] = _mapBebanDocsSnapshot(snapshot, initial.sourcePath, false);
+                        _mergeBebanLoggerSources();
+                    }, err => console.error(`[BEBAN LOGGER] onSnapshot ${initial.sourcePath}:`, err.message));
+                    bebanLogsUnsubscribe = () => unsub();
+                } catch (err) {
+                    console.error('[BEBAN LOGGER] Gagal memasang listener beban:', err.message);
+                }
+                return;
+            }
+            if (initial.mapped.length > 0 && initial.kind === 'root') {
+                try {
+                    const ref = window.fs.collection(window.db, initial.root);
+                    const unsub = window.fs.onSnapshot(ref, (snapshot) => {
+                        let mapped = _mapBebanDocsSnapshot(snapshot, initial.root, true);
+                        if (mapped.length === 0 && snapshot.size > 0) {
+                            mapped = _mapBebanDocsSnapshot(snapshot, `${initial.root} (fallback semua dokumen)`, false);
+                        }
+                        bebanLogSnapshots[initial.root] = mapped;
+                        _mergeBebanLoggerSources();
+                    }, err => console.error(`[BEBAN LOGGER] onSnapshot ${initial.root}:`, err.message));
+                    bebanLogsUnsubscribe = () => unsub();
+                } catch (err) {
+                    console.error('[BEBAN LOGGER] Gagal memasang listener beban:', err.message);
+                }
+                return;
+            }
 
             try {
                 const unsubscribes = [];
