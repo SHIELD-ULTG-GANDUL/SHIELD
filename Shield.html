@@ -3226,17 +3226,32 @@
                             console.error("Gagal melakukan subscribe MQTT:", e);
                         }
                     },
-                    onFailure: (err) => { 
-                        // Deteksi jika gagal terhubung
+                    onFailure: (err) => {
+                        // Deteksi jika gagal terhubung — coba ulang, jangan biarkan koneksi mati permanen
+                        console.error("[SHIELD MQTT] Gagal konek ke broker:", err && err.errorMessage);
                         setUIStatus(false);
+                        if (window.isAuthReady) {
+                            setTimeout(connectToMQTT, 10000);
+                        }
                     }
                 });
             } catch (error) {
                 // Tangkap SecurityError WebSocket secara diam-diam dan beri tahu user melalui UI/Log ramah, bukan pesan merah crash
                 console.info("Info: Koneksi MQTT fisik ditangguhkan oleh sandbox Canvas. Koneksi MQTT murni Anda akan berjalan normal di luar lingkungan sandbox Canvas.");
                 setUIStatus(false, true);
+                if (window.isAuthReady) {
+                    setTimeout(connectToMQTT, 10000);
+                }
             }
         };
+
+        // Watchdog: jika koneksi MQTT terputus tanpa memicu onConnectionLost/onFailure
+        // (mis. tab lama idle di background), paksa cek & sambung ulang tiap 20 detik.
+        setInterval(() => {
+            if (window.isAuthReady && (!window.mqttClient || !window.mqttClient.isConnected())) {
+                connectToMQTT();
+            }
+        }, 20000);
 
         // Memproses Payload MQTT asli yang masuk (Digunakan untuk Dashboard & Grafik)
         function processIncomingPayload(data, topic) {
@@ -5968,13 +5983,18 @@
             const current = _currentLNTAIResult() || rows[rows.length - 1] || null;
 
             if (!current) {
+                const tempOk = hasValidTemperaturePacket(temperatureData[selectedTrafo]);
+                const bebanOk = hasValidBebanPacket(latestBebanData[selectedTrafo]);
+                const waitReason = !tempOk
+                    ? 'Menunggu data sensor suhu (MQTT) — cek koneksi perangkat suhu.'
+                    : (!bebanOk ? 'Menunggu data beban realtime.' : 'Data kurang');
                 _setLNTAIText('lntai-kpi-value', '-');
                 _setLNTAIText('lntai-kpi-residual', '-');
                 _setLNTAIText('lntai-kpi-input', '-');
                 _setLNTAIText('lntai-kpi-phase', 'Hottest phase: -');
                 _setLNTAIText('lntai-kpi-points', '0');
                 _setLNTAIText('lntai-kpi-source', series.source);
-                _setLNTAIText('lntai-chart-status', 'Data kurang');
+                _setLNTAIText('lntai-chart-status', waitReason);
                 _updateLNTAIInsight([], null);
                 _updateLNTAIKPIInsights([], null, series.source);
                 _renderLNTAIModelChart([]);
