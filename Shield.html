@@ -301,6 +301,9 @@
               <div onclick="goToTab('ml','a7')" id="sub-ml-a7" class="sidebar-sub-item">
                 <i data-lucide="shuffle" class="w-3.5 h-3.5 shrink-0"></i> Stokastik
               </div>
+              <div onclick="goToTab('ml','lntai')" id="sub-ml-lntai" class="sidebar-sub-item">
+                <i data-lucide="thermometer-sun" class="w-3.5 h-3.5 shrink-0"></i> LNTAI
+              </div>
             </div>
           </div>
 
@@ -1147,6 +1150,7 @@
                   <button onclick="switchInnerTab('ml','a5')" id="itab-ml-a5" class="inner-tab-btn">Alg.5 CUSUM</button>
                   <button onclick="switchInnerTab('ml','a6')" id="itab-ml-a6" class="inner-tab-btn">Alg.6 OLS Baseline</button>
                   <button onclick="switchInnerTab('ml','a7')" id="itab-ml-a7" class="inner-tab-btn" style="color:#7c3aed;">Alg.7 Stokastik</button>
+                  <button onclick="switchInnerTab('ml','lntai')" id="itab-ml-lntai" class="inner-tab-btn" style="color:#dc2626;">🔥 LNTAI</button>
                 </div>
 
                 <!-- ════════════════════════════════════════════════════════
@@ -1166,8 +1170,6 @@
                   </div>
                 </div>
 
-<<<<<<< HEAD
-=======
                 <div id="itab-content-ml-lntai" class="hidden space-y-4">
                   <div class="glass-card p-5 border-l-4 border-red-500">
                     <div class="flex items-center justify-between flex-wrap gap-3 mb-4">
@@ -1456,7 +1458,6 @@
                   </div>
                 </div>
 
->>>>>>> 5eed129 (Add LNTAI timeline chart and data filters)
                 <!-- ════════════════════════════════════════════════════════
                      Tab A0: REALTIME FORECASTING BEBAN & SUHU
                      Metode: Holt-Winters Double Exponential Smoothing (DES)
@@ -2675,6 +2676,33 @@
             }, 1200);
         }
 
+        function _applyLiveTemperatureSnapshot(trafo, row) {
+            if (!row || !['R_Atas','R_Bawah','S_Atas','S_Bawah','T_Atas','T_Bawah'].some(k => Number.isFinite(Number(row[k])))) return;
+
+            const docTime = _parseAnyTimestamp(row.receivedAt || row.timestamp || row.ts || row.formattedTime || Date.now());
+            const payload = {
+                R_Atas: Number(row.R_Atas) || 0,
+                R_Bawah: Number(row.R_Bawah) || 0,
+                S_Atas: Number(row.S_Atas) || 0,
+                S_Bawah: Number(row.S_Bawah) || 0,
+                T_Atas: Number(row.T_Atas) || 0,
+                T_Bawah: Number(row.T_Bawah) || 0,
+                ts: row.ts || new Date(docTime).toLocaleString('id-ID'),
+                timestamp: row.timestamp || row.receivedAt || new Date(docTime).toISOString(),
+                receivedAt: row.receivedAt || row.timestamp || new Date(docTime).toISOString(),
+                deviceTimestamp: row.deviceTimestamp || row.timestamp || row.ts || null
+            };
+
+            temperatureData[trafo] = payload;
+            if (trafo === selectedTrafo) {
+                updateDashboardUI();
+                if (activePage === 'graphs' && realtimeChart && activeTimeFilter === 'LIVE') {
+                    const now = new Date();
+                    updateChartData(payload, now.toLocaleTimeString('id-ID', { hour12: false }));
+                }
+            }
+        }
+
         function _syncTempTrainingLog(trafo, mappedData) {
             if (trafo !== selectedTrafo || !mappedData) return;
             const docSortTime = _parseAnyTimestamp(mappedData.receivedAt || mappedData.timestamp || mappedData.ts);
@@ -2773,8 +2801,13 @@
                 if (k.startsWith(selectedTrafo + '_')) delete chartHistoricalData[k];
             });
             _scheduleMLRealtimeUpdate('muat ulang histori suhu');
-            console.log(`[SHIELD LOGGER] ${mappedDocs.length} log suhu dari ${sourcePath || 'Firestore'}`);
-            renderLoggerTable();
+            const loggerSuhuVisible = activePage === 'logger' && !document.getElementById('itab-content-logger-suhu')?.classList.contains('hidden');
+            if (loggerSuhuVisible) {
+                renderLoggerTable();
+            } else {
+                _loggerTempDirty = true;
+            }
+            _refreshLNTAIIfVisible();
         }
 
         function _mergeTempLoggerSources() {
@@ -2798,6 +2831,12 @@
                     seen.add(key);
                     deduped.push(row);
                 });
+
+            const latestSelected = deduped.find(row => String(row.trafo || '').includes(`Trafo ${selectedTrafo}`)) || deduped[0];
+            if (latestSelected) {
+                _applyLiveTemperatureSnapshot(String(selectedTrafo), latestSelected);
+            }
+
             _applyTempLoggerDocs(deduped, 'gabungan Firestore realtime');
         }
 
@@ -2964,6 +3003,9 @@
             }
         }
 
+        let _loggerTempDirty = false;
+        let _loggerBebanDirty = false;
+
         // Switch tab di dalam satu halaman (Suhu/Beban dalam Dashboard, Logger, Grafik)
         function switchInnerTab(group, tabId) {
             document.querySelectorAll(`[id^="itab-${group}-"]`).forEach(btn => btn.classList.remove('active'));
@@ -2972,6 +3014,18 @@
             const pane = document.getElementById(`itab-content-${group}-${tabId}`);
             if (btn) btn.classList.add('active');
             if (pane) pane.classList.remove('hidden');
+
+            if (group === 'ml' && tabId === 'lntai' && typeof renderLNTAIPanel === 'function') {
+                renderLNTAIPanel(true);
+            }
+            if (group === 'logger' && tabId === 'suhu' && _loggerTempDirty && typeof renderLoggerTable === 'function') {
+                _loggerTempDirty = false;
+                renderLoggerTable();
+            }
+            if (group === 'logger' && tabId === 'beban' && _loggerBebanDirty && typeof renderBebanLoggerTable === 'function') {
+                _loggerBebanDirty = false;
+                renderBebanLoggerTable();
+            }
         }
 
         // ── Sidebar submenu ──────────────────────────────────────────────────
@@ -3948,17 +4002,16 @@
                             console.warn(`[SHIELD BEBAN] Dokumen "${docId}" kosong (Trafo ${trafo})`);
                             return;
                         }
-                        console.log(`[SHIELD BEBAN] Update Trafo ${trafo} (${docId}):`, data);
                         // Simpan raw document untuk diagnostik field name
                         window._rawBebanDocs[trafo] = data;
                         // Auto-detect field mapping dari dokumen pertama
                         if (!window._bebanFieldOverride) _autoDetectBebanFields(data);
                         latestBebanData[trafo] = parseBebanDoc(data);
                         _syncBebanRealtimeTrainingLog(trafo, latestBebanData[trafo]);
-                        console.log(`[SHIELD BEBAN] Parsed Trafo ${trafo}:`, latestBebanData[trafo]);
                         if (trafo === selectedTrafo) {
                             updateBebanUI();
                             _setBebanStatus(`Terhubung — Trafo ${trafo} (${docId})`);
+                            _refreshLNTAIIfVisible();
                         }
                     }, (err) => console.error(`[SHIELD BEBAN] onSnapshot doc ${docId}:`, err.message));
 
@@ -3968,8 +4021,6 @@
                         let docs = [];
                         snapshot.forEach(d => docs.push(d.data()));
                         if (docs.length === 0) return;
-
-                        console.log(`[SHIELD BEBAN] Logs Trafo ${trafo}: ${docs.length} dokumen`);
 
                         const ascDocs = docs.map(d => {
                             const p = parseBebanDoc(d);
@@ -4068,8 +4119,13 @@
                 if (k.startsWith(selectedTrafo + '_')) delete bebanChartHistoricalData[k];
             });
             _scheduleMLRealtimeUpdate('muat ulang histori beban');
-            renderBebanLoggerTable();
-            console.log(`[BEBAN LOGGER] Rendered ${mapped.length} baris dari ${sourcePath || 'Firestore'}`);
+            const loggerBebanVisible = activePage === 'logger' && !document.getElementById('itab-content-logger-beban')?.classList.contains('hidden');
+            if (loggerBebanVisible) {
+                renderBebanLoggerTable();
+            } else {
+                _loggerBebanDirty = true;
+            }
+            _refreshLNTAIIfVisible();
         }
 
         function _mergeBebanLoggerSources() {
