@@ -4834,6 +4834,22 @@
         // lengkap/valid, data tidak dipakai dan nilai LNTAI sebelumnya dipertahankan.
         let _lastValidLNTAIResult = { '2': null, '3': null, '4': null };
 
+        // Buffer histori LNTAI in-memory per trafo — terisi setiap kali ada skor LNTAI baru yang
+        // valid, TIDAK bergantung pada tab Grafik dibuka atau tidak (beda dengan chartDataPoints/
+        // bebanLiveChartBuffer yang hanya terisi saat activePage==='graphs'). Ini yang membuat
+        // chart Timeline LNTAI Score selalu punya data realtime untuk digambar begitu panel LNTAI
+        // dibuka, berapa pun lama sesi berjalan.
+        let _lntaiHistoryBuffer = { '2': [], '3': [], '4': [] };
+        const LNTAI_HISTORY_MAX = 500;
+
+        function _pushLNTAIHistory(trafo, result, timeMs) {
+            const buf = _lntaiHistoryBuffer[trafo] || (_lntaiHistoryBuffer[trafo] = []);
+            const last = buf[buf.length - 1];
+            if (last && Math.abs(last.time - timeMs) < 15000) return; // hindari duplikat sub-15 detik
+            buf.push({ ...result, time: timeMs, source: 'realtime buffer' });
+            if (buf.length > LNTAI_HISTORY_MAX) buf.shift();
+        }
+
         function _currentLNTAIResult() {
             const td = temperatureData[selectedTrafo];
             const bd = latestBebanData[selectedTrafo];
@@ -4849,6 +4865,7 @@
             if (!calc) return _lastValidLNTAIResult[selectedTrafo];
             const result = { ...calc, ...ph, timestamp: td.timestamp || bd.timestamp || new Date().toISOString(), source: 'realtime snapshot' };
             _lastValidLNTAIResult[selectedTrafo] = result;
+            _pushLNTAIHistory(selectedTrafo, result, _parseAnyTimestamp(result.timestamp) || Date.now());
             return result;
         }
 
@@ -4885,7 +4902,26 @@
                 });
             }
 
-            if (paired.length >= 2) return { rows: paired.slice(-120), source: 'Firestore temperature + load history' };
+            // Gabungkan dengan buffer realtime in-memory (_pushLNTAIHistory) — ini yang terus
+            // terisi selama panel LNTAI aktif menerima update, apapun tab lain yang sedang
+            // dibuka, jadi chart Timeline tidak kosong hanya karena histori Firestore tipis.
+            const liveBuf = (_lntaiHistoryBuffer[selectedTrafo] || []).map(r => ({ ...r }));
+            if (paired.length || liveBuf.length) {
+                const combined = [...paired, ...liveBuf];
+                const seenTimes = new Set();
+                const merged = combined
+                    .sort((a, b) => a.time - b.time)
+                    .filter(r => {
+                        const bucket = Math.round(r.time / 10000); // dedupe dalam jendela 10 detik
+                        if (seenTimes.has(bucket)) return false;
+                        seenTimes.add(bucket);
+                        return true;
+                    });
+                if (merged.length >= 2) {
+                    const source = paired.length ? 'Firestore temperature + load history + realtime' : 'realtime buffer';
+                    return { rows: merged.slice(-240), source };
+                }
+            }
 
             const n = Math.min(chartDataPoints.timestamps.length, (bebanLiveChartBuffer[selectedTrafo] || []).length, 60);
             if (n > 0) {
