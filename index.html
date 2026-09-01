@@ -19,10 +19,6 @@
         import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-analytics.js";
         import { getFirestore, doc, setDoc, getDoc, onSnapshot, collection, query, getDocs } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
         import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
-        import {
-            getDatabase, ref as rtdbRef, push as rtdbPush, query as rtdbQuery,
-            limitToLast, orderByKey, onValue, off as rtdbOff
-        } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-database.js";
 
         // Your web app's Firebase configuration
         const firebaseConfig = {
@@ -32,17 +28,9 @@
             storageBucket: "shield-ultg-gandul.firebasestorage.app",
             messagingSenderId: "731840683673",
             appId: "1:731840683673:web:19f76979443d2f1be3e208",
-            measurementId: "G-TTLQ0EWWSX",
-            // ── ISI SETELAH MEMBUAT REALTIME DATABASE ──────────────────────────
-            // Firebase Console → Build → Realtime Database → Create Database.
-            // Setelah dibuat, salin URL-nya (bentuknya seperti
-            // "https://shield-ultg-gandul-default-rtdb.asia-southeast1.firebasedatabase.app")
-            // dan tempel di sini. Selama masih placeholder ini, log suhu tetap
-            // memakai Firestore lama (lihat _persistTempLogToFirestore/subscribeTemperatureLogs)
-            // supaya aplikasi tidak rusak sebelum RTDB benar-benar disiapkan.
-            databaseURL: "ISI_URL_REALTIME_DATABASE_DI_SINI"
+            measurementId: "G-TTLQ0EWWSX"
         };
-
+        
         // Initialize Firebase
         const app = initializeApp(firebaseConfig);
         const analytics = getAnalytics(app);
@@ -51,24 +39,6 @@
 
         window.db = db;
         window.fs = { doc, setDoc, getDoc, onSnapshot, collection, query, getDocs };
-
-        // Realtime Database — dipakai khusus untuk log historis suhu (lihat catatan di
-        // firebaseConfig.databaseURL di atas). Model kuota RTDB dihitung dari volume data
-        // yang lewat (bandwidth), bukan per-dokumen-dibaca seperti Firestore, jadi jauh
-        // lebih tahan terhadap listener yang sering menerima update seperti data sensor.
-        window.rtdbReady = firebaseConfig.databaseURL && !firebaseConfig.databaseURL.includes('ISI_URL_');
-        if (window.rtdbReady) {
-            try {
-                const rtdb = getDatabase(app);
-                window.rtdb = rtdb;
-                window.rtdbFns = { ref: rtdbRef, push: rtdbPush, query: rtdbQuery, limitToLast, orderByKey, onValue, off: rtdbOff };
-            } catch (e) {
-                console.error('[SHIELD RTDB] Gagal inisialisasi Realtime Database — cek databaseURL di firebaseConfig:', e.message);
-                window.rtdbReady = false;
-            }
-        } else {
-            console.warn('[SHIELD RTDB] databaseURL belum diisi di firebaseConfig — log suhu masih memakai Firestore lama. Lihat komentar di dekat firebaseConfig untuk cara mengaktifkan Realtime Database.');
-        }
 
         // Inisialisasi Auth & Listener Status Login
         const initFirebase = () => {
@@ -2136,71 +2106,7 @@
             _mergeTempLoggerSources();
         }
 
-        const TEMP_LOG_RTDB_LIMIT = 300; // ≈5 hari data pada interval tulis 1 menit/trafo
-
-        // Dispatcher: pakai listener Realtime Database sekali sudah dikonfigurasi,
-        // jatuh ke pola Firestore lama (menebak beberapa kemungkinan collection) selama belum.
         async function subscribeTemperatureLogs() {
-            if (window.rtdbReady) return _subscribeTemperatureLogsRTDB();
-            return _subscribeTemperatureLogsFirestore();
-        }
-
-        function _rtdbRowToLoggerRow(pushId, raw) {
-            const parsed = {
-                R_Atas: Number(raw.R_Atas) || 0,
-                R_Bawah: Number(raw.R_Bawah) || 0,
-                S_Atas: Number(raw.S_Atas) || 0,
-                S_Bawah: Number(raw.S_Bawah) || 0,
-                T_Atas: Number(raw.T_Atas) || 0,
-                T_Bawah: Number(raw.T_Bawah) || 0,
-                timestamp: raw.timestamp || raw.receivedAt || null
-            };
-            const docTime = _parseAnyTimestamp(parsed.timestamp);
-            return {
-                ...parsed,
-                docSortTime: docTime,
-                formattedTime: new Date(docTime).toLocaleString('id-ID'),
-                trafo: `Trafo ${selectedTrafo}`,
-                sourcePath: `temperature_logs/${selectedTrafo} (Realtime Database)`,
-                _rtdbKey: pushId
-            };
-        }
-
-        async function _subscribeTemperatureLogsRTDB() {
-            if (!window.isAuthReady || !window.rtdb || !window.rtdbFns) return;
-            if (typeof tempLogsUnsubscribe === 'function') {
-                tempLogsUnsubscribe();
-                tempLogsUnsubscribe = null;
-            } else if (Array.isArray(tempLogsUnsubscribe)) {
-                tempLogsUnsubscribe.forEach(u => { if (typeof u === 'function') u(); });
-                tempLogsUnsubscribe = null;
-            }
-
-            const { ref, query: rq, limitToLast, onValue, off } = window.rtdbFns;
-            const path = `temperature_logs/${selectedTrafo}`;
-            const dataRef = rq(ref(window.rtdb, path), limitToLast(TEMP_LOG_RTDB_LIMIT));
-
-            const listener = (snapshot) => {
-                const rows = [];
-                snapshot.forEach((child) => {
-                    const val = child.val();
-                    if (val && ['R_Atas', 'R_Bawah', 'S_Atas', 'S_Bawah', 'T_Atas', 'T_Bawah'].some(k => Number(val[k]) !== 0)) {
-                        rows.push(_rtdbRowToLoggerRow(child.key, val));
-                    }
-                });
-                rows.sort((a, b) => b.docSortTime - a.docSortTime);
-
-                if (rows.length) _applyLiveTemperatureSnapshot(String(selectedTrafo), rows[0]);
-                _applyTempLoggerDocs(rows, 'Realtime Database');
-            };
-            onValue(dataRef, listener, (err) => {
-                console.error('[SHIELD LOGGER] onValue temperature_logs (RTDB):', err.message);
-            });
-
-            tempLogsUnsubscribe = () => off(dataRef, 'value', listener);
-        }
-
-        async function _subscribeTemperatureLogsFirestore() {
             if (!window.isAuthReady || !window.db || !window.fs) return;
             if (typeof tempLogsUnsubscribe === 'function') {
                 tempLogsUnsubscribe();
@@ -2231,46 +2137,6 @@
                 tempLogsUnsubscribe = unsubscribes;
             } catch (err) {
                 console.error('[SHIELD LOGGER] Gagal memasang listener suhu:', err.message);
-            }
-        }
-
-        // Dispatcher: pakai Realtime Database begitu sudah dikonfigurasi (lihat
-        // firebaseConfig.databaseURL), jatuh ke Firestore lama selama belum diisi —
-        // supaya logging suhu tidak pernah berhenti total di masa transisi.
-        function _persistTempLog(trafo, mappedData) {
-            if (window.rtdbReady) return _persistTempLogToRTDB(trafo, mappedData);
-            return _persistTempLogToFirestore(trafo, mappedData);
-        }
-
-        async function _persistTempLogToRTDB(trafo, mappedData) {
-            if (!window.isAuthReady || !window.rtdb || !window.rtdbFns || !mappedData) return;
-            const now = Date.now();
-            if (now - (tempLogLastWriteAt[trafo] || 0) < TEMP_LOG_WRITE_INTERVAL_MS) return;
-            tempLogLastWriteAt[trafo] = now;
-
-            const receivedAt = mappedData.receivedAt || new Date(now).toISOString();
-            const payload = {
-                R_Atas: Number(mappedData.R_Atas) || 0,
-                R_Bawah: Number(mappedData.R_Bawah) || 0,
-                S_Atas: Number(mappedData.S_Atas) || 0,
-                S_Bawah: Number(mappedData.S_Bawah) || 0,
-                T_Atas: Number(mappedData.T_Atas) || 0,
-                T_Bawah: Number(mappedData.T_Bawah) || 0,
-                timestamp: receivedAt,
-                ts: new Date(_parseAnyTimestamp(receivedAt)).toLocaleString('id-ID'),
-                deviceTimestamp: mappedData.deviceTimestamp || mappedData.ts || null,
-                source: 'mqtt_web'
-            };
-
-            try {
-                const { ref, push } = window.rtdbFns;
-                await push(ref(window.rtdb, `temperature_logs/${trafo}`), payload);
-                Object.keys(chartHistoricalData).forEach(k => {
-                    if (k.startsWith(trafo + '_')) delete chartHistoricalData[k];
-                });
-            } catch (err) {
-                console.error('[SHIELD LOGGER] Gagal menyimpan log suhu ke Realtime Database:', err);
-                tempLogLastWriteAt[trafo] = 0;
             }
         }
 
@@ -2665,7 +2531,7 @@
             // Simpan paket terbaru ke memori untuk Dashboard
             temperatureData[trafoIdx] = mappedData;
             _syncTempTrainingLog(trafoIdx, mappedData);
-            _persistTempLog(trafoIdx, mappedData);
+            _persistTempLogToFirestore(trafoIdx, mappedData);
 
             // Jika Trafo yang diperbarui saat ini sedang dipilih di dropdown, render perubahan UI secara real-time
             if (trafoIdx === selectedTrafo) {
