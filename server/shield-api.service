@@ -1,0 +1,16 @@
+[Unit]
+Description=SHIELD temperature log read API
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=shield
+WorkingDirectory=/opt/shield/server
+EnvironmentFile=/opt/shield/server/.env
+ExecStart=/opt/shield/server/venv/bin/uvicorn api:app --host 127.0.0.1 --port 8000
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

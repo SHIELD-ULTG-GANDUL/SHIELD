@@ -1,0 +1,16 @@
+[Unit]
+Description=SHIELD MQTT to TimescaleDB ingester
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=shield
+WorkingDirectory=/opt/shield/server
+EnvironmentFile=/opt/shield/server/.env
+ExecStart=/opt/shield/server/venv/bin/python mqtt_ingester.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

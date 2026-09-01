@@ -1,0 +1,5 @@
+# Server backend — jangan commit kredensial/environment lokal
+server/.env
+server/venv/
+server/__pycache__/
+*.pyc

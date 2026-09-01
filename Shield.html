@@ -2106,7 +2106,69 @@
             _mergeTempLoggerSources();
         }
 
+        // Dispatcher: pakai polling REST API TimescaleDB begitu sudah dikonfigurasi
+        // (lihat TIMESCALE_API_BASE_URL), jatuh ke Firestore lama selama belum.
         async function subscribeTemperatureLogs() {
+            if (window.timescaleReady) return _subscribeTemperatureLogsTimescale();
+            return _subscribeTemperatureLogsFirestore();
+        }
+
+        function _timescaleRowToLoggerRow(row) {
+            const docTime = _parseAnyTimestamp(row.timestamp);
+            return {
+                R_Atas: Number(row.R_Atas) || 0,
+                R_Bawah: Number(row.R_Bawah) || 0,
+                S_Atas: Number(row.S_Atas) || 0,
+                S_Bawah: Number(row.S_Bawah) || 0,
+                T_Atas: Number(row.T_Atas) || 0,
+                T_Bawah: Number(row.T_Bawah) || 0,
+                timestamp: row.timestamp,
+                docSortTime: docTime,
+                formattedTime: new Date(docTime).toLocaleString('id-ID'),
+                trafo: `Trafo ${selectedTrafo}`,
+                sourcePath: 'TimescaleDB (server Ubuntu)'
+            };
+        }
+
+        async function _fetchTimescaleTempLogs(trafo, limit = 300) {
+            const url = `${TIMESCALE_API_BASE_URL}/temperature-logs?trafo=${encodeURIComponent(trafo)}&limit=${limit}`;
+            const headers = TIMESCALE_API_KEY ? { 'X-API-Key': TIMESCALE_API_KEY } : {};
+            const res = await fetch(url, { headers });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const body = await res.json();
+            return (body.rows || []).map(_timescaleRowToLoggerRow).sort((a, b) => b.docSortTime - a.docSortTime);
+        }
+
+        let _timescalePollTimer = null;
+
+        async function _subscribeTemperatureLogsTimescale() {
+            if (typeof tempLogsUnsubscribe === 'function') {
+                tempLogsUnsubscribe();
+                tempLogsUnsubscribe = null;
+            } else if (Array.isArray(tempLogsUnsubscribe)) {
+                tempLogsUnsubscribe.forEach(u => { if (typeof u === 'function') u(); });
+                tempLogsUnsubscribe = null;
+            }
+            if (_timescalePollTimer) clearInterval(_timescalePollTimer);
+
+            const trafoAtSubscribe = selectedTrafo;
+            const pollOnce = async () => {
+                if (selectedTrafo !== trafoAtSubscribe) return; // trafo sudah diganti, biarkan subscribe baru yang jalan
+                try {
+                    const rows = await _fetchTimescaleTempLogs(trafoAtSubscribe);
+                    if (rows.length) _applyLiveTemperatureSnapshot(String(trafoAtSubscribe), rows[0]);
+                    _applyTempLoggerDocs(rows, 'TimescaleDB');
+                } catch (err) {
+                    console.error('[SHIELD LOGGER] Gagal mengambil log suhu dari TimescaleDB API:', err.message);
+                }
+            };
+
+            await pollOnce();
+            _timescalePollTimer = setInterval(pollOnce, TIMESCALE_POLL_INTERVAL_MS);
+            tempLogsUnsubscribe = () => { if (_timescalePollTimer) { clearInterval(_timescalePollTimer); _timescalePollTimer = null; } };
+        }
+
+        async function _subscribeTemperatureLogsFirestore() {
             if (!window.isAuthReady || !window.db || !window.fs) return;
             if (typeof tempLogsUnsubscribe === 'function') {
                 tempLogsUnsubscribe();
@@ -2215,6 +2277,17 @@
         const MQTT_PORT = 8884; // Port Secure Websocket SSL HiveMQ
         const MQTT_USER = "webshield";
         const MQTT_PASS = "webShield123";
+
+        // ── ISI SETELAH BACKEND TIMESCALEDB DI SERVER UBUNTU SIAP ───────────────
+        // Lihat server/README.md untuk cara setup mqtt_ingester.py + api.py di
+        // server Ubuntu Anda. Setelah API-nya jalan (dengan HTTPS lewat nginx),
+        // isi URL publiknya di sini, misal "https://api.domain-anda.com/api".
+        // Selama masih kosong, log suhu tetap memakai Firestore lama seperti
+        // biasa — aman diisi kapan saja tanpa perlu koordinasi waktu deploy.
+        const TIMESCALE_API_BASE_URL = "";
+        const TIMESCALE_API_KEY = ""; // isi kalau API_KEY diaktifkan di server (lihat server/.env)
+        const TIMESCALE_POLL_INTERVAL_MS = 30000; // REST API bersifat pull, bukan realtime listener
+        window.timescaleReady = !!TIMESCALE_API_BASE_URL;
 
         // Clock / Jam Live Indonesia
         setInterval(() => {
