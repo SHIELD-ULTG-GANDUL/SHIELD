@@ -1198,6 +1198,13 @@
                         <button type="button" onclick="findLNTAITimelineData()" class="flex items-center gap-1.5 bg-white border border-slate-200 text-slate-700 text-[10px] font-bold px-3 py-1.5 rounded-lg hover:bg-slate-50 transition-all">
                           <i data-lucide="search" class="w-3.5 h-3.5"></i> Find Data
                         </button>
+                        <button type="button" id="btn-lntai-timeline-drag-zoom" onclick="toggleLNTAITimelineDragZoom()" class="btn-drag-zoom" title="Tahan dan seret untuk pilih area zoom, seperti chart saham">
+                          <i data-lucide="crosshair" class="w-3.5 h-3.5"></i>
+                          <span>Pilih Area</span>
+                        </button>
+                        <button type="button" onclick="resetLNTAITimelineZoom()" class="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-bold px-3 py-1.5 rounded-lg transition-all">
+                          <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> Reset Zoom
+                        </button>
                         <button type="button" onclick="saveChartImage('lntai-timeline-chart','LNTAI Timeline')" class="flex items-center gap-1.5 bg-red-50 border border-red-200 text-red-700 text-[10px] font-bold px-3 py-1.5 rounded-lg hover:bg-red-100 transition-all">
                           <i data-lucide="download" class="w-3.5 h-3.5"></i> Save Grafik
                         </button>
@@ -1205,7 +1212,12 @@
                     </div>
                     <div class="mb-3 flex items-center justify-between text-[10px] text-slate-500">
                       <span id="lntai-timeline-summary">0 data point</span>
-                      <span id="lntai-timeline-filter-tag" class="font-bold text-red-600">Mode: Per Jam</span>
+                      <span class="flex items-center gap-2">
+                        <span id="lntai-timeline-crosshair" class="font-mono font-bold text-slate-600"></span>
+                        <span id="lntai-timeline-filter-tag" class="font-bold text-red-600">Mode: Per Jam</span>
+                        <span class="text-slate-300">·</span>
+                        <span class="text-slate-400">Scroll/pinch = zoom · Tahan &amp; geser = pan · Tombol "Pilih Area" = zoom seperti saham</span>
+                      </span>
                     </div>
                     <div class="relative h-[280px]">
                       <canvas id="lntai-timeline-chart"></canvas>
@@ -4223,7 +4235,7 @@
         // =========================================================
         // DRAG-ZOOM — Toggle mode Pilih Area vs Geser
         // =========================================================
-        let _dragZoomState = { temp: false, beban: false };
+        let _dragZoomState = { temp: false, beban: false, lntaiTimeline: false };
 
         function toggleDragZoom(type) {
             const chart     = type === 'temp' ? realtimeChart : bebanChart;
@@ -4267,8 +4279,40 @@
             if (e.key === 'Escape') {
                 if (_dragZoomState.temp)  toggleDragZoom('temp');
                 if (_dragZoomState.beban) toggleDragZoom('beban');
+                if (_dragZoomState.lntaiTimeline) toggleLNTAITimelineDragZoom();
             }
         });
+
+        // Mode "Pilih Area" untuk chart Timeline LNTAI Score, sama seperti chart suhu/beban —
+        // tahan & seret untuk zoom ke rentang waktu tertentu (perilaku ala chart saham).
+        function toggleLNTAITimelineDragZoom() {
+            const chart = mlCharts['lntai-timeline'];
+            if (!chart) return;
+
+            const nowActive = !_dragZoomState.lntaiTimeline;
+            _dragZoomState.lntaiTimeline = nowActive;
+
+            chart.options.plugins.zoom.zoom.drag.enabled = nowActive;
+            chart.options.plugins.zoom.pan.enabled       = !nowActive;
+            chart.update('none');
+
+            const canvas = document.getElementById('lntai-timeline-chart');
+            if (canvas) canvas.classList.toggle('drag-zoom-canvas', nowActive);
+
+            const btn = document.getElementById('btn-lntai-timeline-drag-zoom');
+            if (btn) {
+                btn.classList.toggle('active', nowActive);
+                const span = btn.querySelector('span');
+                if (span) span.textContent = nowActive ? 'Mode: Pilih Area' : 'Pilih Area';
+            }
+            lucide.createIcons();
+        }
+
+        function resetLNTAITimelineZoom() {
+            const chart = mlCharts['lntai-timeline'];
+            if (chart) chart.resetZoom();
+            if (_dragZoomState.lntaiTimeline) toggleLNTAITimelineDragZoom();
+        }
 
         // =========================================================
         // ZOOM — Reset zoom untuk kedua chart
@@ -5190,9 +5234,26 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    interaction: { mode: 'nearest', intersect: false },
+                    interaction: { mode: 'nearest', intersect: false, axis: 'x' },
+                    // Interaktif ala chart saham: scroll/pinch untuk zoom, tahan-geser untuk pan,
+                    // atau tombol "Pilih Area" untuk zoom ke rentang waktu tertentu dengan drag.
                     plugins: {
                         legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } },
+                        zoom: {
+                            pan: { enabled: true, mode: 'x', threshold: 5 },
+                            zoom: {
+                                wheel: { enabled: true, speed: 0.08 },
+                                pinch: { enabled: true },
+                                drag: {
+                                    enabled: false,
+                                    backgroundColor: 'rgba(220,38,38,0.08)',
+                                    borderColor: '#dc2626',
+                                    borderWidth: 1.5
+                                },
+                                mode: 'x'
+                            },
+                            limits: { x: { minRange: 2 } }
+                        },
                         tooltip: {
                             callbacks: {
                                 afterBody: (items) => {
@@ -5216,6 +5277,17 @@
                     scales: {
                         x: { grid: { display: false }, ticks: { font: { size: 9 }, maxTicksLimit: 8 } },
                         y: { title: { display: true, text: 'LNTAI (0-40)' }, suggestedMin: 0, suggestedMax: 40, grid: { color: '#f1f5f9' }, ticks: { font: { size: 9 } } }
+                    },
+                    // Pembacaan crosshair ala chart saham di atas grafik, ikut kursor tanpa perlu tooltip terbuka.
+                    onHover: (evt, active) => {
+                        const el = document.getElementById('lntai-timeline-crosshair');
+                        if (!el) return;
+                        if (!active || !active.length) { el.textContent = ''; return; }
+                        const idx = active[0].index;
+                        const value = grouped.values[idx];
+                        const status = value >= 30 ? 'CRITICAL' : value >= 18 ? 'WARNING' : 'NORMAL';
+                        const statusColor = value >= 30 ? 'text-red-700' : value >= 18 ? 'text-amber-600' : 'text-emerald-600';
+                        el.innerHTML = `${grouped.labels[idx]} · <span class="${statusColor}">${value.toFixed(2)} (${status})</span>`;
                     }
                 }
             });
