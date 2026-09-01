@@ -30,8 +30,8 @@ import time
 from typing import Any
 
 import paho.mqtt.client as mqtt
-import psycopg2
-import psycopg2.pool
+import psycopg
+from psycopg_pool import ConnectionPool
 
 logging.basicConfig(
     level=logging.INFO,
@@ -55,7 +55,7 @@ if not DATABASE_URL:
 WRITE_INTERVAL_SECONDS = int(os.environ.get("WRITE_INTERVAL_SECONDS", "60"))
 _last_write_at: dict[str, float] = {}
 
-_pool = psycopg2.pool.SimpleConnectionPool(1, 5, dsn=DATABASE_URL)
+_pool = ConnectionPool(conninfo=DATABASE_URL, min_size=1, max_size=5, open=True)
 
 FIELD_KEYS = ["R_Atas", "R_Bawah", "S_Atas", "S_Bawah", "T_Atas", "T_Bawah"]
 
@@ -69,25 +69,21 @@ def _insert_row(trafo: str, payload: dict[str, Any]) -> None:
     values = {k: float(payload.get(k) or 0) for k in FIELD_KEYS}
     device_ts = payload.get("timestamp") or payload.get("ts")
 
-    conn = _pool.getconn()
-    try:
-        with conn, conn.cursor() as cur:
-            cur.execute(
-                """
-                INSERT INTO temperature_logs
-                    (trafo, r_atas, r_bawah, s_atas, s_bawah, t_atas, t_bawah, device_ts, source)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'mqtt_ingester')
-                """,
-                (
-                    int(trafo),
-                    values["R_Atas"], values["R_Bawah"],
-                    values["S_Atas"], values["S_Bawah"],
-                    values["T_Atas"], values["T_Bawah"],
-                    str(device_ts) if device_ts is not None else None,
-                ),
-            )
-    finally:
-        _pool.putconn(conn)
+    with _pool.connection() as conn, conn.cursor() as cur:
+        cur.execute(
+            """
+            INSERT INTO temperature_logs
+                (trafo, r_atas, r_bawah, s_atas, s_bawah, t_atas, t_bawah, device_ts, source)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'mqtt_ingester')
+            """,
+            (
+                int(trafo),
+                values["R_Atas"], values["R_Bawah"],
+                values["S_Atas"], values["S_Bawah"],
+                values["T_Atas"], values["T_Bawah"],
+                str(device_ts) if device_ts is not None else None,
+            ),
+        )
 
 
 def on_connect(client: mqtt.Client, userdata, flags, rc, properties=None):
@@ -142,7 +138,7 @@ def main() -> None:
     def _shutdown(signum, frame):
         log.info("Menerima signal berhenti, menutup koneksi...")
         client.disconnect()
-        _pool.closeall()
+        _pool.close()
         sys.exit(0)
 
     signal.signal(signal.SIGTERM, _shutdown)

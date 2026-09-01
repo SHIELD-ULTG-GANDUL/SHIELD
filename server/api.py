@@ -18,9 +18,8 @@ import os
 from datetime import datetime, timezone
 from typing import Optional
 
-import psycopg2
-import psycopg2.extras
-import psycopg2.pool
+from psycopg.rows import dict_row
+from psycopg_pool import ConnectionPool
 from fastapi import FastAPI, Header, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -49,7 +48,7 @@ app.add_middleware(
     allow_headers=["X-API-Key"],
 )
 
-_pool = psycopg2.pool.SimpleConnectionPool(1, 5, dsn=DATABASE_URL)
+_pool = ConnectionPool(conninfo=DATABASE_URL, min_size=1, max_size=5, open=True)
 
 
 def _check_api_key(x_api_key: Optional[str]) -> None:
@@ -73,26 +72,22 @@ def temperature_logs(
     Firestore supaya sisi frontend (Shield.html) tinggal memetakan langsung."""
     _check_api_key(x_api_key)
 
-    conn = _pool.getconn()
-    try:
-        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            cur.execute(
-                """
-                SELECT trafo, r_atas AS "R_Atas", r_bawah AS "R_Bawah",
-                       s_atas AS "S_Atas", s_bawah AS "S_Bawah",
-                       t_atas AS "T_Atas", t_bawah AS "T_Bawah",
-                       device_ts AS "deviceTimestamp", source,
-                       ts
-                FROM temperature_logs
-                WHERE trafo = %s
-                ORDER BY ts DESC
-                LIMIT %s
-                """,
-                (trafo, limit),
-            )
-            rows = cur.fetchall()
-    finally:
-        _pool.putconn(conn)
+    with _pool.connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+        cur.execute(
+            """
+            SELECT trafo, r_atas AS "R_Atas", r_bawah AS "R_Bawah",
+                   s_atas AS "S_Atas", s_bawah AS "S_Bawah",
+                   t_atas AS "T_Atas", t_bawah AS "T_Bawah",
+                   device_ts AS "deviceTimestamp", source,
+                   ts
+            FROM temperature_logs
+            WHERE trafo = %s
+            ORDER BY ts DESC
+            LIMIT %s
+            """,
+            (trafo, limit),
+        )
+        rows = cur.fetchall()
 
     for row in rows:
         row["timestamp"] = row["ts"].isoformat()
