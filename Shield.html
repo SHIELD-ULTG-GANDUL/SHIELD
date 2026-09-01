@@ -40,35 +40,6 @@
         window.db = db;
         window.fs = { doc, setDoc, getDoc, onSnapshot, collection, query, getDocs, orderBy, limit };
 
-        // Bungkus getDocs/onSnapshot supaya SEMUA baca Firestore di seluruh aplikasi otomatis
-        // tercatat & dibatasi oleh anggaran harian (_recordFirestoreReads/_canSpendFirestoreReads,
-        // didefinisikan di script utama) — tanpa perlu mengubah tiap titik pemanggilan satu-satu.
-        // Ini pagar terakhir supaya project ini tidak pernah lagi memicu blokir kuota Firestore.
-        const _rawGetDocs = window.fs.getDocs;
-        const _rawOnSnapshot = window.fs.onSnapshot;
-        window.fs.getDocs = async (...args) => {
-            if (typeof window._canSpendFirestoreReads === 'function' && !window._canSpendFirestoreReads()) {
-                console.warn('[SHIELD QUOTA] getDocs ditahan — anggaran baca Firestore harian sudah tercapai.');
-                return { size: 0, docs: [], empty: true, forEach: () => {} };
-            }
-            const snap = await _rawGetDocs(...args);
-            if (typeof window._recordFirestoreReads === 'function') window._recordFirestoreReads(snap.size, 'getDocs');
-            return snap;
-        };
-        window.fs.onSnapshot = (queryOrRef, onNext, onError) => {
-            if (typeof window._canSpendFirestoreReads === 'function' && !window._canSpendFirestoreReads()) {
-                console.warn('[SHIELD QUOTA] onSnapshot ditahan — anggaran baca Firestore harian sudah tercapai.');
-                return () => {};
-            }
-            return _rawOnSnapshot(queryOrRef, (snapshot) => {
-                if (typeof window._recordFirestoreReads === 'function') {
-                    const changed = typeof snapshot.docChanges === 'function' ? snapshot.docChanges().length : snapshot.size;
-                    window._recordFirestoreReads(changed, 'onSnapshot');
-                }
-                onNext(snapshot);
-            }, onError);
-        };
-
         // Inisialisasi Auth & Listener Status Login
         const initFirebase = () => {
             onAuthStateChanged(auth, (user) => {
@@ -359,7 +330,6 @@
                         <div id="conn-dot" class="w-2.5 h-2.5 rounded-full bg-red-500"></div>
                         <span id="conn-text" class="text-[9px] font-black uppercase text-slate-400">Offline</span>
                     </div>
-                    <div id="firestore-budget-badge" title="Perkiraan baca Firestore hari ini vs anggaran aman harian" class="text-[8px] font-bold text-slate-400 mt-0.5">Firestore: —</div>
                 </div>
                 <div class="border-l border-slate-200 pl-6">
                     <button onclick="handleSignOut()" class="btn-logout-small shadow-md" title="Keluar">
@@ -1803,71 +1773,6 @@
     <script>
         // Inisialisasi Ikon Lucide
         lucide.createIcons();
-
-        // ═══════════════════════════════════════════════════════════════════
-        // FIRESTORE READ BUDGET GUARD
-        // Spark (gratis) punya limit 50.000 baca/hari, dan kalau kepakai penuh —
-        // apalagi lonjakan mendadak dari listener yang boros — Google bisa
-        // memblokir project lebih lama dari 24 jam (bukan cuma reset harian
-        // biasa), butuh eskalasi manual untuk pulih. Guard ini menjaga total
-        // baca perkiraan tetap jauh di bawah limit itu, dengan sirkuit-breaker
-        // yang menghentikan fetch/listener BARU begitu anggaran harian hampir
-        // habis — supaya tidak pernah lagi memicu blokir seperti itu.
-        // ═══════════════════════════════════════════════════════════════════
-        const FIRESTORE_DAILY_READ_BUDGET = 20000; // jauh di bawah limit 50rb Spark, beri margin aman
-        const FIRESTORE_BUDGET_STORAGE_KEY = 'shield_firestore_read_budget_v1';
-
-        function _todayKeyLocal() {
-            const d = new Date();
-            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-        }
-
-        function _loadFirestoreBudgetState() {
-            try {
-                const raw = localStorage.getItem(FIRESTORE_BUDGET_STORAGE_KEY);
-                const parsed = raw ? JSON.parse(raw) : null;
-                if (parsed && parsed.date === _todayKeyLocal() && Number.isFinite(parsed.reads)) return parsed;
-            } catch (e) { /* localStorage tidak tersedia — lanjut dengan state kosong */ }
-            return { date: _todayKeyLocal(), reads: 0 };
-        }
-
-        let _firestoreBudgetState = _loadFirestoreBudgetState();
-
-        function _saveFirestoreBudgetState() {
-            try { localStorage.setItem(FIRESTORE_BUDGET_STORAGE_KEY, JSON.stringify(_firestoreBudgetState)); } catch (e) { /* abaikan */ }
-        }
-
-        // Dipanggil setelah getDocs/onSnapshot untuk mencatat perkiraan biaya baca.
-        // n = jumlah dokumen yang benar-benar terbaca (snapshot.size untuk getDocs,
-        // docChanges().length untuk onSnapshot — bukan snapshot.size penuh, supaya
-        // update kecil di listener yang sudah aktif tidak dihitung seolah baca ulang semua).
-        function _recordFirestoreReads(n, label) {
-            if (_firestoreBudgetState.date !== _todayKeyLocal()) _firestoreBudgetState = { date: _todayKeyLocal(), reads: 0 };
-            _firestoreBudgetState.reads += Math.max(0, n || 0);
-            _saveFirestoreBudgetState();
-            _updateFirestoreBudgetBadge();
-            if (_firestoreBudgetState.reads >= FIRESTORE_DAILY_READ_BUDGET && !_firestoreBudgetState._warned) {
-                _firestoreBudgetState._warned = true;
-                console.warn(`[SHIELD QUOTA] Anggaran baca Firestore harian (${FIRESTORE_DAILY_READ_BUDGET}) tercapai. Fetch/listener baru akan ditahan sampai besok agar tidak memicu blokir kuota.`);
-            }
-        }
-
-        // Cek sebelum memulai fetch/listener baru yang berpotensi mahal (bukan untuk
-        // update kecil pada listener yang sudah berjalan — itu boleh tetap jalan).
-        function _canSpendFirestoreReads() {
-            if (_firestoreBudgetState.date !== _todayKeyLocal()) _firestoreBudgetState = { date: _todayKeyLocal(), reads: 0 };
-            return _firestoreBudgetState.reads < FIRESTORE_DAILY_READ_BUDGET;
-        }
-
-        function _updateFirestoreBudgetBadge() {
-            const el = document.getElementById('firestore-budget-badge');
-            if (!el) return;
-            const used = _firestoreBudgetState.reads;
-            const pct = Math.min(100, Math.round((used / FIRESTORE_DAILY_READ_BUDGET) * 100));
-            el.textContent = `Firestore: ${used.toLocaleString('id-ID')}/${FIRESTORE_DAILY_READ_BUDGET.toLocaleString('id-ID')} (${pct}%)`;
-            el.className = `text-[8px] font-bold mt-0.5 ${pct >= 100 ? 'text-red-500' : pct >= 80 ? 'text-amber-500' : 'text-slate-400'}`;
-        }
-        _updateFirestoreBudgetBadge();
 
         // Deklarasi State
         window.mqttClient = null;
