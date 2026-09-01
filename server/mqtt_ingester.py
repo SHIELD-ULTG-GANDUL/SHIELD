@@ -25,6 +25,7 @@ import logging
 import os
 import re
 import signal
+import ssl
 import sys
 import time
 from typing import Any
@@ -40,7 +41,10 @@ logging.basicConfig(
 log = logging.getLogger("shield-ingester")
 
 MQTT_BROKER = os.environ.get("MQTT_BROKER", "d36cf3116e2a4d93bf531ebf8a1ffa38.s1.eu.hivemq.cloud")
-MQTT_PORT = int(os.environ.get("MQTT_PORT", "8883"))  # 8883 = MQTTS native TLS (bukan websocket)
+# Port native MQTT (8883) terbukti tidak bisa dijangkau dari beberapa jaringan saat
+# didiagnosis. Pakai port WebSocket (8884) — jalur yang sama dan sudah terbukti selalu
+# berhasil dipakai dashboard (Shield.html) sepanjang pengembangan proyek ini.
+MQTT_PORT = int(os.environ.get("MQTT_PORT", "8884"))
 MQTT_USER = os.environ.get("MQTT_USER", "webshield")
 MQTT_PASS = os.environ.get("MQTT_PASS", "webShield123")
 MQTT_TOPICS = ["Suhu/Trafo/2", "Suhu/Trafo/3", "Suhu/Trafo/4"]
@@ -127,9 +131,14 @@ def on_message(client: mqtt.Client, userdata, msg: mqtt.MQTTMessage):
 
 
 def main() -> None:
-    client = mqtt.Client(client_id="shield_ingester_" + str(int(time.time())), protocol=mqtt.MQTTv311)
+    client = mqtt.Client(
+        client_id="shield_ingester_" + str(int(time.time())),
+        transport="websockets",
+        protocol=mqtt.MQTTv311,
+    )
+    client.ws_set_options(path="/mqtt")
     client.username_pw_set(MQTT_USER, MQTT_PASS)
-    client.tls_set()  # 8883 = TLS native MQTT (bukan wss:// seperti di browser)
+    client.tls_set(cert_reqs=ssl.CERT_REQUIRED)
     client.on_connect = on_connect
     client.on_disconnect = on_disconnect
     client.on_message = on_message
