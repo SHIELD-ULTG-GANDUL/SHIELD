@@ -52,8 +52,10 @@
                     sidebar.classList.remove('hidden');
                     sidebar.classList.add('flex');
                     
-                    // Hubungkan ke MQTT untuk realtime data (Dashboard & Grafik)
-                    if (typeof window.connectToMQTT === 'function') {
+                    // Realtime suhu kontak incoming CB + beban trafo dari TimescaleDB lokal
+                    if (window.timescaleReady && typeof window.startTimescaleRealtime === 'function') {
+                        window.startTimescaleRealtime();
+                    } else if (typeof window.connectToMQTT === 'function') {
                         window.connectToMQTT();
                     }
                     // Ambil histori dari Firestore untuk Data Logger
@@ -70,6 +72,7 @@
                     }
                 } else {
                     window.isAuthReady = false;
+                    if (typeof window.stopTimescaleRealtime === 'function') window.stopTimescaleRealtime();
                     loginOverlay.classList.remove('hidden');
                     sidebar.classList.add('hidden');
                     sidebar.classList.remove('flex');
@@ -434,12 +437,12 @@
                         <!-- Widget Ringkasan Trafo Terpilih -->
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
                     <div class="glass-card p-5 bg-gradient-to-br from-teal-50 to-white border-teal-100">
-                        <span id="avg-title-text" class="text-[10px] font-bold text-teal-600 uppercase tracking-widest">Rata-Rata Suhu (MQTT)</span>
+                        <span id="avg-title-text" class="text-[10px] font-bold text-teal-600 uppercase tracking-widest">Rata-Rata Suhu (TimescaleDB)</span>
                         <div class="flex items-baseline gap-1 mt-2">
                             <span id="summary-avg-temp" class="text-3xl font-black text-slate-800">-</span>
                             <span class="text-sm font-bold text-slate-500">°C</span>
                         </div>
-                        <p class="text-[10px] text-slate-400 mt-1">Real-time dari MQTT Broker</p>
+                        <p class="text-[10px] text-slate-400 mt-1">Real-time dari TimescaleDB 10.88.16.159</p>
                     </div>
                     <div class="glass-card p-5 bg-gradient-to-br from-rose-50 to-white border-rose-100">
                         <span class="text-[10px] font-bold text-rose-600 uppercase tracking-widest">Suhu Tertinggi</span>
@@ -690,7 +693,7 @@
                                 <span class="status-badge-teal inline-block"></span>
                                 <h3 class="text-sm font-extrabold text-[#0f766e]">Log Suhu — Acrel ATP007</h3>
                             </div>
-                            <p class="text-[11px] text-slate-400 mt-1">Histori suhu berkala langsung dari Firestore (collection: acrel_atp007).</p>
+                            <p id="suhu-log-source-label" class="text-[11px] text-slate-400 mt-1">Histori suhu berkala — Acrel ATP007.</p>
                         </div>
                         <div class="flex gap-3 items-center flex-wrap">
                             <button onclick="toggleFilterPanel('fp-suhu')" class="bg-white border border-slate-200 px-4 py-2 text-xs font-bold text-slate-600 rounded-lg hover:bg-slate-50 transition-all flex items-center gap-1.5"><i data-lucide="sliders-horizontal" class="w-4 h-4"></i> Filter <span id="fp-suhu-badge" class="hidden ml-1 bg-teal-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full">ON</span></button>
@@ -767,7 +770,7 @@
                                 <span class="status-badge-violet inline-block"></span>
                                 <h3 class="text-sm font-extrabold text-violet-700">Log Beban — ION8650 (beban_realtime)</h3>
                             </div>
-                            <p class="text-[11px] text-slate-400 mt-1">Histori arus, tegangan, dan daya dari Firestore (beban_realtime/{trafo}/logs).</p>
+                            <p class="text-[11px] text-slate-400 mt-1">Histori arus, tegangan, dan daya dari TimescaleDB 10.88.16.159 (endpoint /api/beban-logs).</p>
                         </div>
                         <div class="flex gap-3 items-center flex-wrap">
                             <button onclick="toggleFilterPanel('fp-beban')" class="bg-white border border-violet-200 px-4 py-2 text-xs font-bold text-violet-700 rounded-lg hover:bg-violet-50 transition-all flex items-center gap-1.5"><i data-lucide="sliders-horizontal" class="w-4 h-4"></i> Filter <span id="fp-beban-badge" class="hidden ml-1 bg-violet-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full">ON</span></button>
@@ -854,13 +857,13 @@
                     <div class="flex flex-wrap justify-between items-start mb-4 gap-3">
                         <div>
                             <h4 id="chart-mode-title" class="text-sm font-extrabold text-[#0d9488] uppercase tracking-widest flex items-center">
-                                <span class="status-badge-teal"></span> Grafik Tren Suhu Real-time (MQTT)
+                                <span class="status-badge-teal"></span> Grafik Tren Suhu Real-time (TimescaleDB)
                             </h4>
                             <p class="text-[11px] text-slate-400 mt-1">Fluktuasi suhu sensor Acrel ATP007 — pilih rentang waktu di bawah.</p>
                         </div>
                         <div class="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-[11px] font-bold">
                             <span id="graph-badge-text" class="flex items-center gap-1.5 text-[#0f766e]">
-                                <span class="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse"></span>Sumber: HiveMQ Stream
+                                <span class="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse"></span>Sumber: TimescaleDB 10.88.16.159:1883
                             </span>
                         </div>
                     </div>
@@ -913,7 +916,7 @@
                     <!-- Toolbar Bawah: Info + Zoom + Simpan -->
                     <div class="mt-4 border-t border-slate-100 pt-3 flex items-center justify-between gap-3 flex-wrap">
                         <div class="text-[10px] text-slate-400 font-mono flex-1 min-w-0">
-                            <span id="chart-range-info">Mode: LIVE — update otomatis dari MQTT</span>
+                            <span id="chart-range-info">Mode: LIVE — polling otomatis dari TimescaleDB</span>
                             <span class="mx-2 text-slate-300">·</span>
                             <span id="chart-last-point"></span>
                         </div>
@@ -944,7 +947,7 @@
                             <h4 id="beban-chart-title" class="text-sm font-extrabold text-violet-700 uppercase tracking-widest flex items-center">
                                 <span class="status-badge-violet"></span> Grafik Tren Beban (PM Meter)
                             </h4>
-                            <p class="text-[11px] text-slate-400 mt-1">Tren arus, tegangan, dan daya dari Firestore PM Meter.</p>
+                            <p class="text-[11px] text-slate-400 mt-1">Tren arus, tegangan, dan daya dari TimescaleDB 10.88.16.159.</p>
                         </div>
                         <div class="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-[11px] font-bold">
                             <span id="beban-chart-badge" class="flex items-center gap-1.5 text-violet-700">
@@ -989,7 +992,7 @@
                         <canvas id="beban-trend-chart"></canvas>
                         <div id="beban-chart-loading" class="hidden absolute inset-0 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center rounded-xl gap-3 z-10">
                             <i data-lucide="loader-2" class="w-10 h-10 text-violet-500 animate-spin"></i>
-                            <span class="text-sm font-bold text-slate-500">Mengambil data beban dari Firestore...</span>
+                            <span class="text-sm font-bold text-slate-500">Mengambil data beban dari TimescaleDB...</span>
                         </div>
                         <div id="beban-chart-nodata" class="hidden absolute inset-0 flex flex-col items-center justify-center gap-3 z-10">
                             <i data-lucide="bar-chart-2" class="w-12 h-12 text-slate-300"></i>
@@ -1000,7 +1003,7 @@
                     <!-- Toolbar Bawah Beban: Info + Zoom + Simpan -->
                     <div class="mt-4 border-t border-slate-100 pt-3 flex items-center justify-between gap-3 flex-wrap">
                         <div class="text-[10px] text-slate-400 font-mono flex-1 min-w-0">
-                            <span id="beban-chart-range-info">Mode: LIVE — data terbaru dari Firestore PM Meter</span>
+                            <span id="beban-chart-range-info">Mode: LIVE — data terbaru dari TimescaleDB</span>
                             <span class="mx-2 text-slate-300">·</span>
                             <span id="beban-chart-last-point"></span>
                         </div>
@@ -1038,7 +1041,7 @@
                   </div>
                   <div class="flex items-center gap-3">
                     <div class="flex items-center gap-4 text-[10px] font-bold text-slate-500">
-                      <span class="flex items-center gap-1"><span id="ml-dot-temp" class="w-2 h-2 rounded-full bg-slate-300 inline-block"></span>Suhu MQTT</span>
+                      <span class="flex items-center gap-1"><span id="ml-dot-temp" class="w-2 h-2 rounded-full bg-slate-300 inline-block"></span>Suhu TimescaleDB</span>
                       <span class="flex items-center gap-1"><span id="ml-dot-beban" class="w-2 h-2 rounded-full bg-slate-300 inline-block"></span>Beban ION8650</span>
                       <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>Data Historis</span>
                     </div>
@@ -2126,17 +2129,16 @@
                 docSortTime: docTime,
                 formattedTime: new Date(docTime).toLocaleString('id-ID'),
                 trafo: `Trafo ${selectedTrafo}`,
-                sourcePath: 'TimescaleDB (server Ubuntu)'
+                sourcePath: `TimescaleDB ${TIMESCALE_HOST}:${TIMESCALE_PORT}`
             };
         }
 
-        async function _fetchTimescaleTempLogs(trafo, limit = 300) {
-            const url = `${TIMESCALE_API_BASE_URL}/temperature-logs?trafo=${encodeURIComponent(trafo)}&limit=${limit}`;
-            const headers = TIMESCALE_API_KEY ? { 'X-API-Key': TIMESCALE_API_KEY } : {};
-            const res = await fetch(url, { headers });
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            const body = await res.json();
-            return (body.rows || []).map(_timescaleRowToLoggerRow).sort((a, b) => b.docSortTime - a.docSortTime);
+        async function _fetchTimescaleTempLogs(trafo, limit = 300, fromISO = null) {
+            const rows = await _fetchTimescaleTempRows(trafo, limit, fromISO);
+            return (rows || [])
+                .map(_timescaleRowToLoggerRow)
+                .filter(r => r.docSortTime > 0)
+                .sort((a, b) => b.docSortTime - a.docSortTime);
         }
 
         let _timescalePollTimer = null;
@@ -2156,10 +2158,12 @@
                 if (selectedTrafo !== trafoAtSubscribe) return; // trafo sudah diganti, biarkan subscribe baru yang jalan
                 try {
                     const rows = await _fetchTimescaleTempLogs(trafoAtSubscribe);
+                    window._lastTempLogError = null;
                     if (rows.length) _applyLiveTemperatureSnapshot(String(trafoAtSubscribe), rows[0]);
                     _applyTempLoggerDocs(rows, 'TimescaleDB');
                 } catch (err) {
                     console.error('[SHIELD LOGGER] Gagal mengambil log suhu dari TimescaleDB API:', err.message);
+                    window._lastTempLogError = err;
                 }
             };
 
@@ -2203,6 +2207,9 @@
         }
 
         async function _persistTempLogToFirestore(trafo, mappedData) {
+            // Saat sumber data = TimescaleDB, penulisan historis dilakukan oleh
+            // pipeline di sisi server. Dashboard hanya membaca, tidak menulis balik.
+            if (window.timescaleReady) return;
             if (!window.isAuthReady || !window.db || !window.fs || !mappedData) return;
             const now = Date.now();
             if (now - (tempLogLastWriteAt[trafo] || 0) < TEMP_LOG_WRITE_INTERVAL_MS) return;
@@ -2272,20 +2279,227 @@
             _scheduleMLRealtimeUpdate('update beban realtime');
         }
 
-        // Konfigurasi HiveMQ Broker dari ESP32 (menggunakan secure websocket)
-        const MQTT_BROKER = "d36cf3116e2a4d93bf531ebf8a1ffa38.s1.eu.hivemq.cloud";
-        const MQTT_PORT = 8884; // Port Secure Websocket SSL HiveMQ
-        const MQTT_USER = "webshield";
-        const MQTT_PASS = "webShield123";
-
-        // Backend TimescaleDB di server Ubuntu intranet (lihat server/README.md).
-        // Diakses lewat HTTP biasa (bukan HTTPS) karena dashboard ini dibuka dari
-        // jaringan intranet yang sama — bukan lewat GitHub Pages, jadi tidak kena
-        // batasan mixed-content browser.
-        const TIMESCALE_API_BASE_URL = "http://10.88.16.159:8000/api";
+        // ══════════════════════════════════════════════════════════════════
+        // KONFIGURASI SUMBER DATA SHIELD
+        // ══════════════════════════════════════════════════════════════════
+        // Sumber data SUHU KONTAK INCOMING CB (Acrel ATP007) dan BEBAN TRAFO
+        // (Power Meter ION8650) sekarang berasal dari TimescaleDB server lokal.
+        //
+        //   Host : 10.88.16.159
+        //   Port : 1883   (sesuai permintaan — lihat CATATAN di bawah)
+        //
+        // ── CATATAN TEKNIS YANG PERLU DIVERIFIKASI DI SISI SERVER ─────────
+        // 1) Browser TIDAK bisa membuka koneksi PostgreSQL/TimescaleDB secara
+        //    langsung. Akses harus lewat lapisan HTTP/REST tipis (PostgREST,
+        //    FastAPI, Express, dsb.) yang berjalan di depan database.
+        //    Konstanta di bawah dipakai untuk menyusun base URL REST tersebut.
+        // 2) Port 1883 secara default adalah port MQTT TCP (Mosquitto), BUKAN
+        //    port PostgreSQL (5432) maupun port HTTP. Kalau ternyata 1883 di
+        //    server Anda memang broker MQTT dan REST API TimescaleDB ada di
+        //    port lain, cukup ubah TIMESCALE_PORT di bawah — tidak ada bagian
+        //    lain dari file ini yang perlu disentuh.
+        // ─────────────────────────────────────────────────────────────────
+        const TIMESCALE_HOST       = "10.88.16.159";
+        const TIMESCALE_PORT       = 1883;      // ← ubah di sini jika port REST API berbeda
+        const TIMESCALE_API_PREFIX = "/api";    // ← ubah jika endpoint tidak berada di /api
+        const TIMESCALE_SCHEME     = "http";    // intranet, bukan HTTPS
+        const TIMESCALE_API_BASE_URL = `${TIMESCALE_SCHEME}://${TIMESCALE_HOST}:${TIMESCALE_PORT}${TIMESCALE_API_PREFIX}`;
         const TIMESCALE_API_KEY = "06c9e531a017ad93cdcc233464aceadbb613ee6ee347bc461b6b20b53d51a760";
-        const TIMESCALE_POLL_INTERVAL_MS = 30000; // REST API bersifat pull, bukan realtime listener
+
+        const TIMESCALE_POLL_INTERVAL_MS   = 30000; // polling histori/logger (REST bersifat pull)
+        const TIMESCALE_REALTIME_POLL_MS   = 5000;  // polling nilai terbaru untuk dashboard
+        const TIMESCALE_HISTORY_LIMIT      = 5000;  // batas baris untuk query grafik histori
+        const TIMESCALE_TRAFO_LIST         = ['2', '3', '4'];
+
+        // Endpoint yang diharapkan tersedia di REST API TimescaleDB:
+        //   GET {base}/temperature-logs?trafo=2&limit=300[&from=<ISO8601>]
+        //       → { "rows": [ { timestamp, R_Atas, R_Bawah, S_Atas, S_Bawah, T_Atas, T_Bawah }, ... ] }
+        //   GET {base}/beban-logs?trafo=2&limit=300[&from=<ISO8601>]
+        //       → { "rows": [ { timestamp, I_R, I_S, I_T, V_R, V_S, V_T, kW, kVAR, kVA, PF, beban_persen }, ... ] }
+        // Nama field alternatif (Ir/Ia/current_a, MW/kw, dst.) tetap ditoleransi
+        // karena baris beban dilewatkan ke parseBebanDoc() yang sama seperti versi Firestore.
+        const TIMESCALE_ENDPOINTS = {
+            temperature: '/temperature-logs',
+            beban:       '/beban-logs'
+        };
+
         window.timescaleReady = !!TIMESCALE_API_BASE_URL;
+
+        // ── MQTT lama (HiveMQ) ────────────────────────────────────────────
+        // Dinonaktifkan karena suhu sekarang dibaca dari TimescaleDB.
+        // Set USE_MQTT_FALLBACK = true kalau ingin kembali memakai stream MQTT
+        // langsung (mis. broker lokal 10.88.16.159 lewat WebSocket, biasanya
+        // port 9001/8083 — port 1883 TCP murni tidak bisa dipakai dari browser).
+        const USE_MQTT_FALLBACK = false;
+        const MQTT_BROKER = TIMESCALE_HOST;
+        const MQTT_PORT   = 9001;   // port WebSocket broker lokal (bukan 1883 TCP)
+        const MQTT_USE_SSL = false;
+        const MQTT_USER = "";
+        const MQTT_PASS = "";
+
+        // ══════════════════════════════════════════════════════════════════
+        // LAPISAN AKSES DATA TIMESCALEDB (suhu kontak + beban trafo)
+        // ══════════════════════════════════════════════════════════════════
+        window._tsLastError = null;
+
+        async function _tsFetch(endpoint, params = {}) {
+            const url = new URL(TIMESCALE_API_BASE_URL + endpoint);
+            Object.entries(params).forEach(([k, v]) => {
+                if (v !== undefined && v !== null && v !== '') url.searchParams.set(k, v);
+            });
+            const headers = TIMESCALE_API_KEY ? { 'X-API-Key': TIMESCALE_API_KEY } : {};
+            const ctrl = new AbortController();
+            const timer = setTimeout(() => ctrl.abort(), 15000);
+            try {
+                const res = await fetch(url.toString(), { headers, signal: ctrl.signal, cache: 'no-store' });
+                if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+                const body = await res.json();
+                window._tsLastError = null;
+                // Toleransi bentuk respons: {rows:[...]}, {data:[...]}, atau array polos
+                if (Array.isArray(body)) return body;
+                if (Array.isArray(body.rows)) return body.rows;
+                if (Array.isArray(body.data)) return body.data;
+                return [];
+            } catch (err) {
+                window._tsLastError = err.message;
+                throw err;
+            } finally {
+                clearTimeout(timer);
+            }
+        }
+
+        function _tsCutoffISO(filter) {
+            const span = TIME_FILTER_MS[filter];
+            if (!span) return null;
+            return new Date(Date.now() - span).toISOString();
+        }
+
+        // ── SUHU KONTAK INCOMING CB ───────────────────────────────────────
+        async function _fetchTimescaleTempRows(trafo, limit = 300, fromISO = null) {
+            return await _tsFetch(TIMESCALE_ENDPOINTS.temperature, {
+                trafo: trafo, limit: limit, from: fromISO
+            });
+        }
+
+        // Normalisasi satu baris suhu dari TimescaleDB → struktur internal SHIELD
+        function _tsNormalizeTempRow(row, trafo) {
+            const pick = (keys) => {
+                for (const k of keys) {
+                    if (row[k] !== undefined && row[k] !== null && !isNaN(parseFloat(row[k]))) return parseFloat(row[k]);
+                }
+                return 0;
+            };
+            const rawTs = row.timestamp || row.time || row.ts || row.waktu || row.created_at || row.received_at || row.receivedAt;
+            const docTime = _parseAnyTimestamp(rawTs);
+            return {
+                R_Atas:  pick(['R_Atas','r_atas','RAtas','R1','temp_r_atas','R_top']),
+                R_Bawah: pick(['R_Bawah','r_bawah','RBawah','R2','temp_r_bawah','R_bottom']),
+                S_Atas:  pick(['S_Atas','s_atas','SAtas','S1','temp_s_atas','S_top']),
+                S_Bawah: pick(['S_Bawah','s_bawah','SBawah','S2','temp_s_bawah','S_bottom']),
+                T_Atas:  pick(['T_Atas','t_atas','TAtas','T1','temp_t_atas','T_top']),
+                T_Bawah: pick(['T_Bawah','t_bawah','TBawah','T2','temp_t_bawah','T_bottom']),
+                timestamp: new Date(docTime).toISOString(),
+                receivedAt: new Date(docTime).toISOString(),
+                deviceTimestamp: rawTs || null,
+                docSortTime: docTime,
+                formattedTime: new Date(docTime).toLocaleString('id-ID'),
+                ts: new Date(docTime).toLocaleString('id-ID'),
+                trafo: `Trafo ${trafo}`,
+                sourcePath: `TimescaleDB ${TIMESCALE_HOST}:${TIMESCALE_PORT}`
+            };
+        }
+
+        // ── BEBAN TRAFO ───────────────────────────────────────────────────
+        async function _fetchTimescaleBebanRows(trafo, limit = 300, fromISO = null) {
+            return await _tsFetch(TIMESCALE_ENDPOINTS.beban, {
+                trafo: trafo, limit: limit, from: fromISO
+            });
+        }
+
+        // Baris beban tetap dilewatkan ke parseBebanDoc() agar konversi satuan
+        // (kW → MW, dst.) dan toleransi nama field persis sama dengan versi lama.
+        function _tsNormalizeBebanRow(row, trafo) {
+            const parsed = parseBebanDoc(row);
+            const docTime = _parseAnyTimestamp(
+                row.timestamp || row.time || row.ts || row.waktu || row.created_at || parsed.timestamp
+            );
+            return {
+                ...parsed,
+                _time: docTime,
+                docSortTime: docTime,
+                formattedTime: new Date(docTime).toLocaleString('id-ID'),
+                trafo: `Trafo ${trafo}`,
+                sourcePath: `TimescaleDB ${TIMESCALE_HOST}:${TIMESCALE_PORT}`
+            };
+        }
+
+        // ── POLLING REALTIME (dashboard suhu + beban) ─────────────────────
+        let _tsRealtimeTimer = null;
+
+        async function _tsPollRealtimeOnce() {
+            let anyOk = false;
+
+            // Suhu kontak incoming CB — semua trafo, ambil 1 baris terbaru
+            for (const trafo of TIMESCALE_TRAFO_LIST) {
+                try {
+                    const rows = await _fetchTimescaleTempRows(trafo, 1);
+                    if (rows && rows.length) {
+                        const norm = _tsNormalizeTempRow(rows[0], trafo);
+                        _applyLiveTemperatureSnapshot(String(trafo), norm);
+                        _syncTempTrainingLog(String(trafo), norm);
+                        anyOk = true;
+                    }
+                } catch (err) {
+                    console.warn(`[SHIELD TS] Gagal ambil suhu terbaru Trafo ${trafo}:`, err.message);
+                }
+            }
+
+            // Beban trafo — semua trafo, ambil 60 baris terakhir untuk buffer grafik LIVE
+            for (const trafo of TIMESCALE_TRAFO_LIST) {
+                try {
+                    const rows = await _fetchTimescaleBebanRows(trafo, 60);
+                    if (!rows || !rows.length) continue;
+                    const asc = rows.map(r => _tsNormalizeBebanRow(r, trafo))
+                                    .filter(r => r._time > 0)
+                                    .sort((a, b) => a._time - b._time);
+                    if (!asc.length) continue;
+
+                    latestBebanData[trafo] = asc[asc.length - 1];
+                    bebanLiveChartBuffer[trafo] = asc.slice(-60);
+                    _syncBebanRealtimeTrainingLog(trafo, latestBebanData[trafo]);
+                    _syncBebanTrainingLogs(trafo, asc);
+                    anyOk = true;
+
+                    if (trafo === selectedTrafo) {
+                        updateBebanUI();
+                        _setBebanStatus(`TimescaleDB ${TIMESCALE_HOST}:${TIMESCALE_PORT} — Trafo ${trafo}`);
+                        _refreshLNTAIIfVisible();
+                        if (activePage === 'graphs' && activeBebanTimeFilter === 'LIVE') {
+                            renderBebanLiveChart();
+                        }
+                    }
+                } catch (err) {
+                    console.warn(`[SHIELD TS] Gagal ambil beban terbaru Trafo ${trafo}:`, err.message);
+                }
+            }
+
+            setUIStatus(anyOk);
+            if (!anyOk) {
+                _setBebanStatus(`Tidak ada respons dari TimescaleDB ${TIMESCALE_HOST}:${TIMESCALE_PORT}` +
+                                (window._tsLastError ? ` — ${window._tsLastError}` : ''));
+            }
+        }
+
+        window.startTimescaleRealtime = function() {
+            if (!window.timescaleReady) return;
+            if (_tsRealtimeTimer) clearInterval(_tsRealtimeTimer);
+            _tsPollRealtimeOnce();
+            _tsRealtimeTimer = setInterval(_tsPollRealtimeOnce, TIMESCALE_REALTIME_POLL_MS);
+        };
+
+        window.stopTimescaleRealtime = function() {
+            if (_tsRealtimeTimer) { clearInterval(_tsRealtimeTimer); _tsRealtimeTimer = null; }
+        };
 
         // Clock / Jam Live Indonesia
         setInterval(() => {
@@ -2295,8 +2509,11 @@
             }
         }, 1000);
 
-        // Status Indikator Koneksi MQTT (Hanya Real)
+        // Status Indikator Koneksi Sumber Data (TimescaleDB lokal / MQTT fallback)
         function setUIStatus(online, sandboxReason = false) {
+            const srcLabel = window.timescaleReady
+                ? `TimescaleDB ${TIMESCALE_HOST}:${TIMESCALE_PORT}`
+                : 'MQTT';
             const dot = document.getElementById('conn-dot');
             const text = document.getElementById('conn-text');
             const avgTitle = document.getElementById('avg-title-text');
@@ -2304,10 +2521,10 @@
 
             if (online) {
                 dot.className = "w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]";
-                text.textContent = "MQTT Connected";
+                text.textContent = window.timescaleReady ? "TimescaleDB Connected" : "MQTT Connected";
                 text.className = "text-[9px] font-black uppercase text-emerald-500";
-                if (avgTitle) avgTitle.textContent = "Rata-Rata Suhu (MQTT)";
-                if (graphBadge) graphBadge.textContent = "Sumber: HiveMQ Stream";
+                if (avgTitle) avgTitle.textContent = window.timescaleReady ? "Rata-Rata Suhu (TimescaleDB)" : "Rata-Rata Suhu (MQTT)";
+                if (graphBadge) graphBadge.textContent = "Sumber: " + srcLabel;
             } else {
                 dot.className = "w-2.5 h-2.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]";
                 if (sandboxReason) {
@@ -2318,7 +2535,7 @@
                     text.className = "text-[9px] font-black uppercase text-red-500";
                 }
                 if (avgTitle) avgTitle.textContent = "Rata-Rata Suhu (Offline)";
-                if (graphBadge) graphBadge.textContent = "Sumber: Aliran Offline";
+                if (graphBadge) graphBadge.textContent = "Sumber: " + srcLabel + " (offline)";
             }
         }
 
@@ -2492,9 +2709,16 @@
             }
         }
 
-        // Hubungkan kembali MQTT manually
+        // Hubungkan kembali sumber data secara manual (tombol di sidebar)
         function reconnectMQTT() {
             setUIStatus(false);
+            if (window.timescaleReady) {
+                // Sumber data = TimescaleDB lokal → restart polling REST
+                if (typeof window.startTimescaleRealtime === 'function') window.startTimescaleRealtime();
+                if (typeof subscribeTemperatureLogs === 'function') subscribeTemperatureLogs();
+                if (typeof window.subscribeBebanData === 'function') window.subscribeBebanData();
+                return;
+            }
             if (window.mqttClient) {
                 try { 
                     if (window.mqttClient.isConnected()) window.mqttClient.disconnect(); 
@@ -2505,6 +2729,8 @@
 
         // Penghubung MQTT Paho Client Fisik (Sembunyikan pesan SecurityError Canvas dengan anggun)
         window.connectToMQTT = () => {
+            // Dinonaktifkan saat sumber data resmi = TimescaleDB lokal.
+            if (window.timescaleReady && !USE_MQTT_FALLBACK) return;
             if (!window.isAuthReady) return;
             if (window.mqttClient && window.mqttClient.isConnected()) return;
 
@@ -2530,7 +2756,7 @@
                 };
 
                 window.mqttClient.connect({
-                    useSSL: true, 
+                    useSSL: MQTT_USE_SSL, 
                     userName: MQTT_USER, 
                     password: MQTT_PASS,
                     timeout: 10,
@@ -2567,6 +2793,13 @@
         // Watchdog: jika koneksi MQTT terputus tanpa memicu onConnectionLost/onFailure
         // (mis. tab lama idle di background), paksa cek & sambung ulang tiap 20 detik.
         setInterval(() => {
+            if (window.timescaleReady && !USE_MQTT_FALLBACK) {
+                // Watchdog TimescaleDB: pastikan timer polling realtime tetap hidup
+                if (window.isAuthReady && !_tsRealtimeTimer && typeof window.startTimescaleRealtime === 'function') {
+                    window.startTimescaleRealtime();
+                }
+                return;
+            }
             if (window.isAuthReady && (!window.mqttClient || !window.mqttClient.isConnected())) {
                 connectToMQTT();
             }
@@ -2803,9 +3036,9 @@
             if (noData) noData.classList.add('hidden');
 
             if (filter === 'LIVE') {
-                _updateChartHeader('Grafik Tren Suhu Real-time (MQTT)',
-                    '<span class="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse mr-1.5"></span>Sumber: HiveMQ Stream');
-                _setChartRangeInfo('Mode: LIVE — update otomatis dari MQTT', '');
+                _updateChartHeader('Grafik Tren Suhu Real-time (TimescaleDB)',
+                    '<span class="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse mr-1.5"></span>Sumber: TimescaleDB ' + TIMESCALE_HOST + ':' + TIMESCALE_PORT);
+                _setChartRangeInfo('Mode: LIVE — polling otomatis dari TimescaleDB', '');
                 initRealtimeChart();
             } else {
                 const labels = { '1H':'1 Jam','6H':'6 Jam','1D':'1 Hari','1W':'1 Minggu','1M':'1 Bulan','MAX':'Semua Data' };
@@ -2890,7 +3123,7 @@
             if (realtimeChart) {
                 realtimeChart.update('none');
                 document.getElementById('chart-point-info').textContent = `${chartDataPoints.timestamps.length} titik data`;
-                _setChartRangeInfo('Mode: LIVE — update otomatis dari MQTT',
+                _setChartRangeInfo('Mode: LIVE — polling otomatis dari TimescaleDB',
                     'Terbaru: ' + new Date().toLocaleTimeString('id-ID', { hour12: false }));
             }
         }
@@ -2907,7 +3140,8 @@
             setTimeFilter('LIVE');
         }
 
-        // Fetch histori Firestore dan render ke grafik (mode non-LIVE)
+        // Fetch histori suhu dan render ke grafik (mode non-LIVE)
+        // Sumber: TimescaleDB lokal (default), Firestore hanya sebagai fallback.
         async function fetchAndRenderHistoricalChart(filter) {
             if (!window.isAuthReady) return;
 
@@ -2919,6 +3153,36 @@
             if (chartHistoricalData[cacheKey]) {
                 renderChartFromHistorical(chartHistoricalData[cacheKey], filter);
                 if (overlay) overlay.classList.add('hidden');
+                return;
+            }
+
+            if (window.timescaleReady) {
+                try {
+                    const rows = await _fetchTimescaleTempRows(
+                        selectedTrafo, TIMESCALE_HISTORY_LIMIT, _tsCutoffISO(filter)
+                    );
+                    let parsed = (rows || [])
+                        .map(r => { const n = _tsNormalizeTempRow(r, selectedTrafo); return { ...n, _time: n.docSortTime }; })
+                        .filter(d => d._time > 0)
+                        .sort((a, b) => a._time - b._time);
+
+                    // Filter ulang di sisi klien kalau API mengabaikan parameter `from`
+                    if (TIME_FILTER_MS[filter] !== null) {
+                        const cutoff = Date.now() - TIME_FILTER_MS[filter];
+                        parsed = parsed.filter(d => d._time >= cutoff);
+                    }
+
+                    chartHistoricalData[cacheKey] = parsed;
+                    renderChartFromHistorical(parsed, filter);
+                } catch (err) {
+                    console.error('Gagal fetch histori grafik suhu dari TimescaleDB:', err);
+                    const noData = document.getElementById('chart-no-data');
+                    if (noData) noData.classList.remove('hidden');
+                    const info = document.getElementById('chart-point-info');
+                    if (info) info.textContent = 'Gagal memuat data dari TimescaleDB';
+                } finally {
+                    if (overlay) overlay.classList.add('hidden');
+                }
                 return;
             }
 
@@ -3101,7 +3365,11 @@
         // Memuat Histori Data Awal Dari Firestore tanpa menggunakan limit query (Mencegah Error Index)
         window.loadHistoricalLogs = async function() {
             if (!window.isAuthReady) return;
-            
+
+            const sourceLabel = window.timescaleReady ? 'TimescaleDB' : 'Firestore';
+            const sourceLabelEl = document.getElementById('suhu-log-source-label');
+            if (sourceLabelEl) sourceLabelEl.textContent = `Histori suhu berkala — Acrel ATP007 (sumber: ${sourceLabel}).`;
+
             // Tampilkan loading spinner sementara data ditarik
             const tableBody = document.getElementById('logger-body');
             if (tableBody) {
@@ -3110,7 +3378,7 @@
                         <td colspan="8" class="text-center py-12 text-slate-400 font-bold">
                             <div class="flex flex-col items-center justify-center gap-2">
                                 <i data-lucide="loader-2" class="w-8 h-8 text-teal-600 animate-spin"></i>
-                                <span>Menghubungkan ke Firestore & mengambil data histori...</span>
+                                <span>Menghubungkan ke ${sourceLabel} &amp; mengambil data histori...</span>
                             </div>
                         </td>
                     </tr>
@@ -3120,13 +3388,17 @@
 
             try {
                 await subscribeTemperatureLogs();
+                if (window._lastTempLogError) {
+                    throw window._lastTempLogError;
+                }
             } catch (err) {
-                console.error("Kesalahan saat mengambil data dari Firestore:", err);
+                console.error(`Kesalahan saat mengambil data dari ${sourceLabel}:`, err);
                 if (tableBody) {
                     tableBody.innerHTML = `
                         <tr>
                             <td colspan="8" class="text-center py-12 text-rose-500 font-bold">
-                                Gagal memuat data dari Firestore. Silakan periksa koneksi atau Firebase rules Anda.
+                                Gagal memuat data dari ${sourceLabel}: ${err && err.message ? err.message : 'kesalahan tidak diketahui'}.
+                                ${window.timescaleReady ? `<div class="text-[10px] font-normal text-slate-400 mt-2">Cek apakah ${TIMESCALE_API_BASE_URL} bisa diakses dari jaringan Anda, dan apakah CORS server mengizinkan origin ini (${location.origin}).</div>` : ''}
                             </td>
                         </tr>
                     `;
@@ -3283,10 +3555,50 @@
             }
         }
 
-        // ── Subscribe real-time beban dari Firestore ION8650 ──────────────
+        // ── Dispatcher sumber data beban trafo ────────────────────────────
+        // Default: TimescaleDB lokal (polling REST). Firestore ION8650 hanya
+        // dipakai kalau TIMESCALE_API_BASE_URL dikosongkan.
+        window.subscribeBebanData = async function() {
+            if (window.timescaleReady) return _subscribeBebanDataTimescale();
+            return _subscribeBebanDataFirestore();
+        };
+
+        let _tsBebanLogsTimer = null;
+
+        async function _subscribeBebanDataTimescale() {
+            if (typeof window.startTimescaleRealtime === 'function') window.startTimescaleRealtime();
+
+            if (_tsBebanLogsTimer) clearInterval(_tsBebanLogsTimer);
+            const trafoAtSubscribe = selectedTrafo;
+
+            const pollLogs = async () => {
+                if (selectedTrafo !== trafoAtSubscribe) return;
+                try {
+                    const rows = await _fetchTimescaleBebanRows(trafoAtSubscribe, 300);
+                    const mapped = (rows || [])
+                        .map(r => _tsNormalizeBebanRow(r, trafoAtSubscribe))
+                        .filter(r => r.docSortTime > 0)
+                        .sort((a, b) => b.docSortTime - a.docSortTime);
+                    if (mapped.length) {
+                        _applyBebanLoggerDocs(mapped, `TimescaleDB ${TIMESCALE_HOST}:${TIMESCALE_PORT}`);
+                    }
+                } catch (err) {
+                    console.error('[SHIELD BEBAN] Gagal ambil log beban dari TimescaleDB:', err.message);
+                    _setBebanStatus('Gagal akses TimescaleDB: ' + err.message);
+                }
+            };
+
+            await pollLogs();
+            _tsBebanLogsTimer = setInterval(pollLogs, TIMESCALE_POLL_INTERVAL_MS);
+            bebanUnsubscribes['timescale'] = () => {
+                if (_tsBebanLogsTimer) { clearInterval(_tsBebanLogsTimer); _tsBebanLogsTimer = null; }
+            };
+        }
+
+        // ── Subscribe real-time beban dari Firestore ION8650 (fallback) ───
         // 1. Scan collection dulu untuk auto-detect document ID
         // 2. Subscribe onSnapshot per dokumen + subcollection logs
-        window.subscribeBebanData = async function() {
+        async function _subscribeBebanDataFirestore() {
             if (!window.isAuthReady || !window.db) return;
 
             Object.values(bebanUnsubscribes).forEach(u => { if (typeof u === 'function') u(); });
@@ -3376,7 +3688,7 @@
                     console.error(`[SHIELD BEBAN] Setup Trafo ${trafo}:`, e.message);
                 }
             });
-        };
+        }
 
         // Helper: tampilkan status koneksi beban di UI
         function _setBebanStatus(msg) {
@@ -3640,24 +3952,62 @@
             }
         }
 
-        // Load histori beban dari Firestore PM Meter untuk logger
+        // Load histori beban untuk logger — TimescaleDB lokal (default) / Firestore (fallback)
+        function _renderBebanLoggerLoading(sourceLabel) {
+            const tableBody = document.getElementById('beban-logger-body');
+            if (!tableBody) return;
+            tableBody.innerHTML = `
+                <tr>
+                    <td colspan="13" class="text-center py-12 text-slate-400 font-bold">
+                        <div class="flex flex-col items-center justify-center gap-2">
+                            <i data-lucide="loader-2" class="w-8 h-8 text-violet-500 animate-spin"></i>
+                            <span>Mengambil data beban dari ${sourceLabel}...</span>
+                        </div>
+                    </td>
+                </tr>
+            `;
+            lucide.createIcons();
+        }
+
+        async function _loadBebanLogsTimescale() {
+            _renderBebanLoggerLoading(`TimescaleDB ${TIMESCALE_HOST}:${TIMESCALE_PORT}`);
+            try {
+                const rows = await _fetchTimescaleBebanRows(selectedTrafo, 500);
+                const mapped = (rows || [])
+                    .map(r => _tsNormalizeBebanRow(r, selectedTrafo))
+                    .filter(r => r.docSortTime > 0)
+                    .sort((a, b) => b.docSortTime - a.docSortTime);
+
+                if (!mapped.length) {
+                    firestoreBebanLogs = [];
+                    _renderBebanLoggerEmpty(
+                        `Tidak ada data beban Trafo ${selectedTrafo} di TimescaleDB.`,
+                        `Endpoint: ${TIMESCALE_API_BASE_URL}${TIMESCALE_ENDPOINTS.beban}?trafo=${selectedTrafo}`
+                    );
+                    return;
+                }
+                _applyBebanLoggerDocs(mapped, `TimescaleDB ${TIMESCALE_HOST}:${TIMESCALE_PORT}`);
+                renderBebanLoggerTable();
+                console.log(`[BEBAN LOGGER] ✓ ${mapped.length} baris dari TimescaleDB (Trafo ${selectedTrafo})`);
+            } catch (err) {
+                console.error('[BEBAN LOGGER] TimescaleDB error:', err.message);
+                _renderBebanLoggerEmpty(
+                    'Gagal memuat data beban dari TimescaleDB.',
+                    `${TIMESCALE_API_BASE_URL} — ${err.message}`
+                );
+            }
+        }
+
         window.loadBebanLogs = async function() {
+            if (window.timescaleReady) return _loadBebanLogsTimescale();
+            return _loadBebanLogsFirestore();
+        };
+
+        window._loadBebanLogsFirestore = async function() {
             if (!window.isAuthReady) return;
 
+            _renderBebanLoggerLoading('Firestore PM Meter');
             const tableBody = document.getElementById('beban-logger-body');
-            if (tableBody) {
-                tableBody.innerHTML = `
-                    <tr>
-                        <td colspan="13" class="text-center py-12 text-slate-400 font-bold">
-                            <div class="flex flex-col items-center justify-center gap-2">
-                                <i data-lucide="loader-2" class="w-8 h-8 text-violet-500 animate-spin"></i>
-                                <span>Mengambil data beban dari Firestore PM Meter...</span>
-                            </div>
-                        </td>
-                    </tr>
-                `;
-                lucide.createIcons();
-            }
 
             // Gunakan bebanDocIdMap hasil auto-detect; fallback ke semua kemungkinan nama
             const _tryLoadLogs = async (docId) => {
@@ -3784,7 +4134,7 @@
                 tableBody.innerHTML = `
                     <tr>
                         <td colspan="13" class="text-center py-12 text-slate-400 font-bold">
-                            Tidak ditemukan log beban untuk Trafo ${selectedTrafo} di Firestore PM Meter.
+                            Tidak ditemukan log beban untuk Trafo ${selectedTrafo} di TimescaleDB.
                         </td>
                     </tr>
                 `;
@@ -3816,7 +4166,7 @@
         // Export tabel beban ke Excel
         window.exportBebanExcel = function() {
             if (firestoreBebanLogs.length === 0) {
-                alert("Tidak ada data beban dari Firestore yang siap untuk diunduh.");
+                alert("Tidak ada data beban yang siap untuk diunduh.");
                 return;
             }
             const formattedData = firestoreBebanLogs.map(log => ({
@@ -4028,11 +4378,11 @@
             if (noData) noData.classList.add('hidden');
 
             if (filter === 'LIVE') {
-                document.getElementById('beban-chart-range-info').textContent = 'Mode: LIVE — data terbaru dari Firestore PM Meter';
+                document.getElementById('beban-chart-range-info').textContent = 'Mode: LIVE — data terbaru dari TimescaleDB';
                 renderBebanLiveChart();
             } else {
                 const labels = {'1H':'1 Jam','6H':'6 Jam','1D':'1 Hari','1W':'1 Minggu','1M':'1 Bulan','MAX':'Semua Data'};
-                document.getElementById('beban-chart-range-info').textContent = `Filter: ${labels[filter]} terakhir — Firestore PM Meter`;
+                document.getElementById('beban-chart-range-info').textContent = `Filter: ${labels[filter]} terakhir — TimescaleDB`;
                 fetchAndRenderBebanHistoricalChart(filter);
             }
         }
@@ -4086,6 +4436,33 @@
             if (bebanChartHistoricalData[cacheKey]) {
                 _renderBebanChart(bebanChartHistoricalData[cacheKey], filter);
                 if (overlay) overlay.classList.add('hidden');
+                return;
+            }
+
+            if (window.timescaleReady) {
+                try {
+                    const rows = await _fetchTimescaleBebanRows(
+                        selectedTrafo, TIMESCALE_HISTORY_LIMIT, _tsCutoffISO(filter)
+                    );
+                    let parsed = (rows || [])
+                        .map(r => _tsNormalizeBebanRow(r, selectedTrafo))
+                        .filter(d => d._time > 0)
+                        .sort((a, b) => a._time - b._time);
+
+                    if (TIME_FILTER_MS[filter] !== null) {
+                        const cutoff = Date.now() - TIME_FILTER_MS[filter];
+                        parsed = parsed.filter(d => d._time >= cutoff);
+                    }
+
+                    bebanChartHistoricalData[cacheKey] = parsed;
+                    _renderBebanChart(parsed, filter);
+                } catch (err) {
+                    console.error('Gagal fetch histori grafik beban dari TimescaleDB:', err);
+                    const noData = document.getElementById('beban-chart-nodata');
+                    if (noData) noData.classList.remove('hidden');
+                } finally {
+                    if (overlay) overlay.classList.add('hidden');
+                }
                 return;
             }
 
@@ -6659,7 +7036,7 @@
                 {
                     icon: d.hasTempData ? '✅' : '🔴',
                     label: 'Sensor Suhu Real-time',
-                    sublabel: 'Acrel ATP007 via MQTT broker',
+                    sublabel: 'Acrel ATP007 via TimescaleDB 10.88.16.159',
                     status: d.hasTempData ? 'TERHUBUNG' : 'TIDAK ADA DATA',
                     statusCls: d.hasTempData ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700',
                     rowCls: d.hasTempData ? 'border-emerald-100 bg-emerald-50/30' : 'border-red-100 bg-red-50/40',
@@ -6675,7 +7052,7 @@
                 {
                     icon: d.hasBebanData ? '✅' : '🔴',
                     label: 'Arus Beban Real-time',
-                    sublabel: 'Power Meter ION8650 via MQTT/Firestore',
+                    sublabel: 'Power Meter ION8650 via TimescaleDB 10.88.16.159',
                     status: d.hasBebanData ? 'TERHUBUNG' : 'TIDAK ADA DATA',
                     statusCls: d.hasBebanData ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700',
                     rowCls: d.hasBebanData ? 'border-emerald-100 bg-emerald-50/30' : 'border-red-100 bg-red-50/40',
