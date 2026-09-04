@@ -57,3 +57,40 @@ SELECT add_continuous_aggregate_policy('temperature_logs_hourly',
     schedule_interval => INTERVAL '1 hour',
     if_not_exists => TRUE
 );
+
+-- ═════════════════════════════════════════════════════════════════════════
+-- BEBAN — log historis arus/tegangan/daya trafo (Power Meter ION8650)
+-- Nama kolom sengaja disamakan dengan alias PERTAMA yang dikenali
+-- parseBebanDoc() di Shield.html, supaya API bisa mengembalikannya apa
+-- adanya tanpa perlu pemetaan ulang di sisi frontend.
+-- ═════════════════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS beban_logs (
+    id            BIGSERIAL,
+    trafo         SMALLINT         NOT NULL,           -- 2, 3, atau 4
+    i_r           DOUBLE PRECISION NOT NULL DEFAULT 0,  -- Arus fasa R (A)
+    i_s           DOUBLE PRECISION NOT NULL DEFAULT 0,  -- Arus fasa S (A)
+    i_t           DOUBLE PRECISION NOT NULL DEFAULT 0,  -- Arus fasa T (A)
+    v_r           DOUBLE PRECISION NOT NULL DEFAULT 0,  -- Tegangan fasa R (V)
+    v_s           DOUBLE PRECISION NOT NULL DEFAULT 0,  -- Tegangan fasa S (V)
+    v_t           DOUBLE PRECISION NOT NULL DEFAULT 0,  -- Tegangan fasa T (V)
+    kw            DOUBLE PRECISION NOT NULL DEFAULT 0,  -- Daya aktif (kW dari meter — parseBebanDoc membaginya 1000 jadi MW)
+    kvar          DOUBLE PRECISION NOT NULL DEFAULT 0,  -- Daya reaktif (kVAR)
+    kva           DOUBLE PRECISION NOT NULL DEFAULT 0,  -- Daya semu (kVA)
+    pf            DOUBLE PRECISION NOT NULL DEFAULT 0,  -- Power factor
+    beban_persen  DOUBLE PRECISION,                     -- % pembebanan (opsional, dihitung meter atau NULL)
+    device_ts     TEXT,
+    source        TEXT             NOT NULL DEFAULT 'ion8650_ingester',
+    ts            TIMESTAMPTZ      NOT NULL DEFAULT now(),
+    PRIMARY KEY (trafo, ts, id)
+);
+
+SELECT create_hypertable('beban_logs', 'ts',
+    chunk_time_interval => INTERVAL '1 day',
+    if_not_exists => TRUE
+);
+
+CREATE INDEX IF NOT EXISTS idx_beban_logs_trafo_ts
+    ON beban_logs (trafo, ts DESC);
+
+SELECT add_retention_policy('beban_logs', INTERVAL '180 days', if_not_exists => TRUE);

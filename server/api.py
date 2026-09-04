@@ -64,7 +64,8 @@ def health():
 @app.get("/api/temperature-logs")
 def temperature_logs(
     trafo: int = Query(..., ge=2, le=4, description="Nomor trafo: 2, 3, atau 4"),
-    limit: int = Query(300, ge=1, le=2000),
+    limit: int = Query(300, ge=1, le=5000),
+    from_: Optional[datetime] = Query(default=None, alias="from", description="Batas awal ISO8601, opsional"),
     x_api_key: Optional[str] = Header(default=None, alias="X-API-Key"),
 ):
     """Mengembalikan N pembacaan suhu terbaru untuk satu trafo, terurut dari
@@ -81,11 +82,50 @@ def temperature_logs(
                    device_ts AS "deviceTimestamp", source,
                    ts
             FROM temperature_logs
-            WHERE trafo = %s
+            WHERE trafo = %s AND (%s::timestamptz IS NULL OR ts >= %s)
             ORDER BY ts DESC
             LIMIT %s
             """,
-            (trafo, limit),
+            (trafo, from_, from_, limit),
+        )
+        rows = cur.fetchall()
+
+    for row in rows:
+        row["timestamp"] = row["ts"].isoformat()
+        del row["ts"]
+
+    return {"trafo": trafo, "count": len(rows), "rows": rows}
+
+
+@app.get("/api/beban-logs")
+def beban_logs(
+    trafo: int = Query(..., ge=2, le=4, description="Nomor trafo: 2, 3, atau 4"),
+    limit: int = Query(300, ge=1, le=5000),
+    from_: Optional[datetime] = Query(default=None, alias="from", description="Batas awal ISO8601, opsional"),
+    x_api_key: Optional[str] = Header(default=None, alias="X-API-Key"),
+):
+    """Mengembalikan N pembacaan beban (arus/tegangan/daya) terbaru untuk satu
+    trafo. Nama field disamakan dengan alias yang dikenali parseBebanDoc() di
+    Shield.html (I_R, V_R, kW, dst.) supaya frontend tidak perlu mapping ulang.
+
+    Catatan: tabel beban_logs baru berisi data begitu ada proses yang
+    menulisnya (lihat server/README.md) — endpoint ini hanya lapisan baca."""
+    _check_api_key(x_api_key)
+
+    with _pool.connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+        cur.execute(
+            """
+            SELECT trafo, i_r AS "I_R", i_s AS "I_S", i_t AS "I_T",
+                   v_r AS "V_R", v_s AS "V_S", v_t AS "V_T",
+                   kw AS "kW", kvar AS "kVAR", kva AS "kVA", pf AS "PF",
+                   beban_persen, device_ts AS "deviceTimestamp", source,
+                   ts
+            FROM beban_logs
+            WHERE trafo = %s AND (%s::timestamptz IS NULL OR ts >= %s)
+            ORDER BY ts DESC
+            LIMIT %s
+            """,
+            (trafo, from_, from_, limit),
         )
         rows = cur.fetchall()
 

@@ -2283,24 +2283,15 @@
         // KONFIGURASI SUMBER DATA SHIELD
         // ══════════════════════════════════════════════════════════════════
         // Sumber data SUHU KONTAK INCOMING CB (Acrel ATP007) dan BEBAN TRAFO
-        // (Power Meter ION8650) sekarang berasal dari TimescaleDB server lokal.
+        // (Power Meter ION8650) sekarang berasal dari TimescaleDB server lokal,
+        // lewat REST API tipis (FastAPI, server/api.py) — bukan koneksi Postgres
+        // langsung dari browser, dan bukan port MQTT 1883 (itu port broker HiveMQ
+        // lama, sudah diverifikasi tidak dipakai lagi di sini).
         //
         //   Host : 10.88.16.159
-        //   Port : 1883   (sesuai permintaan — lihat CATATAN di bawah)
-        //
-        // ── CATATAN TEKNIS YANG PERLU DIVERIFIKASI DI SISI SERVER ─────────
-        // 1) Browser TIDAK bisa membuka koneksi PostgreSQL/TimescaleDB secara
-        //    langsung. Akses harus lewat lapisan HTTP/REST tipis (PostgREST,
-        //    FastAPI, Express, dsb.) yang berjalan di depan database.
-        //    Konstanta di bawah dipakai untuk menyusun base URL REST tersebut.
-        // 2) Port 1883 secara default adalah port MQTT TCP (Mosquitto), BUKAN
-        //    port PostgreSQL (5432) maupun port HTTP. Kalau ternyata 1883 di
-        //    server Anda memang broker MQTT dan REST API TimescaleDB ada di
-        //    port lain, cukup ubah TIMESCALE_PORT di bawah — tidak ada bagian
-        //    lain dari file ini yang perlu disentuh.
-        // ─────────────────────────────────────────────────────────────────
+        //   Port : 8000   (uvicorn/FastAPI, lihat server/shield-api.service)
         const TIMESCALE_HOST       = "10.88.16.159";
-        const TIMESCALE_PORT       = 1883;      // ← ubah di sini jika port REST API berbeda
+        const TIMESCALE_PORT       = 8000;      // ← ubah di sini jika port REST API berbeda
         const TIMESCALE_API_PREFIX = "/api";    // ← ubah jika endpoint tidak berada di /api
         const TIMESCALE_SCHEME     = "http";    // intranet, bukan HTTPS
         const TIMESCALE_API_BASE_URL = `${TIMESCALE_SCHEME}://${TIMESCALE_HOST}:${TIMESCALE_PORT}${TIMESCALE_API_PREFIX}`;
