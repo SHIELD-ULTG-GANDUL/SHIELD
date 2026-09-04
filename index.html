@@ -863,7 +863,7 @@
                         </div>
                         <div class="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-[11px] font-bold">
                             <span id="graph-badge-text" class="flex items-center gap-1.5 text-[#0f766e]">
-                                <span class="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse"></span>Sumber: TimescaleDB 10.88.16.159:1883
+                                <span class="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse"></span>Source: TimescaleDB 10.88.16.159:8000
                             </span>
                         </div>
                     </div>
@@ -992,11 +992,11 @@
                         <canvas id="beban-trend-chart"></canvas>
                         <div id="beban-chart-loading" class="hidden absolute inset-0 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center rounded-xl gap-3 z-10">
                             <i data-lucide="loader-2" class="w-10 h-10 text-violet-500 animate-spin"></i>
-                            <span class="text-sm font-bold text-slate-500">Mengambil data beban dari TimescaleDB...</span>
+                            <span class="text-sm font-bold text-slate-500">Retrieving load data from TimescaleDB...</span>
                         </div>
                         <div id="beban-chart-nodata" class="hidden absolute inset-0 flex flex-col items-center justify-center gap-3 z-10">
                             <i data-lucide="bar-chart-2" class="w-12 h-12 text-slate-300"></i>
-                            <span class="text-sm font-bold text-slate-400">Tidak ada data beban untuk rentang ini</span>
+                            <span class="text-sm font-bold text-slate-400">No load data available for this interval</span>
                         </div>
                     </div>
 
@@ -2162,7 +2162,7 @@
                     if (rows.length) _applyLiveTemperatureSnapshot(String(trafoAtSubscribe), rows[0]);
                     _applyTempLoggerDocs(rows, 'TimescaleDB');
                 } catch (err) {
-                    console.error('[SHIELD LOGGER] Gagal mengambil log suhu dari TimescaleDB API:', err.message);
+                    console.error('[SHIELD LOGGER] Failed to fetch temperature logs from the TimescaleDB API:', err.message);
                     window._lastTempLogError = err;
                 }
             };
@@ -2441,7 +2441,7 @@
                         anyOk = true;
                     }
                 } catch (err) {
-                    console.warn(`[SHIELD TS] Gagal ambil suhu terbaru Trafo ${trafo}:`, err.message);
+                    console.warn(`[SHIELD TS] Failed to fetch the latest temperature for Transformer ${trafo}:`, err.message);
                 }
             }
 
@@ -2463,20 +2463,20 @@
 
                     if (trafo === selectedTrafo) {
                         updateBebanUI();
-                        _setBebanStatus(`TimescaleDB ${TIMESCALE_HOST}:${TIMESCALE_PORT} — Trafo ${trafo}`);
+                        _setBebanStatus(`TimescaleDB ${TIMESCALE_HOST}:${TIMESCALE_PORT} — Transformer ${trafo}`);
                         _refreshLNTAIIfVisible();
                         if (activePage === 'graphs' && activeBebanTimeFilter === 'LIVE') {
                             renderBebanLiveChart();
                         }
                     }
                 } catch (err) {
-                    console.warn(`[SHIELD TS] Gagal ambil beban terbaru Trafo ${trafo}:`, err.message);
+                    console.warn(`[SHIELD TS] Failed to fetch the latest load data for Transformer ${trafo}:`, err.message);
                 }
             }
 
             setUIStatus(anyOk);
             if (!anyOk) {
-                _setBebanStatus(`Tidak ada respons dari TimescaleDB ${TIMESCALE_HOST}:${TIMESCALE_PORT}` +
+                _setBebanStatus(`No response from TimescaleDB ${TIMESCALE_HOST}:${TIMESCALE_PORT}` +
                                 (window._tsLastError ? ` — ${window._tsLastError}` : ''));
             }
         }
@@ -3027,28 +3027,28 @@
             if (noData) noData.classList.add('hidden');
 
             if (filter === 'LIVE') {
-                _updateChartHeader('Grafik Tren Suhu Real-time (TimescaleDB)',
-                    '<span class="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse mr-1.5"></span>Sumber: TimescaleDB ' + TIMESCALE_HOST + ':' + TIMESCALE_PORT);
-                _setChartRangeInfo('Mode: LIVE — polling otomatis dari TimescaleDB', '');
+                _updateChartHeader('Real-Time Temperature Trend Chart (TimescaleDB)',
+                    '<span class="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse mr-1.5"></span>Source: TimescaleDB ' + TIMESCALE_HOST + ':' + TIMESCALE_PORT);
+                _setChartRangeInfo('Mode: LIVE — polling automatically from TimescaleDB', '');
                 initRealtimeChart();
             } else {
-                const labels = { '1H':'1 Jam','6H':'6 Jam','1D':'1 Hari','1W':'1 Minggu','1M':'1 Bulan','MAX':'Semua Data' };
-                _updateChartHeader(`Grafik Tren Suhu — ${labels[filter]}`,
-                    '<span class="w-2 h-2 rounded-full bg-blue-500 inline-block mr-1.5"></span>Sumber: Firestore Histori');
-                _setChartRangeInfo(`Filter: ${labels[filter]} terakhir`, '');
+                const labels = { '1H':'1 Hour','6H':'6 Hours','1D':'1 Day','1W':'1 Week','1M':'1 Month','MAX':'All Data' };
+                _updateChartHeader(`Temperature Trend Chart — ${labels[filter]}`,
+                    '<span class="w-2 h-2 rounded-full bg-blue-500 inline-block mr-1.5"></span>Source: TimescaleDB History');
+                _setChartRangeInfo(`Filter: last ${labels[filter]}`, '');
                 fetchAndRenderHistoricalChart(filter);
             }
         }
 
-        // Refresh chart sesuai filter aktif
+        // Refresh the chart according to the active filter
         function refreshCurrentChart() {
-            // Hapus cache filter saat ini agar ambil ulang
+            // Clear the cache for the current filter so it is fetched again
             const cacheKey = `${selectedTrafo}_${activeTimeFilter}`;
             delete chartHistoricalData[cacheKey];
             setTimeFilter(activeTimeFilter);
         }
 
-        // Helper: update judul & badge sumber
+        // Helper: update the chart title & source badge
         function _updateChartHeader(title, badgeHtml) {
             const titleEl = document.getElementById('chart-mode-title');
             const badgeEl = document.getElementById('graph-badge-text');
@@ -3056,7 +3056,7 @@
             if (badgeEl) badgeEl.innerHTML = badgeHtml;
         }
 
-        // Helper: update teks info bawah chart
+        // Helper: update the info text below the chart
         function _setChartRangeInfo(left, right) {
             const l = document.getElementById('chart-range-info');
             const r = document.getElementById('chart-last-point');
@@ -3064,7 +3064,7 @@
             if (r) r.textContent = right;
         }
 
-        // Inisialisasi/Reset grafik mode LIVE (MQTT stream)
+        // Initialize/reset the LIVE mode chart (MQTT stream)
         function initRealtimeChart() {
             const ctx = document.getElementById('realtime-temp-chart');
             if (!ctx) return;
@@ -3170,7 +3170,7 @@
                     const noData = document.getElementById('chart-no-data');
                     if (noData) noData.classList.remove('hidden');
                     const info = document.getElementById('chart-point-info');
-                    if (info) info.textContent = 'Gagal memuat data dari TimescaleDB';
+                    if (info) info.textContent = 'Failed to load data from TimescaleDB';
                 } finally {
                     if (overlay) overlay.classList.add('hidden');
                 }
@@ -3202,10 +3202,10 @@
                 renderChartFromHistorical(parsed, filter);
 
             } catch (err) {
-                console.error('Gagal fetch histori grafik:', err);
+                console.error('Failed to fetch chart history:', err);
                 const noData = document.getElementById('chart-no-data');
                 if (noData) noData.classList.remove('hidden');
-                document.getElementById('chart-point-info').textContent = 'Gagal memuat data';
+                document.getElementById('chart-point-info').textContent = 'Failed to load data';
             } finally {
                 if (overlay) overlay.classList.add('hidden');
             }
@@ -3383,13 +3383,13 @@
                     throw window._lastTempLogError;
                 }
             } catch (err) {
-                console.error(`Kesalahan saat mengambil data dari ${sourceLabel}:`, err);
+                console.error(`Error while fetching data from ${sourceLabel}:`, err);
                 if (tableBody) {
                     tableBody.innerHTML = `
                         <tr>
                             <td colspan="8" class="text-center py-12 text-rose-500 font-bold">
-                                Gagal memuat data dari ${sourceLabel}: ${err && err.message ? err.message : 'kesalahan tidak diketahui'}.
-                                ${window.timescaleReady ? `<div class="text-[10px] font-normal text-slate-400 mt-2">Cek apakah ${TIMESCALE_API_BASE_URL} bisa diakses dari jaringan Anda, dan apakah CORS server mengizinkan origin ini (${location.origin}).</div>` : ''}
+                                Failed to load data from ${sourceLabel}: ${err && err.message ? err.message : 'unknown error'}.
+                                ${window.timescaleReady ? `<div class="text-[10px] font-normal text-slate-400 mt-2">Check whether ${TIMESCALE_API_BASE_URL} is reachable from your network, and whether the server's CORS settings allow this origin (${location.origin}).</div>` : ''}
                             </td>
                         </tr>
                     `;
@@ -3574,8 +3574,8 @@
                         _applyBebanLoggerDocs(mapped, `TimescaleDB ${TIMESCALE_HOST}:${TIMESCALE_PORT}`);
                     }
                 } catch (err) {
-                    console.error('[SHIELD BEBAN] Gagal ambil log beban dari TimescaleDB:', err.message);
-                    _setBebanStatus('Gagal akses TimescaleDB: ' + err.message);
+                    console.error('[SHIELD BEBAN] Failed to fetch load logs from TimescaleDB:', err.message);
+                    _setBebanStatus('Failed to access TimescaleDB: ' + err.message);
                 }
             };
 
@@ -3612,17 +3612,17 @@
                         bebanDocIdMap[trafo] = id;
                         console.log(`     Dipetakan ke Trafo ${trafo}`);
                     } else {
-                        console.warn(`     Tidak bisa dipetakan ke trafo 2/3/4`);
+                        console.warn(`     Could not map to Transformer 2/3/4`);
                     }
                 });
 
                 if (colSnap.size === 0) {
-                    console.warn('[SHIELD BEBAN] ⚠ Collection beban_realtime kosong atau tidak ada akses.');
-                    _setBebanStatus('Collection beban_realtime tidak ditemukan / kosong');
+                    console.warn('[SHIELD BEBAN] ⚠ The beban_realtime collection is empty or inaccessible.');
+                    _setBebanStatus('The beban_realtime collection was not found or is empty');
                 }
             } catch (e) {
-                console.error('[SHIELD BEBAN] Gagal scan collection:', e.message);
-                _setBebanStatus('Gagal akses Firestore: ' + e.message);
+                console.error('[SHIELD BEBAN] Failed to scan the collection:', e.message);
+                _setBebanStatus('Failed to access Firestore: ' + e.message);
             }
 
             // ── STEP 2: Subscribe onSnapshot per trafo ──────────────────────
@@ -3972,18 +3972,18 @@
                 if (!mapped.length) {
                     firestoreBebanLogs = [];
                     _renderBebanLoggerEmpty(
-                        `Tidak ada data beban Trafo ${selectedTrafo} di TimescaleDB.`,
+                        `No load data for Transformer ${selectedTrafo} in TimescaleDB.`,
                         `Endpoint: ${TIMESCALE_API_BASE_URL}${TIMESCALE_ENDPOINTS.beban}?trafo=${selectedTrafo}`
                     );
                     return;
                 }
                 _applyBebanLoggerDocs(mapped, `TimescaleDB ${TIMESCALE_HOST}:${TIMESCALE_PORT}`);
                 renderBebanLoggerTable();
-                console.log(`[BEBAN LOGGER] ✓ ${mapped.length} baris dari TimescaleDB (Trafo ${selectedTrafo})`);
+                console.log(`[BEBAN LOGGER] ✓ ${mapped.length} rows from TimescaleDB (Transformer ${selectedTrafo})`);
             } catch (err) {
                 console.error('[BEBAN LOGGER] TimescaleDB error:', err.message);
                 _renderBebanLoggerEmpty(
-                    'Gagal memuat data beban dari TimescaleDB.',
+                    'Failed to load load data from TimescaleDB.',
                     `${TIMESCALE_API_BASE_URL} — ${err.message}`
                 );
             }
@@ -4069,8 +4069,8 @@
                     const triedPaths = fallbackIds.map(id => `beban_realtime/${id}/logs`).join(', ');
                     firestoreBebanLogs = [];
                     _renderBebanLoggerEmpty(
-                        `Tidak ada data beban Trafo ${selectedTrafo} di Firestore.`,
-                        `Path dicoba: ${triedPaths}`
+                        `No load data for Transformer ${selectedTrafo} in Firestore.`,
+                        `Paths tried: ${triedPaths}`
                     );
                     return;
                 }
@@ -4090,11 +4090,11 @@
                 });
                 _scheduleMLRealtimeUpdate('muat ulang histori beban');
                 renderBebanLoggerTable();
-                console.log(`[BEBAN LOGGER] ✓ Rendered ${mapped.length} baris dari beban_realtime/${usedDocId}/logs`);
+                console.log(`[BEBAN LOGGER] ✓ Rendered ${mapped.length} rows from beban_realtime/${usedDocId}/logs`);
 
             } catch (err) {
                 console.error('[BEBAN LOGGER] Error:', err.message);
-                _renderBebanLoggerEmpty('Gagal memuat data beban.', 'Pesan: ' + err.message);
+                _renderBebanLoggerEmpty('Failed to load load data.', 'Message: ' + err.message);
             }
         };
 
@@ -4125,7 +4125,7 @@
                 tableBody.innerHTML = `
                     <tr>
                         <td colspan="13" class="text-center py-12 text-slate-400 font-bold">
-                            Tidak ditemukan log beban untuk Trafo ${selectedTrafo} di TimescaleDB.
+                            No load logs found for Transformer ${selectedTrafo} in TimescaleDB.
                         </td>
                     </tr>
                 `;
@@ -4157,7 +4157,7 @@
         // Export tabel beban ke Excel
         window.exportBebanExcel = function() {
             if (firestoreBebanLogs.length === 0) {
-                alert("Tidak ada data beban yang siap untuk diunduh.");
+                alert("No load data is available to download.");
                 return;
             }
             const formattedData = firestoreBebanLogs.map(log => ({
@@ -4316,12 +4316,12 @@
             if (dtEl)   dtEl.textContent   = maxDeltaTemp.toFixed(1) + ' °C';
 
             const configs = {
-                0: { cls:'hotspot-normal',   badge:'bg-emerald-100 text-emerald-700', text:'✓  NORMAL — Kontak PMT Aman',
-                     note:'NORMAL: Suhu PMT ≤ 70°C, ΔT < 10°C, imbalance < 10%. Ref: IEC 62271-1:2017 §7.4 (terminal temp rise ≤ 40K) & CIGRE TB 167.' },
-                1: { cls:'hotspot-warning',  badge:'bg-amber-100 text-amber-700',     text:'▲  PERHATIAN — Monitor Intensif',
-                     note:'PERHATIAN: Suhu PMT 70-90°C atau imbalance 10-25% atau ΔT 10-15°C. IEC 62271-100: lakukan termografi & pemeriksaan berkala.' },
-                2: { cls:'hotspot-critical', badge:'bg-red-100 text-red-700 animate-pulse', text:'⚠  KRITIS — Tindakan Segera',
-                     note:'KRITIS: Suhu PMT >90°C atau imbalance ≥ 25% atau ΔT ≥ 15°C. IEC 62271-1 max 95°C (30°C ambient+65K). Lakukan pemeriksaan segera!' }
+                0: { cls:'hotspot-normal',   badge:'bg-emerald-100 text-emerald-700', text:'✓  NORMAL — CB Contact Safe',
+                     note:'NORMAL: CB temperature ≤ 70°C, ΔT < 10°C, imbalance < 10%. Ref: IEC 62271-1:2017 §7.4 (terminal temp rise ≤ 40K) & CIGRE TB 167.' },
+                1: { cls:'hotspot-warning',  badge:'bg-amber-100 text-amber-700',     text:'▲  ATTENTION — Intensive Monitoring',
+                     note:'ATTENTION: CB temperature 70-90°C or imbalance 10-25% or ΔT 10-15°C. IEC 62271-100: perform thermography & periodic inspection.' },
+                2: { cls:'hotspot-critical', badge:'bg-red-100 text-red-700 animate-pulse', text:'⚠  CRITICAL — Immediate Action Required',
+                     note:'CRITICAL: CB temperature >90°C or imbalance ≥ 25% or ΔT ≥ 15°C. IEC 62271-1 max 95°C (30°C ambient+65K). Inspect immediately!' }
             };
             const cfg = configs[sev];
             card.className = `border-2 rounded-xl p-4 transition-all duration-500 ${cfg.cls}`;
@@ -5135,10 +5135,10 @@
                 const json = await res.json();
                 const temp = Number(json?.current?.temperature_2m);
                 if (!Number.isFinite(temp)) throw new Error('temperature_2m kosong');
-                _setAmbientWeatherBase(temp, 'Open-Meteo realtime GI Gandul', true);
+                _setAmbientWeatherBase(temp, 'Open-Meteo real-time GI Gandul', true);
             } catch (err) {
-                _setAmbientWeatherBase(_fallbackGandulAmbientBase(), 'Estimasi lokal GI Gandul (fallback)', false);
-                console.warn('[SHIELD AMBIENT] Gagal mengambil suhu realtime GI Gandul:', err.message);
+                _setAmbientWeatherBase(_fallbackGandulAmbientBase(), 'Local GI Gandul estimate (fallback)', false);
+                console.warn('[SHIELD AMBIENT] Failed to fetch real-time temperature for GI Gandul:', err.message);
             }
         }
 
@@ -5354,11 +5354,26 @@
             const maxRow = rows.reduce((m, r) => r.lntai > m.lntai ? r : m, rows[0] || current);
             const avgRecent = recent.length ? recent.reduce((s, r) => s + r.lntai, 0) / recent.length : current.lntai;
             const trend = recent.length >= 3 ? recent[recent.length - 1].lntai - recent[0].lntai : 0;
+
+            const parts = [
+                { name: 'S_Temp', value: current.S_Temp, weighted: current.S_Temp * 0.40, weight: '40%' },
+                { name: 'S_ΔT', value: current.S_DeltaT, weighted: current.S_DeltaT * 0.30, weight: '30%' },
+                { name: 'S_TLR', value: current.S_TLR, weighted: current.S_TLR * 0.30, weight: '30%' }
+            ];
+            const dom = parts.reduce((a, b) => b.weighted > a.weighted ? b : a, parts[0]);
+            const domShare = current.lntai > 0 ? (dom.weighted / current.lntai) * 100 : 0;
+            const domMeaning = dom.name === 'S_Temp'
+                ? 'i.e. the absolute contact temperature rise vs. ambient is the main driver — check for genuine contact resistance increase or a cooling deficiency.'
+                : dom.name === 'S_ΔT'
+                    ? `i.e. phase ${current.hottestPhase} running hotter than the others is the main driver — a classic sign of a localized issue on one phase rather than a system-wide effect.`
+                    : 'i.e. the heating is disproportionate to the load current squared — the strongest single indicator of rising contact resistance rather than a normal loading effect.';
+
             const items = [
-                { title: `${current.icon} Status ${current.level}`, body: `${current.rec} Current LNTAI is ${current.lntai.toFixed(2)} on a 0–40 scale.` },
-                { title: 'Score components', body: `S_Temp ${current.S_Temp.toFixed(1)} · S_ΔT ${current.S_DeltaT.toFixed(1)} · S_TLR ${current.S_TLR.toFixed(1)} (each on a 0–40 scale).` },
-                { title: 'Hottest phase', body: `Phase ${current.hottestPhase} averages ${current.t_contact.toFixed(1)} °C, inter-phase difference ${current.delta_phase.toFixed(1)} °C.` },
-                { title: 'Load context', body: `Average current ${current.i_avg.toFixed(1)} A, Loading ${current.loading_pct.toFixed(1)}% of I_nominal ${current.i_rated} A.` },
+                { title: `${current.icon} Status ${current.level}`, body: `${current.rec} Current LNTAI is ${current.lntai.toFixed(2)} on a 0–40 scale (Warning ≥ ${LNTAI_CFG.thresholds.warning}, Critical ≥ ${LNTAI_CFG.thresholds.critical}).` },
+                { title: 'Score components', body: `S_Temp ${current.S_Temp.toFixed(1)} · S_ΔT ${current.S_DeltaT.toFixed(1)} · S_TLR ${current.S_TLR.toFixed(1)} (each on a 0–40 scale, weighted 0.40/0.30/0.30 into the final score).` },
+                { title: 'Dominant driver', body: `${dom.name} contributes ${domShare.toFixed(0)}% of the total score (weight ${dom.weight}) — ${domMeaning}` },
+                { title: 'Hottest phase', body: `Phase ${current.hottestPhase} averages ${current.t_contact.toFixed(1)} °C (${current.delta_T_real.toFixed(1)} °C above ambient), inter-phase difference ${current.delta_phase.toFixed(1)} °C against a ${LNTAI_CFG.refPhaseDelta} °C reference.` },
+                { title: 'Load context', body: `Average current ${current.i_avg.toFixed(1)} A, Loading ${current.loading_pct.toFixed(1)}% of I_nominal ${current.i_rated} A — used to normalize the expected heating for S_TLR.` },
                 { title: 'Recent trend', body: `Average LNTAI over the last ${recent.length} points is ${avgRecent.toFixed(2)}. ${trend > 0.3 ? 'Trending up, needs closer monitoring.' : trend < -0.3 ? 'Trending down, thermal condition improving.' : 'Relatively stable trend.'}` },
                 { title: 'Period peak', body: `Maximum LNTAI in the displayed data is ${maxRow.lntai.toFixed(2)} (${maxRow.level}).` }
             ];
@@ -5490,19 +5505,58 @@
                 root.innerHTML = '<p>Contact temperature and load current data are incomplete, so the LNTAI analysis narrative cannot be generated yet.</p>';
                 return;
             }
+
             const recent = rows.slice(-12);
             const avg = recent.length ? recent.reduce((s,r)=>s+r.lntai,0)/recent.length : current.lntai;
             const maxRow = rows.reduce((m, r) => r.lntai > m.lntai ? r : m, rows[0] || current);
+            const minRow = rows.reduce((m, r) => r.lntai < m.lntai ? r : m, rows[0] || current);
             const trend = recent.length >= 3 ? recent[recent.length - 1].lntai - recent[0].lntai : 0;
+            const trendPerPoint = recent.length >= 3 ? trend / (recent.length - 1) : 0;
             const trendText = trend > 0.3 ? 'rising' : trend < -0.3 ? 'falling' : 'relatively stable';
+            const volatility = recent.length >= 3
+                ? Math.sqrt(recent.reduce((s, r) => s + Math.pow(r.lntai - avg, 2), 0) / recent.length)
+                : 0;
+
+            // ── Identify the dominant weighted component (0.40 / 0.30 / 0.30) ──
+            const contributions = [
+                { key: 'S_Temp', label: 'contact temperature rise (S_Temp)', value: current.S_Temp * 0.40, raw: current.S_Temp, weight: '40%',
+                  refText: `terminal temperature rise vs. the ${LNTAI_CFG.refTempRise} K reference (IEC 62271-1)` },
+                { key: 'S_DeltaT', label: 'inter-phase temperature difference (S_ΔT)', value: current.S_DeltaT * 0.30, raw: current.S_DeltaT, weight: '30%',
+                  refText: `inter-phase ΔT vs. the ${LNTAI_CFG.refPhaseDelta} K reference` },
+                { key: 'S_TLR', label: 'temperature-vs-load² ratio (S_TLR)', value: current.S_TLR * 0.30, raw: current.S_TLR, weight: '30%',
+                  refText: `heating plausibility vs. the actual load, referenced against ${LNTAI_CFG.refTLR} K per unit²` }
+            ];
+            const dominant = contributions.reduce((a, b) => b.value > a.value ? b : a, contributions[0]);
+            const dominantShare = current.lntai > 0 ? (dominant.value / current.lntai) * 100 : 0;
+
+            // ── Physical interpretation of the dominant driver ──
+            let driverText;
+            if (dominant.key === 'S_Temp') {
+                driverText = `The score is currently led by <b>${dominant.label}</b> (${dominant.weight} weight, ${dominant.raw.toFixed(1)}/40 — ${dominantShare.toFixed(0)}% of the total score). This means the absolute contact temperature rise above ambient is the primary driver: <b>${current.delta_T_real.toFixed(1)} K</b> against a ${LNTAI_CFG.refTempRise} K reference derived from IEC 62271-1 terminal-rise limits. A high S_Temp independent of the other two components typically points to genuine finger-contact resistance increase or a cooling deficiency, rather than a transient load spike.`;
+            } else if (dominant.key === 'S_DeltaT') {
+                driverText = `The score is currently led by <b>${dominant.label}</b> (${dominant.weight} weight, ${dominant.raw.toFixed(1)}/40 — ${dominantShare.toFixed(0)}% of the total score). Phase <b>${current.hottestPhase}</b> is running noticeably hotter than its counterparts, referenced against a ${LNTAI_CFG.refPhaseDelta} K inter-phase threshold. A dominant S_ΔT with the other two components comparatively low is a classic signature of a localized problem on one phase — e.g. degraded finger contacts, uneven contact pressure, or a loose connection — rather than a system-wide thermal or loading issue.`;
+            } else {
+                driverText = `The score is currently led by <b>${dominant.label}</b> (${dominant.weight} weight, ${dominant.raw.toFixed(1)}/40 — ${dominantShare.toFixed(0)}% of the total score). This component captures whether the observed heating is proportionate to the square of the load current — the physically expected behaviour for I²R Joule heating. A high S_TLR relative to S_Temp/S_ΔT means the contact is heating up <i>more than the load alone would explain</i>, which is the strongest single indicator of rising contact resistance (finger-contact wear) rather than a normal loading effect.`;
+            }
+
+            const trendMagnitude = Math.abs(trendPerPoint) < 0.05 ? 'negligible'
+                : Math.abs(trendPerPoint) < 0.3 ? 'gradual'
+                : 'rapid';
+            const volatilityText = volatility > 3
+                ? `Point-to-point variability is also high (σ ≈ ${volatility.toFixed(2)}), suggesting the reading may be sensitive to sensor noise or intermittent load swings rather than a clean thermal trend — corroborate with the raw ΔT chart before acting on a single reading.`
+                : `Point-to-point variability is low (σ ≈ ${volatility.toFixed(2)}), so the trend below is likely a genuine physical change rather than sensor noise.`;
+
             const action = current.level === 'NORMAL'
-                ? 'Recommendation: maintain routine monitoring and keep the data history retained.'
+                ? 'Recommendation: maintain routine monitoring at the current interval and keep the data history retained to preserve trend context for future analyses.'
                 : current.level === 'WARNING'
-                    ? 'Recommendation: validate the sensors, watch the trend over the next few intervals, and check which component is driving the score up.'
-                    : 'Recommendation: take immediate action, inspect the finger contacts, and consider reducing the load until the thermal cause is identified.';
+                    ? `Recommendation: validate the sensor reading against a secondary measurement if possible, monitor ${dominant.label} specifically over the next several intervals, and schedule a visual/thermographic inspection of ${current.hottestPhase === 'R' || current.hottestPhase === 'S' || current.hottestPhase === 'T' ? `phase ${current.hottestPhase}` : 'the affected phase'} if the trend continues to rise.`
+                    : `Recommendation: escalate for immediate inspection. Given ${dominant.label} is the dominant driver, prioritize a finger-contact inspection${dominant.key !== 'S_Temp' ? ` on phase ${current.hottestPhase}` : ''}, and consider a controlled load reduction until the thermal cause is confirmed and resolved.`;
+
             root.innerHTML = `
-                <p>The LNTAI model reads the latest condition as <b>${current.level}</b> with a score of <b>${current.lntai.toFixed(2)}</b> on a 0–40 scale. Component breakdown: S_Temp <b>${current.S_Temp.toFixed(1)}</b>, S_ΔT <b>${current.S_DeltaT.toFixed(1)}</b>, S_TLR <b>${current.S_TLR.toFixed(1)}</b> — combined with weights 0.40/0.30/0.30.</p>
-                <p>The hottest phase is <b>${current.hottestPhase}</b> at <b>${current.t_contact.toFixed(1)} °C</b> (a rise of <b>${current.delta_T_real.toFixed(1)} °C</b> above ambient), while the average current is <b>${current.i_avg.toFixed(1)} A</b> (Loading ${current.loading_pct.toFixed(1)}%). Using data source <b>${source}</b>, the trend over the last ${recent.length} points looks <b>${trendText}</b> with an average LNTAI of <b>${avg.toFixed(2)}</b>. The peak in the displayed data is <b>${maxRow.lntai.toFixed(2)}</b> (${maxRow.level}).</p>
+                <p>The LNTAI model reads the latest condition as <b>${current.level}</b> with a score of <b>${current.lntai.toFixed(2)}</b> on a 0–40 scale (Warning ≥ ${LNTAI_CFG.thresholds.warning}, Critical ≥ ${LNTAI_CFG.thresholds.critical}). Component breakdown: S_Temp <b>${current.S_Temp.toFixed(1)}</b>/40, S_ΔT <b>${current.S_DeltaT.toFixed(1)}</b>/40, S_TLR <b>${current.S_TLR.toFixed(1)}</b>/40 — combined with weights 0.40 / 0.30 / 0.30 respectively (LNTAI = 0.40·S_Temp + 0.30·S_ΔT + 0.30·S_TLR).</p>
+                <p>${driverText}</p>
+                <p>The hottest phase is <b>${current.hottestPhase}</b> at <b>${current.t_contact.toFixed(1)} °C</b> (a rise of <b>${current.delta_T_real.toFixed(1)} °C</b> above the ${LNTAI_CFG.ambient}°C ambient reference), while the average load current is <b>${current.i_avg.toFixed(1)} A</b> (${current.loading_pct.toFixed(1)}% of the ${LNTAI_CFG.iRated} A rated current). Data source: <b>${source}</b>.</p>
+                <p>Over the last ${recent.length} points, the trend is <b>${trendText}</b> (${trendMagnitude}, ≈${trendPerPoint >= 0 ? '+' : ''}${trendPerPoint.toFixed(2)} points/reading), with an average LNTAI of <b>${avg.toFixed(2)}</b>, ranging from <b>${minRow.lntai.toFixed(2)}</b> to a peak of <b>${maxRow.lntai.toFixed(2)}</b> (${maxRow.level}) within the displayed window. ${volatilityText}</p>
                 <p>${action}</p>
             `;
         }
@@ -6918,27 +6972,27 @@
             }
             const CHI = chiNum != null && chiDenom > 0 ? Math.round((chiNum / chiDenom) * 100) : null;
 
-            // ── Verdict berdasarkan CHI ──────────────────────────────────
-            const verdict = CHI == null ? { label:'DATA BELUM LENGKAP', color:'slate', icon:'ℹ️', border:'border-slate-300', bg:'bg-slate-50', ring:'border-slate-300', txt:'text-slate-700' }
-                          : CHI >= 80   ? { label:'KONDISI BAIK',       color:'emerald', icon:'✅', border:'border-emerald-400', bg:'bg-emerald-50', ring:'ring-emerald-400', txt:'text-emerald-700' }
-                          : CHI >= 60   ? { label:'PERLU PERHATIAN',    color:'amber',   icon:'⚠️', border:'border-amber-400',   bg:'bg-amber-50',   ring:'ring-amber-400',   txt:'text-amber-700'  }
-                          : CHI >= 40   ? { label:'WASPADA',            color:'orange',  icon:'🔶', border:'border-orange-500',  bg:'bg-orange-50',  ring:'ring-orange-500',  txt:'text-orange-700' }
-                          :               { label:'KRITIS',             color:'red',     icon:'🔴', border:'border-red-500',     bg:'bg-red-50',     ring:'ring-red-500',     txt:'text-red-700'    };
+            // ── Verdict based on CHI ──────────────────────────────────
+            const verdict = CHI == null ? { label:'DATA INCOMPLETE',   color:'slate', icon:'ℹ️', border:'border-slate-300', bg:'bg-slate-50', ring:'border-slate-300', txt:'text-slate-700' }
+                          : CHI >= 80   ? { label:'GOOD CONDITION',    color:'emerald', icon:'✅', border:'border-emerald-400', bg:'bg-emerald-50', ring:'ring-emerald-400', txt:'text-emerald-700' }
+                          : CHI >= 60   ? { label:'NEEDS ATTENTION',   color:'amber',   icon:'⚠️', border:'border-amber-400',   bg:'bg-amber-50',   ring:'ring-amber-400',   txt:'text-amber-700'  }
+                          : CHI >= 40   ? { label:'ALERT',             color:'orange',  icon:'🔶', border:'border-orange-500',  bg:'bg-orange-50',  ring:'ring-orange-500',  txt:'text-orange-700' }
+                          :               { label:'CRITICAL',          color:'red',     icon:'🔴', border:'border-red-500',     bg:'bg-red-50',     ring:'ring-red-500',     txt:'text-red-700'    };
 
-            // ── Tabel ringkasan per-analisis ──────────────────────────────
-            const lntaiStatus = lntai == null ? '—' : lntai.level === 'CRITICAL' ? 'KRITIS' : lntai.level === 'WARNING' ? 'PERHATIAN' : 'NORMAL';
+            // ── Per-analysis summary table ──────────────────────────────
+            const lntaiStatus = lntai == null ? '—' : lntai.level === 'CRITICAL' ? 'CRITICAL' : lntai.level === 'WARNING' ? 'ATTENTION' : 'NORMAL';
             const algoRows = [
-                { alg:'LNTAI', nama:'Load-Normalized Thermal Anomaly Index', nilai: lntai != null ? `${lntai.lntai.toFixed(1)}/40 · ΔT=${lntai.delta_T_real.toFixed(1)}K · fasa terpanas ${lntai.hottestPhase} · beban ${lntai.loading_pct.toFixed(0)}%` : '—', status: lntaiStatus, standar:'IEC 62271-1:2017 §4 · Kaidah Montsinger/Arrhenius', color:'red' },
-                { alg:'Forecast', nama:'Holt-Winters DES (Realtime)', nilai: d.fc_temp_1h != null ? `${d.fc_temp_1h.toFixed(1)}°C / ${d.fc_load_1h != null ? d.fc_load_1h.toFixed(0) : '—'} A (forecast +1 jam)` : '—', status: d.fc_alarm ? 'WASPADA' : (d.fc_trend_ok == null ? '—' : 'NORMAL'), standar:'Holt (1957) Oper.Res. · Box-Jenkins (1976)', color:'cyan' },
+                { alg:'LNTAI', nama:'Load-Normalized Thermal Anomaly Index', nilai: lntai != null ? `${lntai.lntai.toFixed(1)}/40 · ΔT=${lntai.delta_T_real.toFixed(1)}K · hottest phase ${lntai.hottestPhase} · load ${lntai.loading_pct.toFixed(0)}%` : '—', status: lntaiStatus, standar:'IEC 62271-1:2017 §4 · Montsinger/Arrhenius rule', color:'red' },
+                { alg:'Forecast', nama:'Holt-Winters DES (Real-Time)', nilai: d.fc_temp_1h != null ? `${d.fc_temp_1h.toFixed(1)}°C / ${d.fc_load_1h != null ? d.fc_load_1h.toFixed(0) : '—'} A (+1 hour forecast)` : '—', status: d.fc_alarm ? 'ALERT' : (d.fc_trend_ok == null ? '—' : 'NORMAL'), standar:'Holt (1957) Oper.Res. · Box-Jenkins (1976)', color:'cyan' },
             ];
 
             const statusCfg = {
                 'NORMAL':   'bg-emerald-100 text-emerald-700',
-                'KONDISI BAIK': 'bg-emerald-100 text-emerald-700',
-                'PERHATIAN':'bg-amber-100 text-amber-700',
-                'WASPADA':  'bg-orange-100 text-orange-700',
+                'GOOD CONDITION': 'bg-emerald-100 text-emerald-700',
+                'ATTENTION':'bg-amber-100 text-amber-700',
+                'ALERT':    'bg-orange-100 text-orange-700',
                 'ALARM':    'bg-red-100 text-red-700',
-                'KRITIS':   'bg-red-100 text-red-700',
+                'CRITICAL': 'bg-red-100 text-red-700',
             };
             const sc = s => statusCfg[s] || 'bg-slate-100 text-slate-500';
 
@@ -6951,54 +7005,67 @@
                   <td class="py-2 px-3 text-[9px] text-slate-400">${r.standar}</td>
                 </tr>`).join('');
 
-            // ── Sintesis teknis ──────────────────────────────────────────
+            // ── Technical synthesis ──────────────────────────────────────
             let synthesis = '';
             if (CHI == null) {
                 const missingItems = [];
-                if (!d.hasTempData)  missingItems.push('sensor suhu real-time (Acrel ATP007/MQTT)');
-                if (!d.hasBebanData) missingItems.push('arus beban real-time (ION8650/MQTT)');
-                synthesis = `Composite Health Index (CHI) belum dapat dihitung karena ${missingItems.length || 1} sumber data belum terpenuhi${missingItems.length ? ': ' + missingItems.map((m,i)=>`(${i+1}) ${m}`).join('; ') : ''}. Panel <b>Status Kelengkapan Data</b> di bawah ini menjelaskan tindakan spesifik yang diperlukan. Executive Summary akan memperbarui diri secara otomatis setiap 60 detik.`;
+                if (!d.hasTempData)  missingItems.push('real-time temperature sensor (Acrel ATP007)');
+                if (!d.hasBebanData) missingItems.push('real-time load current (ION8650)');
+                synthesis = `The Composite Health Index (CHI) cannot be computed yet because ${missingItems.length || 1} data source(s) are incomplete${missingItems.length ? ': ' + missingItems.map((m,i)=>`(${i+1}) ${m}`).join('; ') : ''}. The <b>Data Completeness Status</b> panel below explains the specific action required. The Executive Summary refreshes itself automatically every 60 seconds.`;
             } else {
-                const chiTxt = CHI >= 80 ? `Composite Health Index (CHI) aset ini sebesar <b>${CHI}/100</b> — aset berada dalam kondisi operasional yang <b>baik dan andal</b>.`
-                             : CHI >= 60 ? `Composite Health Index (CHI) aset ini sebesar <b>${CHI}/100</b> — terdapat <b>indikator anomali termal awal</b> yang memerlukan perhatian operasional.`
-                             : CHI >= 40 ? `Composite Health Index (CHI) aset ini sebesar <b>${CHI}/100</b> — aset menunjukkan <b>anomali termal signifikan</b>. Risiko degradasi kontak terakselerasi.`
-                             :             `Composite Health Index (CHI) aset ini sebesar <b>${CHI}/100</b> — aset berada dalam kondisi <b>kritis</b>. Indikasi anomali termal kuat pada kontak finger.`;
+                const chiTxt = CHI >= 80 ? `This asset's Composite Health Index (CHI) is <b>${CHI}/100</b> — the asset is in <b>good, reliable operating condition</b>.`
+                             : CHI >= 60 ? `This asset's Composite Health Index (CHI) is <b>${CHI}/100</b> — there are <b>early thermal-anomaly indicators</b> that warrant operational attention.`
+                             : CHI >= 40 ? `This asset's Composite Health Index (CHI) is <b>${CHI}/100</b> — the asset shows a <b>significant thermal anomaly</b>. Risk of accelerated contact degradation.`
+                             :             `This asset's Composite Health Index (CHI) is <b>${CHI}/100</b> — the asset is in <b>critical condition</b>. Strong indication of thermal anomaly at the finger contacts.`;
 
                 const lntaiTxt = lntai != null
-                    ? `Model LNTAI membaca kondisi terkini sebagai <b>${lntaiStatus}</b> dengan skor <b>${lntai.lntai.toFixed(2)}/40</b>. Kenaikan suhu kontak di atas ambien: <b>${lntai.delta_T_real.toFixed(1)} K</b> pada fasa terpanas <b>${lntai.hottestPhase}</b> (selisih antar-fasa ${lntai.delta_phase.toFixed(1)} K), dengan beban rata-rata <b>${lntai.loading_pct.toFixed(1)}%</b> dari arus nominal. Komponen skor: S_Temp=${lntai.S_Temp.toFixed(1)}, S_ΔT=${lntai.S_DeltaT.toFixed(1)}, S_TLR=${lntai.S_TLR.toFixed(1)} (skala 0–40, S_Temp &amp; S_ΔT memakai kurva percepatan Montsinger/Arrhenius).`
-                    : 'Skor LNTAI belum dapat dihitung — menunggu pasangan data suhu dan beban yang valid pada waktu yang sama.';
+                    ? (() => {
+                        const parts = [
+                            { name: 'S_Temp', weighted: lntai.S_Temp * 0.40 },
+                            { name: 'S_ΔT', weighted: lntai.S_DeltaT * 0.30 },
+                            { name: 'S_TLR', weighted: lntai.S_TLR * 0.30 }
+                        ];
+                        const dom = parts.reduce((a, b) => b.weighted > a.weighted ? b : a, parts[0]);
+                        const domNote = dom.name === 'S_Temp'
+                            ? 'driven mainly by the absolute contact temperature rise above ambient'
+                            : dom.name === 'S_ΔT'
+                                ? `driven mainly by phase ${lntai.hottestPhase} running hotter than its counterparts (a localized-issue signature)`
+                                : 'driven mainly by heating that is disproportionate to load² — the strongest indicator of rising contact resistance';
+                        return `The LNTAI model reads the current condition as <b>${lntaiStatus}</b> with a score of <b>${lntai.lntai.toFixed(2)}/40</b> (Warning ≥ ${LNTAI_CFG.thresholds.warning}, Critical ≥ ${LNTAI_CFG.thresholds.critical}), ${domNote}. Contact temperature rise above ambient: <b>${lntai.delta_T_real.toFixed(1)} K</b> on hottest phase <b>${lntai.hottestPhase}</b> (inter-phase difference ${lntai.delta_phase.toFixed(1)} K), with an average load of <b>${lntai.loading_pct.toFixed(1)}%</b> of rated current. Score components: S_Temp=${lntai.S_Temp.toFixed(1)}, S_ΔT=${lntai.S_DeltaT.toFixed(1)}, S_TLR=${lntai.S_TLR.toFixed(1)} (0–40 scale, weighted 0.40/0.30/0.30; S_Temp &amp; S_ΔT use a Montsinger/Arrhenius-type acceleration curve rather than a linear scale).`;
+                      })()
+                    : 'The LNTAI score cannot be computed yet — awaiting a valid, time-matched pair of temperature and load readings.';
                 const fcTxt = d.fc_temp_1h != null
-                    ? `Forecast Holt-Winters memproyeksikan suhu kontak <b>${d.fc_temp_1h.toFixed(1)}°C</b> dan beban <b>${d.fc_load_1h != null ? d.fc_load_1h.toFixed(0) : '—'} A</b> pada satu jam mendatang${d.fc_accuracy != null ? ` (akurasi model historis ${d.fc_accuracy.toFixed(1)}%)` : ''}. ${d.fc_alarm ? 'Tren menunjukkan potensi ambang suhu terlampaui — perlu diwaspadai.' : 'Tren jangka pendek dalam batas wajar.'}`
+                    ? `The Holt-Winters forecast projects a contact temperature of <b>${d.fc_temp_1h.toFixed(1)}°C</b> and a load of <b>${d.fc_load_1h != null ? d.fc_load_1h.toFixed(0) : '—'} A</b> one hour ahead${d.fc_accuracy != null ? ` (historical model accuracy ${d.fc_accuracy.toFixed(1)}%)` : ''}. ${d.fc_alarm ? 'The trend indicates the temperature threshold may be exceeded — this warrants attention.' : 'The short-term trend is within normal bounds.'}`
                     : '';
                 synthesis = [chiTxt, lntaiTxt, fcTxt].filter(Boolean).join(' ');
             }
 
-            // ── Rekomendasi berdasarkan CHI/level LNTAI ─────────────────
+            // ── Recommendations based on CHI / LNTAI level ─────────────
             let recs = [];
             if (CHI == null) {
                 let pri = 1;
                 if (!d.hasTempData)
-                    recs.push({ pri:pri++, act:'Hubungkan sensor suhu Acrel ATP007 ke broker MQTT. Periksa konfigurasi topik, koneksi jaringan, dan daya sensor.', std:'IEC 62271-1 §7.4 · PLN SKDIR 0520-2', waktu:'Segera', color:'red' });
+                    recs.push({ pri:pri++, act:'Connect the Acrel ATP007 temperature sensor data feed. Check the source configuration, network connectivity, and sensor power.', std:'IEC 62271-1 §7.4 · PLN SKDIR 0520-2', waktu:'Immediate', color:'red' });
                 if (!d.hasBebanData)
-                    recs.push({ pri:pri++, act:'Hubungkan power meter ION8650 ke broker MQTT/Firestore. Verifikasi arus fasa (I_R/I_S/I_T) terkirim dan bernilai > 0 saat beban aktif.', std:'IEC 62271-100 · PLN SKDIR 0520-2.K/DIR/2014', waktu:'Segera', color:'red' });
+                    recs.push({ pri:pri++, act:'Connect the ION8650 power meter data feed. Verify that phase currents (I_R/I_S/I_T) are being received and are > 0 while the load is active.', std:'IEC 62271-100 · PLN SKDIR 0520-2.K/DIR/2014', waktu:'Immediate', color:'red' });
                 if (recs.length === 0)
-                    recs.push({ pri:1, act:'Semua data tersedia. Jalankan ulang analisis ML untuk memperbarui CHI.', std:'CIGRE TB 165 §5.2', waktu:'Segera', color:'emerald' });
-            } else if (lntaiStatus === 'KRITIS' || CHI < 40) {
+                    recs.push({ pri:1, act:'All data sources are available. Re-run the ML analysis to refresh the CHI.', std:'CIGRE TB 165 §5.2', waktu:'Immediate', color:'emerald' });
+            } else if (lntaiStatus === 'CRITICAL' || CHI < 40) {
                 recs = [
-                    { pri:1, act:'TINDAKAN SEGERA: Lakukan inspeksi visual dan thermografi inframerah pada kontak finger CB. Koordinasi dengan dispatcher untuk kesiapan manuver beban.', std:'IEC 62271-1 §7.4 · PLN SKDIR 0520-2', waktu:'24–48 jam', color:'red' },
-                    { pri:2, act:'Ukur resistansi kontak (micro-ohmmeter/dulfur) untuk konfirmasi fisik temuan LNTAI. Bandingkan dengan baseline R₀.', std:'IEC 62271-100 §6.4.1', waktu:'Segera', color:'red' },
-                    { pri:3, act:'Jika terkonfirmasi degradasi kontak signifikan, jadwalkan overhaul/penggantian kontak dalam window outage terdekat.', std:'IEC 62271-100:2021 · CIGRE TB 165', waktu:'≤ 1 bulan', color:'red' },
+                    { pri:1, act:'IMMEDIATE ACTION: Perform a visual and infrared thermographic inspection of the CB finger contacts. Coordinate with the dispatcher to prepare for a load transfer if needed.', std:'IEC 62271-1 §7.4 · PLN SKDIR 0520-2', waktu:'24–48 hours', color:'red' },
+                    { pri:2, act:'Measure contact resistance (micro-ohmmeter/dulfur test) to physically confirm the LNTAI finding. Compare against the R₀ baseline.', std:'IEC 62271-100 §6.4.1', waktu:'Immediate', color:'red' },
+                    { pri:3, act:'If significant contact degradation is confirmed, schedule an overhaul or contact replacement at the nearest outage window.', std:'IEC 62271-100:2021 · CIGRE TB 165', waktu:'≤ 1 month', color:'red' },
                 ];
-            } else if (lntaiStatus === 'PERHATIAN' || CHI < 60) {
+            } else if (lntaiStatus === 'ATTENTION' || CHI < 60) {
                 recs = [
-                    { pri:1, act:'Naikkan frekuensi monitoring LNTAI menjadi harian. Amati tren skor dan komponen S_Temp/S_ΔT/S_TLR untuk melihat arah perubahan.', std:'IEC 62271-1 §7.4', waktu:'Rutin harian', color:'amber' },
-                    { pri:2, act:'Lakukan thermografi inframerah terjadwal pada kontak finger dan periksa kondisi sensor suhu (kalibrasi, posisi pemasangan).', std:'CIGRE TB 083', waktu:'1–3 bulan', color:'amber' },
-                    { pri:3, act:'Verifikasi beban tidak melebihi arus nominal secara berkelanjutan agar tidak mempercepat kenaikan suhu kontak.', std:'PLN SKDIR 0520-2', waktu:'Rutin', color:'amber' },
+                    { pri:1, act:'Increase LNTAI monitoring frequency to daily. Track the score trend and the S_Temp/S_ΔT/S_TLR components to see which direction the change is heading.', std:'IEC 62271-1 §7.4', waktu:'Daily routine', color:'amber' },
+                    { pri:2, act:'Schedule an infrared thermographic inspection of the finger contacts and check the temperature sensor condition (calibration, mounting position).', std:'CIGRE TB 083', waktu:'1–3 months', color:'amber' },
+                    { pri:3, act:'Verify that the load does not continuously exceed the rated current, which would accelerate the contact temperature rise.', std:'PLN SKDIR 0520-2', waktu:'Routine', color:'amber' },
                 ];
             } else {
                 recs = [
-                    { pri:1, act:'Pertahankan monitoring realtime LNTAI dan forecast suhu/beban. Tidak ada indikasi anomali termal saat ini.', std:'IEC 62271-1 · PLN SKDIR 0520-2', waktu:'Rutin', color:'emerald' },
-                    { pri:2, act:'Lanjutkan program pemeliharaan preventif standar (uji timing, R_contact, thermografi berkala 2–3 tahun).', std:'IEC 62271-100:2021', waktu:'Rutin', color:'emerald' },
+                    { pri:1, act:'Maintain real-time LNTAI monitoring and the temperature/load forecast. No thermal anomaly is currently indicated.', std:'IEC 62271-1 · PLN SKDIR 0520-2', waktu:'Routine', color:'emerald' },
+                    { pri:2, act:'Continue the standard preventive maintenance program (timing test, R_contact, thermography every 2–3 years).', std:'IEC 62271-100:2021', waktu:'Routine', color:'emerald' },
                 ];
             }
 
@@ -7009,7 +7076,7 @@
                     <div class="text-[11px] font-bold text-slate-700 leading-relaxed">${r.act}</div>
                     <div class="mt-1 flex flex-wrap gap-2">
                       <span class="text-[9px] text-${r.color}-600 font-bold">${r.std}</span>
-                      <span class="text-[9px] text-slate-400 font-bold">· Waktu: ${r.waktu}</span>
+                      <span class="text-[9px] text-slate-400 font-bold">· Timeframe: ${r.waktu}</span>
                     </div>
                   </div>
                 </div>`).join('');
@@ -7026,34 +7093,34 @@
             const dataSources = [
                 {
                     icon: d.hasTempData ? '✅' : '🔴',
-                    label: 'Sensor Suhu Real-time',
+                    label: 'Real-Time Temperature Sensor',
                     sublabel: 'Acrel ATP007 via TimescaleDB 10.88.16.159',
-                    status: d.hasTempData ? 'TERHUBUNG' : 'TIDAK ADA DATA',
+                    status: d.hasTempData ? 'CONNECTED' : 'NO DATA',
                     statusCls: d.hasTempData ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700',
                     rowCls: d.hasTempData ? 'border-emerald-100 bg-emerald-50/30' : 'border-red-100 bg-red-50/40',
-                    algsOk:  d.hasTempData ? ['LNTAI', 'Forecast Realtime'] : [],
-                    algsWait: d.hasTempData ? [] : ['LNTAI', 'Forecast Realtime'],
+                    algsOk:  d.hasTempData ? ['LNTAI', 'Real-Time Forecast'] : [],
+                    algsWait: d.hasTempData ? [] : ['LNTAI', 'Real-Time Forecast'],
                     detail: d.hasTempData
-                        ? 'Data suhu 6 titik (R/S/T Atas-Bawah) diterima dari sensor. LNTAI dan forecast suhu aktif.'
-                        : 'Tidak ada paket suhu valid dari sensor MQTT — LNTAI dan forecast suhu tidak dapat dihitung.',
+                        ? 'Six-point temperature data (R/S/T Top-Bottom) received from the sensor. LNTAI and the temperature forecast are active.'
+                        : 'No valid temperature packets from the sensor feed — LNTAI and the temperature forecast cannot be computed.',
                     action: d.hasTempData ? null
-                        : '1. Periksa koneksi MQTT broker di menu sidebar. 2. Pastikan sensor Acrel ATP007 bertenaga dan topik MQTT sesuai konfigurasi. 3. Cek log MQTT untuk error koneksi.',
+                        : '1. Check the data source connection from the sidebar menu. 2. Make sure the Acrel ATP007 sensor is powered and correctly configured. 3. Check the logs for connection errors.',
                     std: 'IEC 62271-1 §7.4 · PLN SKDIR 0520-2'
                 },
                 {
                     icon: d.hasBebanData ? '✅' : '🔴',
-                    label: 'Arus Beban Real-time',
-                    sublabel: 'Power Meter ION8650 via TimescaleDB 10.88.16.159',
-                    status: d.hasBebanData ? 'TERHUBUNG' : 'TIDAK ADA DATA',
+                    label: 'Real-Time Load Current',
+                    sublabel: 'ION8650 Power Meter via TimescaleDB 10.88.16.159',
+                    status: d.hasBebanData ? 'CONNECTED' : 'NO DATA',
                     statusCls: d.hasBebanData ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700',
                     rowCls: d.hasBebanData ? 'border-emerald-100 bg-emerald-50/30' : 'border-red-100 bg-red-50/40',
-                    algsOk:  d.hasBebanData ? ['LNTAI', 'Forecast Realtime'] : [],
-                    algsWait: d.hasBebanData ? [] : ['LNTAI', 'Forecast Realtime'],
+                    algsOk:  d.hasBebanData ? ['LNTAI', 'Real-Time Forecast'] : [],
+                    algsWait: d.hasBebanData ? [] : ['LNTAI', 'Real-Time Forecast'],
                     detail: d.hasBebanData
-                        ? `Arus tiga fasa (I_R/I_S/I_T) valid diterima dari ION8650. Normalisasi beban LNTAI dan forecast beban aktif.`
-                        : 'Tidak ada data arus dari power meter. LNTAI (butuh beban untuk S_TLR) dan forecast beban tidak dapat dihitung.',
+                        ? `Valid three-phase current (I_R/I_S/I_T) received from the ION8650. LNTAI load normalization and the load forecast are active.`
+                        : 'No current data from the power meter. LNTAI (needs load for S_TLR) and the load forecast cannot be computed.',
                     action: d.hasBebanData ? null
-                        : '1. Periksa apakah ION8650 aktif dan terhubung ke jaringan. 2. Verifikasi topik MQTT/Firestore untuk data arus fasa. 3. Cek apakah beban trafo sedang nol (CB terbuka).',
+                        : '1. Check whether the ION8650 is powered and connected to the network. 2. Verify the data source configuration for phase-current data. 3. Check whether the transformer load is currently zero (CB open).',
                     std: 'IEC 62271-100 · PLN SKDIR 0520-2.K/DIR/2014'
                 },
             ];
@@ -7069,13 +7136,13 @@
                       </div>
                       <div class="text-[9px] text-slate-500 mb-1">${s.sublabel}</div>
                       <div class="text-[10px] text-slate-600 leading-relaxed mb-1">${s.detail}</div>
-                      ${s.algsOk.length ? `<div class="text-[9px] mb-0.5"><span class="text-emerald-600 font-extrabold">✓ Aktif: </span>${s.algsOk.join(' · ')}</div>` : ''}
-                      ${s.algsWait.length ? `<div class="text-[9px] mb-1"><span class="text-red-500 font-extrabold">✗ Menunggu: </span>${s.algsWait.join(' · ')}</div>` : ''}
+                      ${s.algsOk.length ? `<div class="text-[9px] mb-0.5"><span class="text-emerald-600 font-extrabold">✓ Active: </span>${s.algsOk.join(' · ')}</div>` : ''}
+                      ${s.algsWait.length ? `<div class="text-[9px] mb-1"><span class="text-red-500 font-extrabold">✗ Waiting: </span>${s.algsWait.join(' · ')}</div>` : ''}
                       ${s.action ? `<div class="mt-1.5 bg-white/70 rounded-lg p-2 border border-current border-opacity-20">
-                        <div class="text-[9px] font-extrabold text-slate-500 uppercase tracking-wide mb-0.5">Tindakan yang Diperlukan:</div>
+                        <div class="text-[9px] font-extrabold text-slate-500 uppercase tracking-wide mb-0.5">Action Required:</div>
                         <div class="text-[10px] text-slate-700 leading-relaxed">${s.action}</div>
-                        <div class="text-[8px] text-slate-400 mt-1">Standar: ${s.std}</div>
-                      </div>` : `<div class="text-[8px] text-slate-400">Standar: ${s.std}</div>`}
+                        <div class="text-[8px] text-slate-400 mt-1">Standard: ${s.std}</div>
+                      </div>` : `<div class="text-[8px] text-slate-400">Standard: ${s.std}</div>`}
                     </div>
                   </div>
                 </div>`).join('');
@@ -7089,9 +7156,9 @@
                   <div>
                     <div class="flex items-center gap-2 mb-1">
                       <span class="text-xl">🎯</span>
-                      <h4 class="text-sm font-extrabold text-indigo-800 uppercase tracking-widest">Executive Summary — Analisis Kondisi Aset CB Incoming Trafo ${d.trafo}</h4>
+                      <h4 class="text-sm font-extrabold text-indigo-800 uppercase tracking-widest">Executive Summary — Incoming CB Asset Condition Analysis, Transformer ${d.trafo}</h4>
                     </div>
-                    <p class="text-[10px] text-slate-500 font-medium">Sintesis LNTAI (anomali termal) &amp; Forecast Realtime · Diperbarui: ${now}</p>
+                    <p class="text-[10px] text-slate-500 font-medium">LNTAI (thermal anomaly) &amp; Real-Time Forecast synthesis · Updated: ${now}</p>
                     <div class="flex flex-wrap gap-1.5 mt-2">
                       ${['PLN SKDIR 0520-2','IEC 62271-1:2017','IEC 62271-100:2021','ISO 31000:2018','ISO 55000:2014'].map(s=>`<span class="text-[8px] font-extrabold bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded">${s}</span>`).join('')}
                     </div>
@@ -7109,73 +7176,73 @@
 
               <!-- Composite Health Index explanation -->
               <div class="glass-card p-4">
-                <div class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest mb-2">Composite Health Index (CHI) — Metodologi Pembobotan</div>
+                <div class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest mb-2">Composite Health Index (CHI) — Weighting Methodology</div>
                 <div class="grid grid-cols-2 gap-2 mb-3">
                   ${[
-                    { label:'LNTAI (Anomali Termal)', w:'70%', val: hi_lntai != null ? (hi_lntai*100).toFixed(0)+'%' : '—', color:'red' },
-                    { label:'Forecast Realtime', w:'30%', val: hi_forecast != null ? (hi_forecast*100).toFixed(0)+'%' : '—', color:'cyan' },
+                    { label:'LNTAI (Thermal Anomaly)', w:'70%', val: hi_lntai != null ? (hi_lntai*100).toFixed(0)+'%' : '—', color:'red' },
+                    { label:'Real-Time Forecast', w:'30%', val: hi_forecast != null ? (hi_forecast*100).toFixed(0)+'%' : '—', color:'cyan' },
                   ].map(f=>`
                     <div class="bg-${f.color}-50 rounded-lg p-2 border border-${f.color}-100 text-center">
                       <div class="text-[8px] font-extrabold text-${f.color}-600 mb-0.5">${f.label}</div>
                       <div class="text-base font-black text-slate-700">${f.val}</div>
-                      <div class="text-[8px] text-slate-400">bobot ${f.w}</div>
+                      <div class="text-[8px] text-slate-400">weight ${f.w}</div>
                     </div>`).join('')}
                 </div>
                 <div class="bg-slate-50 rounded-lg p-2 text-[9px] text-slate-500 font-mono">
-                  CHI = Σ(wᵢ · HIᵢ) × 100 | HI_LNTAI = 1 − (skor LNTAI/40) · bobot 70% | HI_Forecast = akurasi model · bobot 30%
+                  CHI = Σ(wᵢ · HIᵢ) × 100 | HI_LNTAI = 1 − (LNTAI score/40) · weight 70% | HI_Forecast = model accuracy · weight 30%
                 </div>
               </div>
 
-              <!-- Status Data (auto-update tiap refresh) -->
+              <!-- Data Status (auto-updates on every refresh) -->
               <div class="glass-card overflow-hidden">
                 <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between gap-2">
                   <div class="flex items-center gap-2">
-                    <span class="text-[10px] font-extrabold text-slate-600 uppercase tracking-widest">Status Kelengkapan Data</span>
-                    ${missingCount > 0 ? `<span class="text-[9px] font-extrabold bg-red-100 text-red-600 px-2 py-0.5 rounded-full">${missingCount} sumber data belum terpenuhi</span>` : '<span class="text-[9px] font-extrabold bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded-full">Semua data tersedia ✓</span>'}
+                    <span class="text-[10px] font-extrabold text-slate-600 uppercase tracking-widest">Data Completeness Status</span>
+                    ${missingCount > 0 ? `<span class="text-[9px] font-extrabold bg-red-100 text-red-600 px-2 py-0.5 rounded-full">${missingCount} data source(s) incomplete</span>` : '<span class="text-[9px] font-extrabold bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded-full">All data available ✓</span>'}
                   </div>
-                  <span class="text-[9px] text-slate-400">Diperbarui: ${now} · Auto-refresh 60 dtk</span>
+                  <span class="text-[9px] text-slate-400">Updated: ${now} · Auto-refresh 60s</span>
                 </div>
                 <div class="p-4 space-y-3">${dataStatusHTML}</div>
                 ${missingCount === 0 ? '' : `<div class="px-4 pb-4">
                   <div class="bg-indigo-50 border border-indigo-200 rounded-xl p-3 text-[10px] text-indigo-700 leading-relaxed">
-                    <span class="font-extrabold">ℹ️ Cara kerja auto-update:</span> Halaman ini memperbarui status data setiap <b>60 detik</b> secara otomatis. Setelah data yang kurang ditambahkan, Executive Summary akan memperbarui CHI dan sintesis teknis pada refresh berikutnya tanpa perlu reload manual.
+                    <span class="font-extrabold">ℹ️ How auto-update works:</span> This page automatically refreshes the data status every <b>60 seconds</b>. Once the missing data is added, the Executive Summary will update the CHI and technical synthesis on the next refresh without a manual reload.
                   </div>
                 </div>`}
               </div>
 
-              <!-- Tabel ringkasan analisis -->
+              <!-- Analysis summary table -->
               <div class="glass-card overflow-hidden">
                 <div class="px-4 py-3 border-b border-slate-100 flex items-center gap-2">
-                  <span class="text-[10px] font-extrabold text-slate-600 uppercase tracking-widest">Ringkasan Analisis</span>
+                  <span class="text-[10px] font-extrabold text-slate-600 uppercase tracking-widest">Analysis Summary</span>
                 </div>
                 <div class="overflow-x-auto">
                   <table class="w-full text-left">
                     <thead><tr class="bg-slate-50 text-[9px] font-extrabold text-slate-500 uppercase">
-                      <th class="py-2 px-3">Analisis</th><th class="py-2 px-3">Metode</th><th class="py-2 px-3">Nilai Kunci</th><th class="py-2 px-3">Status</th><th class="py-2 px-3">Standar Acuan</th>
+                      <th class="py-2 px-3">Analysis</th><th class="py-2 px-3">Method</th><th class="py-2 px-3">Key Value</th><th class="py-2 px-3">Status</th><th class="py-2 px-3">Reference Standard</th>
                     </tr></thead>
                     <tbody>${algoRowsHTML}</tbody>
                   </table>
                 </div>
               </div>
 
-              <!-- Sintesis teknis -->
+              <!-- Technical synthesis -->
               <div class="glass-card p-5 border-l-4 ${verdict.border} ${verdict.bg}">
                 <div class="flex items-center gap-2 mb-3">
                   <span class="text-base">${verdict.icon}</span>
-                  <span class="text-[10px] font-extrabold uppercase tracking-widest ${verdict.txt}">Sintesis Teknis</span>
+                  <span class="text-[10px] font-extrabold uppercase tracking-widest ${verdict.txt}">Technical Synthesis</span>
                 </div>
                 <p class="text-[11px] text-slate-700 leading-relaxed font-medium">${synthesis}</p>
               </div>
 
-              <!-- Rekomendasi prioritas -->
+              <!-- Prioritized recommendations -->
               <div class="glass-card p-5">
-                <div class="text-[10px] font-extrabold text-slate-600 uppercase tracking-widest mb-3">Rekomendasi Teknis Terprioritas</div>
+                <div class="text-[10px] font-extrabold text-slate-600 uppercase tracking-widest mb-3">Prioritized Technical Recommendations</div>
                 <div class="space-y-2">${recsHTML}</div>
               </div>
 
-              <!-- Footer standar -->
+              <!-- Standards footer -->
               <div class="glass-card p-4 bg-slate-50">
-                <div class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest mb-2">Standar &amp; Referensi yang Diterapkan</div>
+                <div class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest mb-2">Applied Standards &amp; References</div>
                 <div class="flex flex-wrap gap-1.5">
                   ${[
                     'PLN SKDIR 0520-2.K/DIR/2014','IEC 62271-100:2021','IEC 62271-1:2017',
@@ -7183,7 +7250,7 @@
                     'Holt (1957)','Box-Jenkins (1976)'
                   ].map(s=>`<span class="text-[8px] bg-white border border-slate-200 text-slate-500 px-1.5 py-0.5 rounded font-medium">${s}</span>`).join('')}
                 </div>
-                <p class="text-[9px] text-slate-400 mt-2">Executive Summary ini merupakan output sintesis otomatis dari analisis LNTAI (anomali termal) dan Forecast Realtime yang berjalan secara paralel. Keputusan operasional final tetap berada di bawah otoritas engineer yang bertanggung jawab sesuai ISO 55000:2014 §6.2.</p>
+                <p class="text-[9px] text-slate-400 mt-2">This Executive Summary is an automated synthesis of the LNTAI (thermal anomaly) analysis and the Real-Time Forecast, both running in parallel. Final operational decisions remain the responsibility of the accountable engineer, per ISO 55000:2014 §6.2.</p>
               </div>`;
         }
 
