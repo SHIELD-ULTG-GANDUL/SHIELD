@@ -2278,14 +2278,12 @@
         const MQTT_USER = "webshield";
         const MQTT_PASS = "webShield123";
 
-        // ── ISI SETELAH BACKEND TIMESCALEDB DI SERVER UBUNTU SIAP ───────────────
-        // Lihat server/README.md untuk cara setup mqtt_ingester.py + api.py di
-        // server Ubuntu Anda. Setelah API-nya jalan (dengan HTTPS lewat nginx),
-        // isi URL publiknya di sini, misal "https://api.domain-anda.com/api".
-        // Selama masih kosong, log suhu tetap memakai Firestore lama seperti
-        // biasa — aman diisi kapan saja tanpa perlu koordinasi waktu deploy.
-        const TIMESCALE_API_BASE_URL = "";
-        const TIMESCALE_API_KEY = ""; // isi kalau API_KEY diaktifkan di server (lihat server/.env)
+        // Backend TimescaleDB di server Ubuntu intranet (lihat server/README.md).
+        // Diakses lewat HTTP biasa (bukan HTTPS) karena dashboard ini dibuka dari
+        // jaringan intranet yang sama — bukan lewat GitHub Pages, jadi tidak kena
+        // batasan mixed-content browser.
+        const TIMESCALE_API_BASE_URL = "http://10.88.16.159:8000/api";
+        const TIMESCALE_API_KEY = "06c9e531a017ad93cdcc233464aceadbb613ee6ee347bc461b6b20b53d51a760";
         const TIMESCALE_POLL_INTERVAL_MS = 30000; // REST API bersifat pull, bukan realtime listener
         window.timescaleReady = !!TIMESCALE_API_BASE_URL;
 
