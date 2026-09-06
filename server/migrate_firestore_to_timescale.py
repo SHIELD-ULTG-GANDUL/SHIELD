@@ -23,7 +23,18 @@ instead of creating duplicates.
 
 Run on the server (has firebase_admin + psycopg2 already installed):
     /home/shield_gandul/trafo_early_warning/venv311/bin/python \
-        /home/shield_gandul/SHIELD/server/migrate_firestore_to_timescale.py
+        /home/shield_gandul/SHIELD/server/migrate_firestore_to_timescale.py [source] [trafo]
+
+Firestore's free-tier plan caps reads at 50,000 documents/day, and each
+trafo's history is tens of thousands of documents — one run will not finish
+everything in a single day. Optional args let a run be scoped to just the
+piece that still needs doing, so a fully-migrated trafo isn't re-read (and
+its quota re-spent) on the next run:
+    source: "temp", "beban", or omitted for both
+    trafo:  "2", "3", "4", or omitted for all three
+Examples:
+    migrate_firestore_to_timescale.py temp 4      # only trafo 4 temperature
+    migrate_firestore_to_timescale.py beban        # beban, all trafos
 """
 
 from __future__ import annotations
@@ -64,10 +75,10 @@ def parse_wib(ts_str: str) -> datetime | None:
     return naive.replace(tzinfo=JAKARTA)
 
 
-def migrate_temperature(db, conn) -> int:
+def migrate_temperature(db, conn, trafos: list[str]) -> int:
     inserted = 0
     with conn.cursor() as cur:
-        for trafo in TRAFOS:
+        for trafo in trafos:
             col = (
                 db.collection("devices")
                 .document("acrel_atp007")
@@ -107,11 +118,12 @@ def migrate_temperature(db, conn) -> int:
     return inserted
 
 
-def migrate_beban(db, conn) -> int:
+def migrate_beban(db, conn, trafos: list[str]) -> int:
     inserted = 0
     doc_id_by_trafo = {"2": "Trafo-2", "3": "Trafo-3", "4": "Trafo-4"}
     with conn.cursor() as cur:
-        for trafo, doc_id in doc_id_by_trafo.items():
+        for trafo in trafos:
+            doc_id = doc_id_by_trafo[trafo]
             logs_col = db.collection("beban_realtime").document(doc_id).collection("logs")
             batch = []
             for doc in logs_col.stream():
@@ -158,6 +170,16 @@ def migrate_beban(db, conn) -> int:
 
 
 def main() -> None:
+    source = sys.argv[1] if len(sys.argv) > 1 else "both"
+    trafos = [sys.argv[2]] if len(sys.argv) > 2 else TRAFOS
+    if source not in ("temp", "beban", "both"):
+        print(f"source tidak dikenal: {source!r} (pakai: temp, beban, atau kosongkan)")
+        sys.exit(1)
+    for t in trafos:
+        if t not in TRAFOS:
+            print(f"trafo tidak dikenal: {t!r} (pakai: 2, 3, atau 4)")
+            sys.exit(1)
+
     cred = credentials.Certificate(SERVICE_ACCOUNT_KEY)
     firebase_admin.initialize_app(cred)
     db = firestore.client()
@@ -175,13 +197,15 @@ def main() -> None:
             )
         conn.commit()
 
-        print("Migrasi data suhu (temperature_logs)...")
-        n_temp = migrate_temperature(db, conn)
-        print(f"Total baris suhu di-insert (setelah dedup): {n_temp}")
+        if source in ("temp", "both"):
+            print(f"Migrasi data suhu (temperature_logs) untuk trafo {trafos}...")
+            n_temp = migrate_temperature(db, conn, trafos)
+            print(f"Total baris suhu di-insert (setelah dedup): {n_temp}")
 
-        print("Migrasi data beban (beban_realtime/*/logs)...")
-        n_beban = migrate_beban(db, conn)
-        print(f"Total baris beban di-insert (setelah dedup): {n_beban}")
+        if source in ("beban", "both"):
+            print(f"Migrasi data beban (beban_realtime/*/logs) untuk trafo {trafos}...")
+            n_beban = migrate_beban(db, conn, trafos)
+            print(f"Total baris beban di-insert (setelah dedup): {n_beban}")
     finally:
         conn.close()
 
