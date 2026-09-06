@@ -39,6 +39,7 @@ Examples:
 
 from __future__ import annotations
 
+import os
 import sys
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -59,6 +60,26 @@ DB_CONFIG = {
 }
 
 TRAFOS = ["2", "3", "4"]
+
+# Firestore's free-tier quota (50k reads/day) means a full backfill spans
+# several days. Once a (source, trafo) pair finishes without hitting the
+# quota, a marker file records that so a later cron-driven run skips it
+# instead of re-reading (and re-spending quota on) history already migrated.
+MARKER_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".migration_markers")
+
+
+def _marker_path(source: str, trafo: str) -> str:
+    return os.path.join(MARKER_DIR, f"{source}_{trafo}.done")
+
+
+def _is_done(source: str, trafo: str) -> bool:
+    return os.path.exists(_marker_path(source, trafo))
+
+
+def _mark_done(source: str, trafo: str) -> None:
+    os.makedirs(MARKER_DIR, exist_ok=True)
+    with open(_marker_path(source, trafo), "w") as f:
+        f.write(datetime.now(JAKARTA).isoformat())
 # Cutoff: only migrate Firestore rows strictly older than this instant.
 # Chosen just before the earliest live MQTT-ingested row (2026-09-03 07:18 WIB),
 # so this backfill never overlaps with real-time data already in Postgres.
@@ -79,27 +100,35 @@ def migrate_temperature(db, conn, trafos: list[str]) -> int:
     inserted = 0
     with conn.cursor() as cur:
         for trafo in trafos:
+            if _is_done("temp", trafo):
+                print(f"  trafo {trafo}: sudah selesai (marker ada), dilewati")
+                continue
             col = (
                 db.collection("devices")
                 .document("acrel_atp007")
                 .collection(f"trafo_{trafo}_temperature_logs")
             )
             batch = []
-            for doc in col.stream():
-                d = doc.to_dict()
-                ts = parse_wib(d.get("timestamp"))
-                if ts is None or ts >= CUTOFF_WIB:
-                    continue
-                r_atas = float(d.get("R_Atas", 0) or 0)
-                r_bawah = float(d.get("R_Bawah", 0) or 0)
-                s_atas = float(d.get("S_Atas", 0) or 0)
-                s_bawah = float(d.get("S_Bawah", 0) or 0)
-                t_atas = float(d.get("T_Atas", 0) or 0)
-                t_bawah = float(d.get("T_Bawah", 0) or 0)
-                temps = [t for t in (r_atas, r_bawah, s_atas, s_bawah, t_atas, t_bawah) if t > 0]
-                temp_max = max(temps) if temps else 0
-                temp_avg = sum(temps) / len(temps) if temps else 0
-                batch.append((ts, trafo, r_atas, r_bawah, s_atas, s_bawah, t_atas, t_bawah, temp_max, temp_avg))
+            completed = False
+            try:
+                for doc in col.stream():
+                    d = doc.to_dict()
+                    ts = parse_wib(d.get("timestamp"))
+                    if ts is None or ts >= CUTOFF_WIB:
+                        continue
+                    r_atas = float(d.get("R_Atas", 0) or 0)
+                    r_bawah = float(d.get("R_Bawah", 0) or 0)
+                    s_atas = float(d.get("S_Atas", 0) or 0)
+                    s_bawah = float(d.get("S_Bawah", 0) or 0)
+                    t_atas = float(d.get("T_Atas", 0) or 0)
+                    t_bawah = float(d.get("T_Bawah", 0) or 0)
+                    temps = [t for t in (r_atas, r_bawah, s_atas, s_bawah, t_atas, t_bawah) if t > 0]
+                    temp_max = max(temps) if temps else 0
+                    temp_avg = sum(temps) / len(temps) if temps else 0
+                    batch.append((ts, trafo, r_atas, r_bawah, s_atas, s_bawah, t_atas, t_bawah, temp_max, temp_avg))
+                completed = True
+            except Exception as e:
+                print(f"  trafo {trafo}: berhenti karena error ({e}); baris yang sudah terbaca tetap disimpan, marker TIDAK ditulis")
 
             for row in batch:
                 cur.execute(
@@ -115,6 +144,8 @@ def migrate_temperature(db, conn, trafos: list[str]) -> int:
             conn.commit()
             print(f"  trafo {trafo}: {len(batch)} baris suhu diproses dari Firestore")
             inserted += len(batch)
+            if completed:
+                _mark_done("temp", trafo)
     return inserted
 
 
@@ -123,33 +154,41 @@ def migrate_beban(db, conn, trafos: list[str]) -> int:
     doc_id_by_trafo = {"2": "Trafo-2", "3": "Trafo-3", "4": "Trafo-4"}
     with conn.cursor() as cur:
         for trafo in trafos:
+            if _is_done("beban", trafo):
+                print(f"  trafo {trafo}: sudah selesai (marker ada), dilewati")
+                continue
             doc_id = doc_id_by_trafo[trafo]
             logs_col = db.collection("beban_realtime").document(doc_id).collection("logs")
             batch = []
-            for doc in logs_col.stream():
-                d = doc.to_dict()
-                ts = parse_wib(d.get("timestamp"))
-                if ts is None or ts >= CUTOFF_WIB:
-                    continue
-                ia = float(d.get("ia", 0) or 0)
-                ib = float(d.get("ib", 0) or 0)
-                ic = float(d.get("ic", 0) or 0)
-                current_max = max(ia, ib, ic)
-                kw_total = float(d.get("kw_total", 0) or 0)
-                kva_total = float(d.get("kva_total", 0) or 0)
-                kvar_total = float(d.get("kvar_total", 0) or 0)
-                pf_total = float(d.get("pf_total", 0) or 0)
-                freq = float(d.get("freq", 0) or 0)
-                van = float(d.get("van", 0) or 0)
-                vbn = float(d.get("vbn", 0) or 0)
-                vcn = float(d.get("vcn", 0) or 0)
-                vab = float(d.get("vab", 0) or 0)
-                vbc = float(d.get("vbc", 0) or 0)
-                vca = float(d.get("vca", 0) or 0)
-                batch.append((
-                    ts, trafo, ia, ib, ic, current_max, kw_total, kva_total,
-                    kvar_total, pf_total, freq, van, vbn, vcn, vab, vbc, vca,
-                ))
+            completed = False
+            try:
+                for doc in logs_col.stream():
+                    d = doc.to_dict()
+                    ts = parse_wib(d.get("timestamp"))
+                    if ts is None or ts >= CUTOFF_WIB:
+                        continue
+                    ia = float(d.get("ia", 0) or 0)
+                    ib = float(d.get("ib", 0) or 0)
+                    ic = float(d.get("ic", 0) or 0)
+                    current_max = max(ia, ib, ic)
+                    kw_total = float(d.get("kw_total", 0) or 0)
+                    kva_total = float(d.get("kva_total", 0) or 0)
+                    kvar_total = float(d.get("kvar_total", 0) or 0)
+                    pf_total = float(d.get("pf_total", 0) or 0)
+                    freq = float(d.get("freq", 0) or 0)
+                    van = float(d.get("van", 0) or 0)
+                    vbn = float(d.get("vbn", 0) or 0)
+                    vcn = float(d.get("vcn", 0) or 0)
+                    vab = float(d.get("vab", 0) or 0)
+                    vbc = float(d.get("vbc", 0) or 0)
+                    vca = float(d.get("vca", 0) or 0)
+                    batch.append((
+                        ts, trafo, ia, ib, ic, current_max, kw_total, kva_total,
+                        kvar_total, pf_total, freq, van, vbn, vcn, vab, vbc, vca,
+                    ))
+                completed = True
+            except Exception as e:
+                print(f"  trafo {trafo}: berhenti karena error ({e}); baris yang sudah terbaca tetap disimpan, marker TIDAK ditulis")
 
             for row in batch:
                 cur.execute(
@@ -166,6 +205,8 @@ def migrate_beban(db, conn, trafos: list[str]) -> int:
             conn.commit()
             print(f"  trafo {trafo} ({doc_id}): {len(batch)} baris beban diproses dari Firestore")
             inserted += len(batch)
+            if completed:
+                _mark_done("beban", trafo)
     return inserted
 
 
