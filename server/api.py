@@ -107,16 +107,17 @@ def beban_logs(
     """Mengembalikan N pembacaan beban (arus/tegangan/daya) terbaru untuk satu
     trafo, dari tabel trafo_load (shield_data). Nama field disamakan dengan
     alias yang dikenali parseBebanDoc() di Shield.html (I_R, kW, dst.) supaya
-    frontend tidak perlu mapping ulang. Tabel ini tidak menyimpan tegangan
-    per fasa maupun kVAR terpisah — dikembalikan 0 untuk field tersebut."""
+    frontend tidak perlu mapping ulang. V_R/V_S/V_T adalah tegangan fasa-netral
+    (van/vbn/vcn); V_RS/V_ST/V_TR adalah tegangan fasa-fasa (vab/vbc/vca)."""
     _check_api_key(x_api_key)
 
     with _pool.connection() as conn, conn.cursor(row_factory=dict_row) as cur:
         cur.execute(
             """
             SELECT trafo_id AS trafo, ia AS "I_R", ib AS "I_S", ic AS "I_T",
-                   0::double precision AS "V_R", 0::double precision AS "V_S", 0::double precision AS "V_T",
-                   kw_total AS "kW", 0::double precision AS "kVAR", kva_total AS "kVA", pf_total AS "PF",
+                   COALESCE(van, 0) AS "V_R", COALESCE(vbn, 0) AS "V_S", COALESCE(vcn, 0) AS "V_T",
+                   COALESCE(vab, 0) AS "V_RS", COALESCE(vbc, 0) AS "V_ST", COALESCE(vca, 0) AS "V_TR",
+                   kw_total AS "kW", COALESCE(kvar_total, 0) AS "kVAR", kva_total AS "kVA", pf_total AS "PF",
                    current_max, freq,
                    timestamp AS ts
             FROM trafo_load

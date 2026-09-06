@@ -59,8 +59,19 @@ def save_to_database(data):
         current_max = max(ia, ib, ic)
         kw_total = float(data.get('kw_total', 0))
         kva_total = float(data.get('kva_total', 0))
+        kvar_total = float(data.get('kvar_total', 0))
         pf_total = float(data.get('pf_total', 0))
         freq = float(data.get('freq', 0))
+
+        # Phase-to-neutral and phase-to-phase voltage. Present in every
+        # payload from the device (van/vbn/vcn, vab/vbc/vca) but previously
+        # dropped here, which is why the dashboard always showed 0 V.
+        van = float(data.get('van', 0))
+        vbn = float(data.get('vbn', 0))
+        vcn = float(data.get('vcn', 0))
+        vab = float(data.get('vab', 0))
+        vbc = float(data.get('vbc', 0))
+        vca = float(data.get('vca', 0))
 
         r_atas = float(data.get('r_atas', 0))
         r_bawah = float(data.get('r_bawah', 0))
@@ -80,11 +91,13 @@ def save_to_database(data):
         cur.execute("""
             INSERT INTO trafo_load (
                 timestamp, trafo_id, ia, ib, ic, current_max,
-                kw_total, kva_total, pf_total, freq
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                kw_total, kva_total, kvar_total, pf_total, freq,
+                van, vbn, vcn, vab, vbc, vca
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id
         """, (timestamp, trafo_id, ia, ib, ic, current_max,
-              kw_total, kva_total, pf_total, freq))
+              kw_total, kva_total, kvar_total, pf_total, freq,
+              van, vbn, vcn, vab, vbc, vca))
         load_id = cur.fetchone()[0]
 
         cur.execute("""
