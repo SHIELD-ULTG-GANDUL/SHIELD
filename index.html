@@ -1435,23 +1435,38 @@
                   <!-- 1. Regression -->
                   <div class="glass-card p-5">
                     <div class="flex items-center justify-between gap-3 mb-3 flex-wrap">
-                      <h5 class="text-xs font-extrabold text-slate-700 uppercase tracking-widest">1. Regression — Load/Suhu Forecasting (Linear Regression)</h5>
+                      <h5 class="text-xs font-extrabold text-slate-700 uppercase tracking-widest">1. Regression — Load/Suhu Forecasting (Linear vs Polynomial)</h5>
                       <span class="text-[9px] font-extrabold px-2 py-1 rounded-full bg-cyan-50 text-cyan-600">setara sklearn.linear_model.LinearRegression</span>
                     </div>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+                    <div class="flex items-center gap-2 mb-3 flex-wrap">
+                      <span class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest mr-1">Data:</span>
+                      <button id="mllab-reg-mode-recent" onclick="setMlLabRegMode('recent')" class="text-[10px] font-extrabold px-2.5 py-1 rounded-lg transition-all bg-cyan-600 text-white">🕐 Terbaru (rolling window)</button>
+                      <button id="mllab-reg-mode-seasonal" onclick="setMlLabRegMode('seasonal')" class="text-[10px] font-extrabold px-2.5 py-1 rounded-lg transition-all bg-white border border-slate-200 text-slate-600 hover:bg-slate-50">📅 Musiman 7 Hari (rata-rata per jam)</button>
+                      <button onclick="mllabResetZoom('mllab-regression')" class="ml-auto flex items-center gap-1 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-bold px-2.5 py-1 rounded-lg transition-all">
+                        <i data-lucide="rotate-ccw" class="w-3 h-3"></i> Reset Zoom
+                      </button>
+                    </div>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
                       <div class="bg-white border border-slate-200 rounded-xl p-3">
-                        <div class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest">RMSE</div>
-                        <div id="mllab-reg-rmse" class="font-mono font-black text-xl text-slate-700 mt-1">-</div>
+                        <div class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest">RMSE Linear</div>
+                        <div id="mllab-reg-rmse-linear" class="font-mono font-black text-lg text-orange-600 mt-1">-</div>
                       </div>
                       <div class="bg-white border border-slate-200 rounded-xl p-3">
-                        <div class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest">Prediksi Titik Berikutnya</div>
-                        <div id="mllab-reg-forecast" class="font-mono font-black text-xl text-slate-700 mt-1">-</div>
+                        <div class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest">RMSE Polynomial (deg 2)</div>
+                        <div id="mllab-reg-rmse-poly" class="font-mono font-black text-lg text-violet-600 mt-1">-</div>
                       </div>
-                      <div class="bg-slate-50 rounded-xl p-3 border border-slate-200 text-[10px] text-slate-500 leading-relaxed">
-                        Regresi linear di-fit terhadap urutan sampel data real terakhir. Untuk forecasting jangka panjang yang lebih akurat, lihat tab <b>Forecast Realtime</b> (Holt-Winters DES).
+                      <div class="bg-white border border-slate-200 rounded-xl p-3">
+                        <div class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest">Prediksi Linear</div>
+                        <div id="mllab-reg-forecast-linear" class="font-mono font-black text-lg text-slate-700 mt-1">-</div>
+                      </div>
+                      <div class="bg-white border border-slate-200 rounded-xl p-3">
+                        <div class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest">Prediksi Polynomial</div>
+                        <div id="mllab-reg-forecast-poly" class="font-mono font-black text-lg text-slate-700 mt-1">-</div>
                       </div>
                     </div>
-                    <div class="relative h-[220px]"><canvas id="mllab-regression-chart"></canvas></div>
+                    <div class="relative h-[240px]"><canvas id="mllab-regression-chart"></canvas></div>
+                    <div id="mllab-reg-analysis" class="text-[10px] text-slate-500 mt-3 leading-relaxed bg-slate-50 border border-slate-200 rounded-xl p-3">Klik "Jalankan / Refresh Analisis" untuk melihat perbandingan Linear vs Polynomial.</div>
+                    <p class="text-[9px] text-slate-400 mt-2">Chart mendukung scroll/pinch untuk zoom dan drag untuk geser (pan); klik legend untuk sembunyikan/tampilkan satu garis.</p>
                   </div>
 
                   <!-- 2. Classification -->
@@ -1459,6 +1474,17 @@
                     <div class="flex items-center justify-between gap-3 mb-3 flex-wrap">
                       <h5 class="text-xs font-extrabold text-slate-700 uppercase tracking-widest">2. Classification — Fault/Anomaly Detection (Decision Stump)</h5>
                       <span class="text-[9px] font-extrabold px-2 py-1 rounded-full bg-red-50 text-red-600">setara sklearn.tree.DecisionTreeClassifier (depth=1)</span>
+                    </div>
+                    <div class="flex items-center gap-2 mb-3 flex-wrap">
+                      <button onclick="mllabInjectFaultCase()" class="flex items-center gap-1.5 bg-red-50 border border-red-200 text-red-700 text-[10px] font-bold px-2.5 py-1.5 rounded-lg hover:bg-red-100 transition-all">
+                        <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i> Uji Kasus Fault Baru (kombinasi ekstrem)
+                      </button>
+                      <button id="mllab-clf-reset-btn" onclick="mllabClearFaultCase()" class="hidden flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-bold px-2.5 py-1.5 rounded-lg transition-all">
+                        <i data-lucide="x" class="w-3.5 h-3.5"></i> Hapus Kasus Uji
+                      </button>
+                      <button onclick="mllabResetZoom('mllab-classification')" class="ml-auto flex items-center gap-1 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-bold px-2.5 py-1 rounded-lg transition-all">
+                        <i data-lucide="rotate-ccw" class="w-3 h-3"></i> Reset Zoom
+                      </button>
                     </div>
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
                       <div class="bg-white border border-slate-200 rounded-xl p-3">
@@ -1471,14 +1497,25 @@
                       </div>
                     </div>
                     <div class="relative h-[240px]"><canvas id="mllab-classification-chart"></canvas></div>
-                    <p class="text-[10px] text-slate-400 mt-3 leading-relaxed">Label acuan (Normal/Anomali) dibuat otomatis dari statistik data yang sedang ditampilkan (outlier &gt; mean + 1·SD) sebagai latihan klasifikasi; untuk deteksi produksi gunakan skor <b>LNTAI</b> yang sudah divalidasi di tab sebelah.</p>
+                    <div id="mllab-clf-analysis" class="text-[10px] text-slate-500 mt-3 leading-relaxed bg-slate-50 border border-slate-200 rounded-xl p-3">Klik "Jalankan / Refresh Analisis" untuk melatih model.</div>
+                    <p class="text-[10px] text-slate-400 mt-2 leading-relaxed">Label acuan (Normal/Anomali) dibuat otomatis dari statistik data yang sedang ditampilkan (outlier &gt; mean + 1·SD) sebagai latihan klasifikasi; untuk deteksi produksi gunakan skor <b>LNTAI</b> yang sudah divalidasi di tab sebelah.</p>
                   </div>
 
                   <!-- 3. Clustering -->
                   <div class="glass-card p-5">
                     <div class="flex items-center justify-between gap-3 mb-3 flex-wrap">
-                      <h5 class="text-xs font-extrabold text-slate-700 uppercase tracking-widest">3. Clustering — Load/Thermal Profiling (K-Means, k=3)</h5>
+                      <h5 class="text-xs font-extrabold text-slate-700 uppercase tracking-widest">3. Clustering — Load/Thermal Profiling (K-Means)</h5>
                       <span class="text-[9px] font-extrabold px-2 py-1 rounded-full bg-indigo-50 text-indigo-600">setara sklearn.cluster.KMeans</span>
+                    </div>
+                    <div class="flex items-center gap-2 mb-3 flex-wrap">
+                      <span class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest mr-1">Jumlah Cluster (k):</span>
+                      <button id="mllab-k-2" onclick="setMlLabK(2)" class="text-[11px] font-extrabold px-3 py-1 rounded-lg transition-all bg-white border border-slate-200 text-slate-600 hover:bg-slate-50">2</button>
+                      <button id="mllab-k-3" onclick="setMlLabK(3)" class="text-[11px] font-extrabold px-3 py-1 rounded-lg transition-all bg-indigo-600 text-white">3</button>
+                      <button id="mllab-k-4" onclick="setMlLabK(4)" class="text-[11px] font-extrabold px-3 py-1 rounded-lg transition-all bg-white border border-slate-200 text-slate-600 hover:bg-slate-50">4</button>
+                      <button id="mllab-k-5" onclick="setMlLabK(5)" class="text-[11px] font-extrabold px-3 py-1 rounded-lg transition-all bg-white border border-slate-200 text-slate-600 hover:bg-slate-50">5</button>
+                      <button onclick="mllabResetZoom('mllab-clustering')" class="ml-auto flex items-center gap-1 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-bold px-2.5 py-1 rounded-lg transition-all">
+                        <i data-lucide="rotate-ccw" class="w-3 h-3"></i> Reset Zoom
+                      </button>
                     </div>
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
                       <div class="relative h-[240px]"><canvas id="mllab-clustering-chart"></canvas></div>
@@ -1496,6 +1533,7 @@
                         </table>
                       </div>
                     </div>
+                    <div id="mllab-cluster-analysis" class="text-[10px] text-slate-500 mt-3 leading-relaxed bg-slate-50 border border-slate-200 rounded-xl p-3">Klik "Jalankan / Refresh Analisis" untuk melihat perbandingan jumlah cluster.</div>
                   </div>
                 </div>
 
@@ -6634,6 +6672,12 @@
         // ══════════════════════════════════════════════════════════════════
         let mlLabDataset = 'beban'; // 'beban' | 'suhu'
         let mlLabBusy = false;
+        let mlLabRegMode = 'recent'; // 'recent' | 'seasonal'
+        let mlLabK = 3;              // jumlah cluster K-Means aktif
+        let mlLabInjectedPoint = null;
+        let _mllabPoints = [];
+        let _mllabSeasonalPoints = null;
+        let _mllabClfState = null;
 
         function setMlLabDataset(ds) {
             mlLabDataset = ds;
@@ -6655,6 +6699,23 @@
 
         function _mllabClearCharts() {
             ['mllab-regression', 'mllab-classification', 'mllab-clustering'].forEach(destroyChart);
+        }
+
+        // Konfigurasi zoom/pan bersama — scroll/pinch untuk zoom, drag untuk geser,
+        // dipakai di ketiga chart ML Lab supaya bisa dieksplorasi secara interaktif.
+        function _mllabZoomConfig() {
+            return {
+                pan: { enabled: true, mode: 'xy', threshold: 5 },
+                zoom: { wheel: { enabled: true, speed: 0.08 }, pinch: { enabled: true }, mode: 'xy' }
+            };
+        }
+
+        function mllabResetZoom(chartKey) {
+            if (mlCharts[chartKey]) mlCharts[chartKey].resetZoom();
+        }
+
+        function _rmse(actual, pred) {
+            return Math.sqrt(pred.reduce((s, p, i) => s + (p - actual[i]) ** 2, 0) / actual.length);
         }
 
         async function runMlLabAnalysis(forceRefetch) {
@@ -6693,13 +6754,21 @@
 
                 points = points.filter(p => Number.isFinite(p.y) && Number.isFinite(p.f1) && Number.isFinite(p.f2));
 
+                // Data baru diambil → cache musiman & kasus uji lama sudah tidak relevan
+                _mllabSeasonalPoints = null;
+                mlLabInjectedPoint = null;
+                const resetBtn = document.getElementById('mllab-clf-reset-btn');
+                if (resetBtn) resetBtn.classList.add('hidden');
+
                 if (points.length < 8) {
+                    _mllabPoints = [];
                     _mllabSetStatus(`Data ${mlLabDataset === 'beban' ? 'beban' : 'suhu'} Trafo ${selectedTrafo} di TimescaleDB belum cukup (minimal 8 titik, tersedia ${points.length}).`, true);
                     _mllabClearCharts();
                     return;
                 }
 
-                _mllabRunRegression(points);
+                _mllabPoints = points;
+                await _mllabLoadAndRenderRegression();
                 _mllabRunClassification(points);
                 _mllabRunClustering(points);
 
@@ -6713,7 +6782,7 @@
             }
         }
 
-        // ── 1) REGRESSION — Load/Suhu Forecasting (Simple Linear Regression) ──
+        // ── 1) REGRESSION — Load/Suhu Forecasting (Linear vs Polynomial) ──
         function _linregFit(xs, ys) {
             const n = xs.length;
             const mx = xs.reduce((a, b) => a + b, 0) / n;
@@ -6725,38 +6794,177 @@
             return { slope, intercept };
         }
 
+        // Regresi polynomial derajat-n via normal equations (least squares).
+        function _solveLinearSystem(A, b) {
+            const n = b.length;
+            const M = A.map((row, i) => [...row, b[i]]);
+            for (let i = 0; i < n; i++) {
+                let maxRow = i;
+                for (let k = i + 1; k < n; k++) if (Math.abs(M[k][i]) > Math.abs(M[maxRow][i])) maxRow = k;
+                [M[i], M[maxRow]] = [M[maxRow], M[i]];
+                if (Math.abs(M[i][i]) < 1e-10) continue;
+                for (let k = i + 1; k < n; k++) {
+                    const factor = M[k][i] / M[i][i];
+                    for (let j = i; j <= n; j++) M[k][j] -= factor * M[i][j];
+                }
+            }
+            const x = new Array(n).fill(0);
+            for (let i = n - 1; i >= 0; i--) {
+                let sum = M[i][n];
+                for (let j = i + 1; j < n; j++) sum -= M[i][j] * x[j];
+                x[i] = Math.abs(M[i][i]) < 1e-10 ? 0 : sum / M[i][i];
+            }
+            return x;
+        }
+
+        function _polyFit(xs, ys, degree) {
+            const n = xs.length, cols = degree + 1;
+            const XtX = Array.from({ length: cols }, () => new Array(cols).fill(0));
+            const Xty = new Array(cols).fill(0);
+            for (let i = 0; i < n; i++) {
+                const powers = new Array(cols);
+                let p = 1;
+                for (let c = 0; c < cols; c++) { powers[c] = p; p *= xs[i]; }
+                for (let r = 0; r < cols; r++) {
+                    Xty[r] += powers[r] * ys[i];
+                    for (let c = 0; c < cols; c++) XtX[r][c] += powers[r] * powers[c];
+                }
+            }
+            return _solveLinearSystem(XtX, Xty);
+        }
+
+        function _polyPredict(coeffs, x) {
+            let y = 0, p = 1;
+            for (let c = 0; c < coeffs.length; c++) { y += coeffs[c] * p; p *= x; }
+            return y;
+        }
+
+        // Agregat 7 hari terakhir menjadi rata-rata per jam (≈168 titik) — mengubah
+        // dataset "beban harian" tutorial menjadi dataset musiman, sesuai Tugas 1.
+        async function _mllabFetchSeasonalPoints() {
+            if (_mllabSeasonalPoints) return _mllabSeasonalPoints;
+            const fromISO = _tsCutoffISO('1W');
+            let rows;
+            if (mlLabDataset === 'beban') {
+                const raw = await _fetchTimescaleBebanRows(selectedTrafo, 5000, fromISO);
+                rows = (raw || [])
+                    .map(r => _tsNormalizeBebanRow(r, selectedTrafo))
+                    .filter(r => r.docSortTime > 0)
+                    .map(r => ({ t: r.docSortTime, y: r.kW }));
+            } else {
+                const raw = await _fetchTimescaleTempRows(selectedTrafo, 5000, fromISO);
+                rows = (raw || [])
+                    .map(r => _tsNormalizeTempRow(r, selectedTrafo))
+                    .filter(r => r.docSortTime > 0)
+                    .map(r => {
+                        const vals = [r.R_Atas, r.R_Bawah, r.S_Atas, r.S_Bawah, r.T_Atas, r.T_Bawah];
+                        return { t: r.docSortTime, y: vals.reduce((a, b) => a + b, 0) / vals.length };
+                    });
+            }
+            const buckets = new Map();
+            rows.forEach(r => {
+                const hourKey = Math.floor(r.t / 3600000);
+                if (!buckets.has(hourKey)) buckets.set(hourKey, { sum: 0, n: 0, t: hourKey * 3600000 });
+                const b = buckets.get(hourKey);
+                b.sum += r.y; b.n += 1;
+            });
+            const points = Array.from(buckets.values())
+                .sort((a, b) => a.t - b.t)
+                .map(b => ({ t: b.t, y: b.sum / b.n, f1: b.sum / b.n, f2: 0 }))
+                .filter(p => Number.isFinite(p.y));
+            _mllabSeasonalPoints = points;
+            return points;
+        }
+
+        function setMlLabRegMode(mode) {
+            mlLabRegMode = mode;
+            const activeCls   = 'text-[10px] font-extrabold px-2.5 py-1 rounded-lg transition-all bg-cyan-600 text-white';
+            const inactiveCls = 'text-[10px] font-extrabold px-2.5 py-1 rounded-lg transition-all bg-white border border-slate-200 text-slate-600 hover:bg-slate-50';
+            const rBtn = document.getElementById('mllab-reg-mode-recent');
+            const sBtn = document.getElementById('mllab-reg-mode-seasonal');
+            if (rBtn) rBtn.className = mode === 'recent' ? activeCls : inactiveCls;
+            if (sBtn) sBtn.className = mode === 'seasonal' ? activeCls : inactiveCls;
+            _mllabLoadAndRenderRegression();
+        }
+
+        async function _mllabLoadAndRenderRegression() {
+            let points;
+            if (mlLabRegMode === 'seasonal') {
+                try {
+                    points = await _mllabFetchSeasonalPoints();
+                } catch (err) {
+                    console.warn('[ML LAB] Gagal memuat data musiman:', err);
+                    points = [];
+                }
+                if (!points || points.length < 8) {
+                    const analysisEl = document.getElementById('mllab-reg-analysis');
+                    if (analysisEl) analysisEl.textContent = `Data musiman 7 hari untuk ${mlLabDataset === 'beban' ? 'beban' : 'suhu'} Trafo ${selectedTrafo} belum cukup (tersedia ${points ? points.length : 0} jam terisi).`;
+                    destroyChart('mllab-regression');
+                    return;
+                }
+            } else {
+                points = _mllabPoints;
+                if (!points || points.length < 8) return;
+            }
+            _mllabRunRegression(points);
+        }
+
         function _mllabRunRegression(points) {
             const xs = points.map((_, i) => i);
             const ys = points.map(p => p.y);
             const { slope, intercept } = _linregFit(xs, ys);
-            const preds = xs.map(x => slope * x + intercept);
-            const rmse = Math.sqrt(preds.reduce((s, p, i) => s + (p - ys[i]) ** 2, 0) / ys.length);
-            const forecastNext = slope * xs.length + intercept;
+            const linPreds = xs.map(x => slope * x + intercept);
+            const linRmse = _rmse(ys, linPreds);
+            const linForecast = slope * xs.length + intercept;
+
+            const polyCoeffs = _polyFit(xs, ys, 2);
+            const polyPreds = xs.map(x => _polyPredict(polyCoeffs, x));
+            const polyRmse = _rmse(ys, polyPreds);
+            const polyForecast = _polyPredict(polyCoeffs, xs.length);
 
             const unit = mlLabDataset === 'beban' ? 'MW' : '°C';
-            const rmseEl = document.getElementById('mllab-reg-rmse');
-            const fcEl   = document.getElementById('mllab-reg-forecast');
-            if (rmseEl) rmseEl.textContent = rmse.toFixed(3) + ' ' + unit;
-            if (fcEl)   fcEl.textContent   = forecastNext.toFixed(2) + ' ' + unit;
+            const setText = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
+            setText('mllab-reg-rmse-linear', linRmse.toFixed(3) + ' ' + unit);
+            setText('mllab-reg-rmse-poly', polyRmse.toFixed(3) + ' ' + unit);
+            setText('mllab-reg-forecast-linear', linForecast.toFixed(2) + ' ' + unit);
+            setText('mllab-reg-forecast-poly', polyForecast.toFixed(2) + ' ' + unit);
+
+            const better = polyRmse < linRmse ? 'Polynomial (derajat 2)' : 'Linear';
+            const diffPct = Math.abs(linRmse - polyRmse) / Math.max(linRmse, 1e-9) * 100;
+            const modeLabel = mlLabRegMode === 'seasonal' ? 'musiman 7 hari (rata-rata per jam)' : 'terbaru (rolling window)';
+            const analysisEl = document.getElementById('mllab-reg-analysis');
+            if (analysisEl) {
+                analysisEl.innerHTML = `📊 <b>${points.length} titik</b> data ${modeLabel}. RMSE Linear <b>${linRmse.toFixed(3)}</b> vs Polynomial(deg2) <b>${polyRmse.toFixed(3)}</b> ${unit} — <b>${better}</b> lebih akurat pada rentang ini (selisih ${diffPct.toFixed(1)}%).` +
+                    (mlLabRegMode === 'seasonal'
+                        ? ' Pada data musiman, kurva polynomial biasanya lebih mengikuti pola naik-turun harian dibanding garis lurus — tapi keduanya tetap kalah presisi dari model musiman penuh (Holt-Winters) di tab Forecast Realtime untuk horizon jauh.'
+                        : ' Pada jendela data pendek/terbaru, perbedaan Linear vs Polynomial biasanya tipis karena trennya masih hampir lurus — coba mode "Musiman 7 Hari" untuk melihat pola naik-turun harian yang lebih jelas.');
+            }
 
             destroyChart('mllab-regression');
             const ctx = document.getElementById('mllab-regression-chart');
             if (!ctx) return;
-            const labels = points.map(p => new Date(p.t).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }));
+            const labels = points.map(p => new Date(p.t).toLocaleString('id-ID', mlLabRegMode === 'seasonal'
+                ? { weekday: 'short', hour: '2-digit' }
+                : { hour: '2-digit', minute: '2-digit' }));
             mlCharts['mllab-regression'] = new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels,
                     datasets: [
-                        { label: 'Data Aktual', data: ys, borderColor: '#0891b2', backgroundColor: '#0891b2', showLine: false, pointRadius: 3 },
-                        { label: 'Prediksi Regresi Linear', data: preds, borderColor: '#f97316', backgroundColor: '#f97316', pointRadius: 0, borderWidth: 2 }
+                        { label: 'Data Aktual', data: ys, borderColor: '#0891b2', backgroundColor: '#0891b2', showLine: false, pointRadius: 2.5 },
+                        { label: 'Prediksi Linear', data: linPreds, borderColor: '#f97316', backgroundColor: '#f97316', pointRadius: 0, borderWidth: 2 },
+                        { label: 'Prediksi Polynomial (deg 2)', data: polyPreds, borderColor: '#7c3aed', backgroundColor: '#7c3aed', pointRadius: 0, borderWidth: 2, borderDash: [6, 3] }
                     ]
                 },
                 options: {
                     responsive: true, maintainAspectRatio: false,
-                    plugins: { legend: { position: 'top', labels: { font: { size: 9, weight: 'bold' } } } },
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { position: 'top', labels: { font: { size: 9, weight: 'bold' }, usePointStyle: true } },
+                        zoom: _mllabZoomConfig()
+                    },
                     scales: {
-                        x: { ticks: { font: { size: 8 }, maxTicksLimit: 8 } },
+                        x: { ticks: { font: { size: 8 }, maxTicksLimit: 10, maxRotation: 45 } },
                         y: { ticks: { font: { size: 9 }, callback: v => v.toFixed(1) + ' ' + unit }, grid: { color: '#f1f5f9' } }
                     }
                 }
@@ -6800,37 +7008,67 @@
             const useF1 = split1.gini <= split2.gini;
             const split = useF1 ? split1 : split2;
             const featVals = useF1 ? f1 : f2;
-            const featName = mlLabDataset === 'beban'
-                ? (useF1 ? 'Arus rata-rata (A)' : 'Tegangan rata-rata (V)')
-                : (useF1 ? 'Suhu rata-rata (°C)' : 'Δ antar-fasa (°C)');
 
             const preds = featVals.map(v => v > split.threshold ? 1 : 0);
             const correct = preds.filter((p, i) => p === labels[i]).length;
             const acc = correct / preds.length;
+
+            _mllabClfState = { points, labels, s1, s2, split, useF1, acc };
+            _mllabRenderClfChart();
+        }
+
+        function _mllabRenderClfChart() {
+            const st = _mllabClfState;
+            if (!st) return;
+            const { points, labels, split, useF1, acc } = st;
+            const featName = mlLabDataset === 'beban'
+                ? (useF1 ? 'Arus rata-rata (A)' : 'Tegangan rata-rata (V)')
+                : (useF1 ? 'Suhu rata-rata (°C)' : 'Δ antar-fasa (°C)');
 
             const accEl  = document.getElementById('mllab-clf-acc');
             const ruleEl = document.getElementById('mllab-clf-rule');
             if (accEl)  accEl.textContent  = (acc * 100).toFixed(1) + '%';
             if (ruleEl) ruleEl.textContent = `${featName} > ${split.threshold.toFixed(2)} → Anomali`;
 
-            destroyChart('mllab-classification');
-            const ctx = document.getElementById('mllab-classification-chart');
-            if (!ctx) return;
             const normalPts  = points.filter((_, i) => labels[i] === 0).map(p => ({ x: p.f1, y: p.f2 }));
             const anomalyPts = points.filter((_, i) => labels[i] === 1).map(p => ({ x: p.f1, y: p.f2 }));
             const xLabel = mlLabDataset === 'beban' ? 'Arus rata-rata (A)' : 'Suhu rata-rata (°C)';
             const yLabel = mlLabDataset === 'beban' ? 'Tegangan rata-rata (V)' : 'Δ antar-fasa (°C)';
+
+            const datasets = [
+                { label: 'Normal', data: normalPts, backgroundColor: '#22c55e' },
+                { label: 'Anomali/Fault', data: anomalyPts, backgroundColor: '#ef4444' }
+            ];
+
+            const analysisEl = document.getElementById('mllab-clf-analysis');
+            if (mlLabInjectedPoint) {
+                const ip = mlLabInjectedPoint;
+                datasets.push({
+                    label: 'Uji Kasus Baru', data: [{ x: ip.f1, y: ip.f2 }],
+                    backgroundColor: ip.predicted === 1 ? '#b91c1c' : '#f59e0b',
+                    pointStyle: 'star', radius: 11, borderColor: '#1e293b', borderWidth: 1.5
+                });
+                if (analysisEl) {
+                    analysisEl.innerHTML = ip.predicted === 1
+                        ? `✅ <b>Model tetap akurat:</b> kasus uji baru (${ip.desc}) berhasil dideteksi sebagai <b>Anomali/Fault</b> — nilainya jauh di luar pola data training saat ini (akurasi training tetap ${(acc * 100).toFixed(1)}%).`
+                        : `⚠️ <b>Model kecolongan:</b> kasus uji baru (${ip.desc}) justru diklasifikasikan <b>Normal</b> oleh decision stump ini. Artinya split satu-fitur (depth=1) belum menangkap kombinasi dua fitur ekstrem sekaligus — perlu pohon lebih dalam (depth≥2) atau fitur tambahan untuk kasus seperti ini.`;
+                }
+            } else if (analysisEl) {
+                analysisEl.innerHTML = `Model men-split data memakai satu fitur (<b>${featName}</b>) pada ambang <b>${split.threshold.toFixed(2)}</b>, akurasi training <b>${(acc * 100).toFixed(1)}%</b>. Klik "Uji Kasus Fault Baru" untuk menguji ketahanannya terhadap kombinasi ekstrem yang belum pernah dilihat model.`;
+            }
+
+            destroyChart('mllab-classification');
+            const ctx = document.getElementById('mllab-classification-chart');
+            if (!ctx) return;
             mlCharts['mllab-classification'] = new Chart(ctx, {
                 type: 'scatter',
-                data: {
-                    datasets: [
-                        { label: 'Normal', data: normalPts, backgroundColor: '#22c55e' },
-                        { label: 'Anomali/Fault', data: anomalyPts, backgroundColor: '#ef4444' }
-                    ]
-                },
+                data: { datasets },
                 options: {
                     responsive: true, maintainAspectRatio: false,
-                    plugins: { legend: { position: 'top', labels: { font: { size: 9, weight: 'bold' } } } },
+                    plugins: {
+                        legend: { position: 'top', labels: { font: { size: 9, weight: 'bold' }, usePointStyle: true } },
+                        zoom: _mllabZoomConfig()
+                    },
                     scales: {
                         x: { title: { display: true, text: xLabel, font: { size: 9 } }, ticks: { font: { size: 8 } } },
                         y: { title: { display: true, text: yLabel, font: { size: 9 } }, ticks: { font: { size: 8 } }, grid: { color: '#f1f5f9' } }
@@ -6839,7 +7077,37 @@
             });
         }
 
-        // ── 3) CLUSTERING — Load/Thermal Profiling (K-Means, k=3) ──
+        // Menyuntikkan satu titik uji dengan kombinasi fitur ekstrem (mis. arus tinggi +
+        // tegangan rendah untuk dataset Beban) untuk menguji ketahanan model — Tugas 2.
+        function mllabInjectFaultCase() {
+            const st = _mllabClfState;
+            if (!st) return;
+            const { s1, s2, split, useF1 } = st;
+            let f1, f2, desc;
+            if (mlLabDataset === 'beban') {
+                f1 = s1.m + 2.5 * s1.sd;              // arus tinggi
+                f2 = Math.max(0, s2.m - 2.5 * s2.sd); // tegangan rendah
+                desc = `arus ${f1.toFixed(1)} A (tinggi), tegangan ${f2.toFixed(1)} V (rendah)`;
+            } else {
+                f1 = s1.m + 2.5 * s1.sd; // suhu sangat tinggi
+                f2 = s2.m + 2.5 * s2.sd; // delta antar-fasa sangat tinggi
+                desc = `suhu rata-rata ${f1.toFixed(1)}°C, Δ antar-fasa ${f2.toFixed(1)}°C (keduanya ekstrem)`;
+            }
+            const predicted = (useF1 ? f1 : f2) > split.threshold ? 1 : 0;
+            mlLabInjectedPoint = { f1, f2, predicted, desc };
+            const resetBtn = document.getElementById('mllab-clf-reset-btn');
+            if (resetBtn) resetBtn.classList.remove('hidden');
+            _mllabRenderClfChart();
+        }
+
+        function mllabClearFaultCase() {
+            mlLabInjectedPoint = null;
+            const resetBtn = document.getElementById('mllab-clf-reset-btn');
+            if (resetBtn) resetBtn.classList.add('hidden');
+            _mllabRenderClfChart();
+        }
+
+        // ── 3) CLUSTERING — Load/Thermal Profiling (K-Means, k dipilih interaktif) ──
         function _mllabKMeans(pts, k, iterations = 50) {
             let centroids = [];
             for (let i = 0; i < k; i++) {
@@ -6871,11 +7139,42 @@
             return { labels, centroids };
         }
 
+        function _kmeansInertia(pts, labels, centroids) {
+            let sum = 0;
+            pts.forEach((p, i) => { const c = centroids[labels[i]]; sum += (p[0] - c[0]) ** 2 + (p[1] - c[1]) ** 2; });
+            return sum;
+        }
+
+        function setMlLabK(k) {
+            mlLabK = k;
+            [2, 3, 4, 5].forEach(kk => {
+                const btn = document.getElementById('mllab-k-' + kk);
+                if (!btn) return;
+                btn.className = kk === k
+                    ? 'text-[11px] font-extrabold px-3 py-1 rounded-lg transition-all bg-indigo-600 text-white'
+                    : 'text-[11px] font-extrabold px-3 py-1 rounded-lg transition-all bg-white border border-slate-200 text-slate-600 hover:bg-slate-50';
+            });
+            if (_mllabPoints && _mllabPoints.length) _mllabRunClustering(_mllabPoints);
+        }
+
         function _mllabRunClustering(points) {
-            const uniquePts = new Set(points.map(p => p.f1 + ',' + p.f2)).size;
-            const k = Math.max(1, Math.min(3, uniquePts));
             const pts = points.map(p => [p.f1, p.f2]);
-            const { labels, centroids } = _mllabKMeans(pts, k);
+            const uniquePts = new Set(points.map(p => p.f1 + ',' + p.f2)).size;
+            const maxK = Math.max(1, Math.min(5, uniquePts));
+
+            // Hitung inertia untuk k=2..5 (kalau datanya cukup) supaya analisis
+            // "ubah cluster 3→4" bisa dibandingkan dengan angka nyata (Tugas 3).
+            const kOptions = [2, 3, 4, 5].filter(kk => kk <= maxK);
+            const inertiaByK = {};
+            let activeRun = null;
+            const k = Math.max(1, Math.min(mlLabK, maxK));
+            kOptions.forEach(kk => {
+                const run = _mllabKMeans(pts, kk);
+                inertiaByK[kk] = _kmeansInertia(pts, run.labels, run.centroids);
+                if (kk === k) activeRun = run;
+            });
+            if (!activeRun) activeRun = _mllabKMeans(pts, k);
+            const { labels, centroids } = activeRun;
 
             const tbody = document.getElementById('mllab-cluster-table');
             if (tbody) {
@@ -6892,10 +7191,24 @@
             if (f1Label) f1Label.textContent = mlLabDataset === 'beban' ? 'Arus (A)' : 'Suhu rata-rata (°C)';
             if (f2Label) f2Label.textContent = mlLabDataset === 'beban' ? 'Tegangan (V)' : 'Δ antar-fasa (°C)';
 
+            const analysisEl = document.getElementById('mllab-cluster-analysis');
+            if (analysisEl) {
+                const list = kOptions.map(kk => `k=${kk}: ${inertiaByK[kk].toFixed(1)}`).join(' · ');
+                let compareText = '';
+                if (inertiaByK[3] !== undefined && inertiaByK[4] !== undefined) {
+                    const drop = (inertiaByK[3] - inertiaByK[4]) / Math.max(inertiaByK[3], 1e-9) * 100;
+                    compareText = ` Dari k=3 → k=4, inertia (total jarak kuadrat titik ke centroid) turun ${drop.toFixed(1)}% — ` +
+                        (drop > 15
+                            ? 'penurunan cukup besar, cluster ke-4 kemungkinan mewakili sub-profil beban/suhu yang berbeda secara nyata.'
+                            : 'penurunan kecil, cluster ke-4 kemungkinan hanya memecah cluster lama menjadi bagian yang mirip (k=3 sudah cukup representatif).');
+                }
+                analysisEl.innerHTML = `📊 Perbandingan inertia per jumlah cluster — ${list}.${compareText} Sedang ditampilkan: <b>k=${k}</b> dari ${points.length} titik data.`;
+            }
+
             destroyChart('mllab-clustering');
             const ctx = document.getElementById('mllab-clustering-chart');
             if (!ctx) return;
-            const colors = ['#6366f1', '#f59e0b', '#14b8a6'];
+            const colors = ['#6366f1', '#f59e0b', '#14b8a6', '#ec4899', '#84cc16'];
             const datasets = centroids.map((_, ci) => ({
                 label: 'Cluster ' + ci,
                 data: points.filter((_, i) => labels[i] === ci).map(p => ({ x: p.f1, y: p.f2 })),
@@ -6908,7 +7221,10 @@
                 data: { datasets },
                 options: {
                     responsive: true, maintainAspectRatio: false,
-                    plugins: { legend: { position: 'top', labels: { font: { size: 9, weight: 'bold' } } } },
+                    plugins: {
+                        legend: { position: 'top', labels: { font: { size: 9, weight: 'bold' } } },
+                        zoom: _mllabZoomConfig()
+                    },
                     scales: {
                         x: { title: { display: true, text: xLabel, font: { size: 9 } }, ticks: { font: { size: 8 } } },
                         y: { title: { display: true, text: yLabel, font: { size: 9 } }, ticks: { font: { size: 8 } }, grid: { color: '#f1f5f9' } }
