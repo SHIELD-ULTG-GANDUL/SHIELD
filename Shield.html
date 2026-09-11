@@ -1084,6 +1084,7 @@
                   <button onclick="switchInnerTab('ml','aex')" id="itab-ml-aex" class="inner-tab-btn active" style="color:#4f46e5;font-weight:900;">🎯 Executive Summary</button>
                   <button onclick="switchInnerTab('ml','a0')" id="itab-ml-a0" class="inner-tab-btn" style="color:#0891b2;">⚡ Forecast Realtime</button>
                   <button onclick="switchInnerTab('ml','lntai')" id="itab-ml-lntai" class="inner-tab-btn" style="color:#dc2626;">🔥 LNTAI</button>
+                  <button onclick="switchInnerTab('ml','mllab')" id="itab-ml-mllab" class="inner-tab-btn" style="color:#059669;">🧪 ML Lab (Real Data)</button>
                 </div>
 
                 <!-- ════════════════════════════════════════════════════════
@@ -1400,6 +1401,101 @@
                       </div>
                     </div>
                     <p class="text-[10px] text-slate-500 mt-4 leading-relaxed">LNTAI is not an absolute temperature alarm. This score combines contact temperature rise, inter-phase imbalance, and the plausibility of heating relative to load into a single 0–40 number, so a high score can indicate rising finger-contact resistance even when the absolute temperature is not yet very high.</p>
+                  </div>
+                </div>
+
+                <!-- ════════════════════════════════════════════════════════
+                     Tab ML LAB: REGRESSION, CLASSIFICATION, CLUSTERING — Data Real TimescaleDB
+                     Mengikuti Praktikum ML Minggu 3 (Power System), diterapkan pada
+                     data beban (MW) & suhu kontak trafo yang sebenarnya.
+                     ════════════════════════════════════════════════════════ -->
+                <div id="itab-content-ml-mllab" class="hidden space-y-4">
+                  <div class="glass-card p-5 border-l-4 border-emerald-400">
+                    <div class="flex items-center justify-between flex-wrap gap-3 mb-3">
+                      <div class="flex items-center gap-3">
+                        <div class="bg-emerald-100 p-2 rounded-lg"><i data-lucide="flask-conical" class="w-5 h-5 text-emerald-600"></i></div>
+                        <div>
+                          <h5 class="text-xs font-extrabold text-emerald-700 uppercase tracking-widest">ML Lab — Regression · Classification · Clustering</h5>
+                          <p class="text-[10px] text-slate-400">Tiga algoritma dasar Machine Learning (Praktikum Minggu 3) dijalankan langsung di browser memakai data real dari TimescaleDB — bukan dataset dummy.</p>
+                        </div>
+                      </div>
+                      <button onclick="runMlLabAnalysis(true)" class="flex items-center gap-1.5 bg-white border border-emerald-200 text-emerald-700 text-[11px] font-bold px-3 py-1.5 rounded-lg hover:bg-emerald-50 transition-all">
+                        <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Jalankan / Refresh Analisis
+                      </button>
+                    </div>
+
+                    <div class="flex items-center gap-2 mb-2 flex-wrap">
+                      <span class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest mr-1">Dataset:</span>
+                      <button id="mllab-btn-beban" onclick="setMlLabDataset('beban')" class="text-[11px] font-extrabold px-3 py-1.5 rounded-lg transition-all bg-emerald-600 text-white">⚡ Beban (MW)</button>
+                      <button id="mllab-btn-suhu" onclick="setMlLabDataset('suhu')" class="text-[11px] font-extrabold px-3 py-1.5 rounded-lg transition-all bg-white border border-slate-200 text-slate-600 hover:bg-slate-50">🌡️ Suhu Kontak (°C)</button>
+                    </div>
+                    <div id="mllab-status" class="text-[10px] text-slate-400 mt-1">Klik "Jalankan / Refresh Analisis" untuk mengambil data real Trafo dari TimescaleDB.</div>
+                  </div>
+
+                  <!-- 1. Regression -->
+                  <div class="glass-card p-5">
+                    <div class="flex items-center justify-between gap-3 mb-3 flex-wrap">
+                      <h5 class="text-xs font-extrabold text-slate-700 uppercase tracking-widest">1. Regression — Load/Suhu Forecasting (Linear Regression)</h5>
+                      <span class="text-[9px] font-extrabold px-2 py-1 rounded-full bg-cyan-50 text-cyan-600">setara sklearn.linear_model.LinearRegression</span>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+                      <div class="bg-white border border-slate-200 rounded-xl p-3">
+                        <div class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest">RMSE</div>
+                        <div id="mllab-reg-rmse" class="font-mono font-black text-xl text-slate-700 mt-1">-</div>
+                      </div>
+                      <div class="bg-white border border-slate-200 rounded-xl p-3">
+                        <div class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest">Prediksi Titik Berikutnya</div>
+                        <div id="mllab-reg-forecast" class="font-mono font-black text-xl text-slate-700 mt-1">-</div>
+                      </div>
+                      <div class="bg-slate-50 rounded-xl p-3 border border-slate-200 text-[10px] text-slate-500 leading-relaxed">
+                        Regresi linear di-fit terhadap urutan sampel data real terakhir. Untuk forecasting jangka panjang yang lebih akurat, lihat tab <b>Forecast Realtime</b> (Holt-Winters DES).
+                      </div>
+                    </div>
+                    <div class="relative h-[220px]"><canvas id="mllab-regression-chart"></canvas></div>
+                  </div>
+
+                  <!-- 2. Classification -->
+                  <div class="glass-card p-5">
+                    <div class="flex items-center justify-between gap-3 mb-3 flex-wrap">
+                      <h5 class="text-xs font-extrabold text-slate-700 uppercase tracking-widest">2. Classification — Fault/Anomaly Detection (Decision Stump)</h5>
+                      <span class="text-[9px] font-extrabold px-2 py-1 rounded-full bg-red-50 text-red-600">setara sklearn.tree.DecisionTreeClassifier (depth=1)</span>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+                      <div class="bg-white border border-slate-200 rounded-xl p-3">
+                        <div class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest">Akurasi Training</div>
+                        <div id="mllab-clf-acc" class="font-mono font-black text-xl text-slate-700 mt-1">-</div>
+                      </div>
+                      <div class="bg-white border border-slate-200 rounded-xl p-3 md:col-span-2">
+                        <div class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest">Aturan Split (Decision Boundary)</div>
+                        <div id="mllab-clf-rule" class="font-mono font-bold text-sm text-slate-700 mt-1">-</div>
+                      </div>
+                    </div>
+                    <div class="relative h-[240px]"><canvas id="mllab-classification-chart"></canvas></div>
+                    <p class="text-[10px] text-slate-400 mt-3 leading-relaxed">Label acuan (Normal/Anomali) dibuat otomatis dari statistik data yang sedang ditampilkan (outlier &gt; mean + 1·SD) sebagai latihan klasifikasi; untuk deteksi produksi gunakan skor <b>LNTAI</b> yang sudah divalidasi di tab sebelah.</p>
+                  </div>
+
+                  <!-- 3. Clustering -->
+                  <div class="glass-card p-5">
+                    <div class="flex items-center justify-between gap-3 mb-3 flex-wrap">
+                      <h5 class="text-xs font-extrabold text-slate-700 uppercase tracking-widest">3. Clustering — Load/Thermal Profiling (K-Means, k=3)</h5>
+                      <span class="text-[9px] font-extrabold px-2 py-1 rounded-full bg-indigo-50 text-indigo-600">setara sklearn.cluster.KMeans</span>
+                    </div>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                      <div class="relative h-[240px]"><canvas id="mllab-clustering-chart"></canvas></div>
+                      <div class="overflow-x-auto">
+                        <table class="w-full text-[11px]">
+                          <thead>
+                            <tr class="text-slate-400 uppercase text-[9px] tracking-widest">
+                              <th class="px-3 py-1.5 text-left">Cluster</th>
+                              <th class="px-3 py-1.5 text-right" id="mllab-cluster-f1-label">Fitur 1</th>
+                              <th class="px-3 py-1.5 text-right" id="mllab-cluster-f2-label">Fitur 2</th>
+                              <th class="px-3 py-1.5 text-right">Jumlah Titik</th>
+                            </tr>
+                          </thead>
+                          <tbody id="mllab-cluster-table"></tbody>
+                        </table>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -2544,6 +2640,9 @@
 
             if (group === 'ml' && tabId === 'lntai' && typeof renderLNTAIPanel === 'function') {
                 renderLNTAIPanel(true);
+            }
+            if (group === 'ml' && tabId === 'mllab' && typeof runMlLabAnalysis === 'function') {
+                runMlLabAnalysis();
             }
             if (group === 'logger' && tabId === 'suhu' && _loggerTempDirty && typeof renderLoggerTable === 'function') {
                 _loggerTempDirty = false;
@@ -6524,6 +6623,297 @@
                     plugins:{ legend:{ position:'top', labels:{ font:{size:9,weight:'bold'}, usePointStyle:true, filter:l=>l.text!=='CI 95% Lower' }}},
                     scales:{ x:{ ticks:{ font:{size:8}, maxTicksLimit:tk.maxTicksLimit, maxRotation:tk.maxRotation }},
                              y:{ ticks:{ font:{size:9}, callback:v=>v.toFixed(0)+'A' }, grid:{ color:'#f1f5f9' }}}}
+            });
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        // ML LAB — Regression, Classification, Clustering pada data REAL TimescaleDB
+        // Mengikuti Praktikum ML Minggu 3 (Power System): Load Forecasting (Regression),
+        // Fault Classification, Customer/Load Clustering — diterapkan pada beban (MW)
+        // dan suhu kontak trafo yang sebenarnya, bukan dataset dummy.
+        // ══════════════════════════════════════════════════════════════════
+        let mlLabDataset = 'beban'; // 'beban' | 'suhu'
+        let mlLabBusy = false;
+
+        function setMlLabDataset(ds) {
+            mlLabDataset = ds;
+            const activeCls   = 'text-[11px] font-extrabold px-3 py-1.5 rounded-lg transition-all bg-emerald-600 text-white';
+            const inactiveCls = 'text-[11px] font-extrabold px-3 py-1.5 rounded-lg transition-all bg-white border border-slate-200 text-slate-600 hover:bg-slate-50';
+            const bBtn = document.getElementById('mllab-btn-beban');
+            const sBtn = document.getElementById('mllab-btn-suhu');
+            if (bBtn) bBtn.className = ds === 'beban' ? activeCls : inactiveCls;
+            if (sBtn) sBtn.className = ds === 'suhu' ? activeCls : inactiveCls;
+            runMlLabAnalysis();
+        }
+
+        function _mllabSetStatus(msg, isError) {
+            const el = document.getElementById('mllab-status');
+            if (!el) return;
+            el.textContent = msg;
+            el.className = isError ? 'text-[10px] mt-1 text-red-500 font-bold' : 'text-[10px] mt-1 text-slate-400';
+        }
+
+        function _mllabClearCharts() {
+            ['mllab-regression', 'mllab-classification', 'mllab-clustering'].forEach(destroyChart);
+        }
+
+        async function runMlLabAnalysis(forceRefetch) {
+            if (mlLabBusy) return;
+            const pane = document.getElementById('itab-content-ml-mllab');
+            if (!pane || pane.classList.contains('hidden')) return; // hanya jalan saat tab ML Lab aktif
+            mlLabBusy = true;
+            _mllabSetStatus('Mengambil data real dari TimescaleDB…');
+            try {
+                let points;
+                if (mlLabDataset === 'beban') {
+                    const rows = await _fetchTimescaleBebanRows(selectedTrafo, 120);
+                    points = (rows || [])
+                        .map(r => _tsNormalizeBebanRow(r, selectedTrafo))
+                        .filter(r => r.docSortTime > 0)
+                        .sort((a, b) => a.docSortTime - b.docSortTime)
+                        .map(r => ({
+                            t: r.docSortTime,
+                            y: r.kW,                                 // beban aktif (MW)
+                            f1: (r.I_R + r.I_S + r.I_T) / 3,          // arus rata-rata (A)
+                            f2: (r.V_R + r.V_S + r.V_T) / 3           // tegangan rata-rata (V)
+                        }));
+                } else {
+                    const rows = await _fetchTimescaleTempRows(selectedTrafo, 120);
+                    points = (rows || [])
+                        .map(r => _tsNormalizeTempRow(r, selectedTrafo))
+                        .filter(r => r.docSortTime > 0)
+                        .sort((a, b) => a.docSortTime - b.docSortTime)
+                        .map(r => {
+                            const vals = [r.R_Atas, r.R_Bawah, r.S_Atas, r.S_Bawah, r.T_Atas, r.T_Bawah];
+                            const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
+                            const delta = Math.max(...vals) - Math.min(...vals);
+                            return { t: r.docSortTime, y: avg, f1: avg, f2: delta };
+                        });
+                }
+
+                points = points.filter(p => Number.isFinite(p.y) && Number.isFinite(p.f1) && Number.isFinite(p.f2));
+
+                if (points.length < 8) {
+                    _mllabSetStatus(`Data ${mlLabDataset === 'beban' ? 'beban' : 'suhu'} Trafo ${selectedTrafo} di TimescaleDB belum cukup (minimal 8 titik, tersedia ${points.length}).`, true);
+                    _mllabClearCharts();
+                    return;
+                }
+
+                _mllabRunRegression(points);
+                _mllabRunClassification(points);
+                _mllabRunClustering(points);
+
+                _mllabSetStatus(`✓ ${points.length} titik data real Trafo ${selectedTrafo} (${mlLabDataset === 'beban' ? 'Beban MW' : 'Suhu Kontak °C'}) — TimescaleDB ${TIMESCALE_HOST}:${TIMESCALE_PORT}. Update terakhir: ${new Date().toLocaleTimeString('id-ID')}`);
+            } catch (err) {
+                console.warn('[ML LAB] Gagal menjalankan analisis:', err);
+                _mllabSetStatus('Gagal mengambil data dari TimescaleDB: ' + err.message, true);
+                _mllabClearCharts();
+            } finally {
+                mlLabBusy = false;
+            }
+        }
+
+        // ── 1) REGRESSION — Load/Suhu Forecasting (Simple Linear Regression) ──
+        function _linregFit(xs, ys) {
+            const n = xs.length;
+            const mx = xs.reduce((a, b) => a + b, 0) / n;
+            const my = ys.reduce((a, b) => a + b, 0) / n;
+            let num = 0, den = 0;
+            for (let i = 0; i < n; i++) { num += (xs[i] - mx) * (ys[i] - my); den += (xs[i] - mx) ** 2; }
+            const slope = den === 0 ? 0 : num / den;
+            const intercept = my - slope * mx;
+            return { slope, intercept };
+        }
+
+        function _mllabRunRegression(points) {
+            const xs = points.map((_, i) => i);
+            const ys = points.map(p => p.y);
+            const { slope, intercept } = _linregFit(xs, ys);
+            const preds = xs.map(x => slope * x + intercept);
+            const rmse = Math.sqrt(preds.reduce((s, p, i) => s + (p - ys[i]) ** 2, 0) / ys.length);
+            const forecastNext = slope * xs.length + intercept;
+
+            const unit = mlLabDataset === 'beban' ? 'MW' : '°C';
+            const rmseEl = document.getElementById('mllab-reg-rmse');
+            const fcEl   = document.getElementById('mllab-reg-forecast');
+            if (rmseEl) rmseEl.textContent = rmse.toFixed(3) + ' ' + unit;
+            if (fcEl)   fcEl.textContent   = forecastNext.toFixed(2) + ' ' + unit;
+
+            destroyChart('mllab-regression');
+            const ctx = document.getElementById('mllab-regression-chart');
+            if (!ctx) return;
+            const labels = points.map(p => new Date(p.t).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }));
+            mlCharts['mllab-regression'] = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [
+                        { label: 'Data Aktual', data: ys, borderColor: '#0891b2', backgroundColor: '#0891b2', showLine: false, pointRadius: 3 },
+                        { label: 'Prediksi Regresi Linear', data: preds, borderColor: '#f97316', backgroundColor: '#f97316', pointRadius: 0, borderWidth: 2 }
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { position: 'top', labels: { font: { size: 9, weight: 'bold' } } } },
+                    scales: {
+                        x: { ticks: { font: { size: 8 }, maxTicksLimit: 8 } },
+                        y: { ticks: { font: { size: 9 }, callback: v => v.toFixed(1) + ' ' + unit }, grid: { color: '#f1f5f9' } }
+                    }
+                }
+            });
+        }
+
+        // ── 2) CLASSIFICATION — Fault/Anomaly Detection (Decision Stump, Gini) ──
+        function _mllabBestStumpSplit(vals, labels) {
+            const sorted = [...new Set(vals)].sort((a, b) => a - b);
+            let best = { gini: Infinity, threshold: sorted[0] ?? 0 };
+            for (let i = 0; i < sorted.length - 1; i++) {
+                const thr = (sorted[i] + sorted[i + 1]) / 2;
+                const left = [], right = [];
+                vals.forEach((v, idx) => (v <= thr ? left : right).push(labels[idx]));
+                const gini = (grp) => {
+                    if (!grp.length) return 0;
+                    const p1 = grp.filter(l => l === 1).length / grp.length;
+                    return 1 - p1 * p1 - (1 - p1) * (1 - p1);
+                };
+                const w = (left.length * gini(left) + right.length * gini(right)) / labels.length;
+                if (w < best.gini) best = { gini: w, threshold: thr };
+            }
+            return best;
+        }
+
+        function _mllabRunClassification(points) {
+            const f1 = points.map(p => p.f1);
+            const f2 = points.map(p => p.f2);
+            const stat = (arr) => {
+                const m = arr.reduce((a, b) => a + b, 0) / arr.length;
+                const sd = Math.sqrt(arr.reduce((s, v) => s + (v - m) ** 2, 0) / arr.length);
+                return { m, sd };
+            };
+            const s1 = stat(f1), s2 = stat(f2);
+            // Label acuan: anomali statistik bila salah satu fitur > mean + 1·SD (ground-truth
+            // sederhana untuk latihan klasifikasi — di produksi label sebaiknya dari histori kejadian nyata).
+            const labels = points.map((_, i) => (f1[i] > s1.m + s1.sd || f2[i] > s2.m + s2.sd) ? 1 : 0);
+
+            const split1 = _mllabBestStumpSplit(f1, labels);
+            const split2 = _mllabBestStumpSplit(f2, labels);
+            const useF1 = split1.gini <= split2.gini;
+            const split = useF1 ? split1 : split2;
+            const featVals = useF1 ? f1 : f2;
+            const featName = mlLabDataset === 'beban'
+                ? (useF1 ? 'Arus rata-rata (A)' : 'Tegangan rata-rata (V)')
+                : (useF1 ? 'Suhu rata-rata (°C)' : 'Δ antar-fasa (°C)');
+
+            const preds = featVals.map(v => v > split.threshold ? 1 : 0);
+            const correct = preds.filter((p, i) => p === labels[i]).length;
+            const acc = correct / preds.length;
+
+            const accEl  = document.getElementById('mllab-clf-acc');
+            const ruleEl = document.getElementById('mllab-clf-rule');
+            if (accEl)  accEl.textContent  = (acc * 100).toFixed(1) + '%';
+            if (ruleEl) ruleEl.textContent = `${featName} > ${split.threshold.toFixed(2)} → Anomali`;
+
+            destroyChart('mllab-classification');
+            const ctx = document.getElementById('mllab-classification-chart');
+            if (!ctx) return;
+            const normalPts  = points.filter((_, i) => labels[i] === 0).map(p => ({ x: p.f1, y: p.f2 }));
+            const anomalyPts = points.filter((_, i) => labels[i] === 1).map(p => ({ x: p.f1, y: p.f2 }));
+            const xLabel = mlLabDataset === 'beban' ? 'Arus rata-rata (A)' : 'Suhu rata-rata (°C)';
+            const yLabel = mlLabDataset === 'beban' ? 'Tegangan rata-rata (V)' : 'Δ antar-fasa (°C)';
+            mlCharts['mllab-classification'] = new Chart(ctx, {
+                type: 'scatter',
+                data: {
+                    datasets: [
+                        { label: 'Normal', data: normalPts, backgroundColor: '#22c55e' },
+                        { label: 'Anomali/Fault', data: anomalyPts, backgroundColor: '#ef4444' }
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { position: 'top', labels: { font: { size: 9, weight: 'bold' } } } },
+                    scales: {
+                        x: { title: { display: true, text: xLabel, font: { size: 9 } }, ticks: { font: { size: 8 } } },
+                        y: { title: { display: true, text: yLabel, font: { size: 9 } }, ticks: { font: { size: 8 } }, grid: { color: '#f1f5f9' } }
+                    }
+                }
+            });
+        }
+
+        // ── 3) CLUSTERING — Load/Thermal Profiling (K-Means, k=3) ──
+        function _mllabKMeans(pts, k, iterations = 50) {
+            let centroids = [];
+            for (let i = 0; i < k; i++) {
+                const idx = Math.floor(i * (pts.length - 1) / Math.max(1, k - 1));
+                centroids.push([pts[idx][0], pts[idx][1]]);
+            }
+            let labels = new Array(pts.length).fill(0);
+            for (let iter = 0; iter < iterations; iter++) {
+                labels = pts.map(p => {
+                    let best = 0, bestD = Infinity;
+                    centroids.forEach((c, ci) => {
+                        const d = (p[0] - c[0]) ** 2 + (p[1] - c[1]) ** 2;
+                        if (d < bestD) { bestD = d; best = ci; }
+                    });
+                    return best;
+                });
+                const sums = Array.from({ length: k }, () => [0, 0, 0]);
+                pts.forEach((p, i) => {
+                    const l = labels[i];
+                    sums[l][0] += p[0]; sums[l][1] += p[1]; sums[l][2] += 1;
+                });
+                const newCentroids = centroids.map((c, i) => sums[i][2] > 0
+                    ? [sums[i][0] / sums[i][2], sums[i][1] / sums[i][2]]
+                    : c);
+                const changed = JSON.stringify(newCentroids) !== JSON.stringify(centroids);
+                centroids = newCentroids;
+                if (!changed) break;
+            }
+            return { labels, centroids };
+        }
+
+        function _mllabRunClustering(points) {
+            const uniquePts = new Set(points.map(p => p.f1 + ',' + p.f2)).size;
+            const k = Math.max(1, Math.min(3, uniquePts));
+            const pts = points.map(p => [p.f1, p.f2]);
+            const { labels, centroids } = _mllabKMeans(pts, k);
+
+            const tbody = document.getElementById('mllab-cluster-table');
+            if (tbody) {
+                tbody.innerHTML = centroids.map((c, i) => `
+                    <tr class="border-t border-slate-100">
+                        <td class="px-3 py-1.5 font-bold">Cluster ${i}</td>
+                        <td class="px-3 py-1.5 text-right font-mono">${c[0].toFixed(2)}</td>
+                        <td class="px-3 py-1.5 text-right font-mono">${c[1].toFixed(2)}</td>
+                        <td class="px-3 py-1.5 text-right">${labels.filter(l => l === i).length}</td>
+                    </tr>`).join('');
+            }
+            const f1Label = document.getElementById('mllab-cluster-f1-label');
+            const f2Label = document.getElementById('mllab-cluster-f2-label');
+            if (f1Label) f1Label.textContent = mlLabDataset === 'beban' ? 'Arus (A)' : 'Suhu rata-rata (°C)';
+            if (f2Label) f2Label.textContent = mlLabDataset === 'beban' ? 'Tegangan (V)' : 'Δ antar-fasa (°C)';
+
+            destroyChart('mllab-clustering');
+            const ctx = document.getElementById('mllab-clustering-chart');
+            if (!ctx) return;
+            const colors = ['#6366f1', '#f59e0b', '#14b8a6'];
+            const datasets = centroids.map((_, ci) => ({
+                label: 'Cluster ' + ci,
+                data: points.filter((_, i) => labels[i] === ci).map(p => ({ x: p.f1, y: p.f2 })),
+                backgroundColor: colors[ci % colors.length]
+            }));
+            const xLabel = mlLabDataset === 'beban' ? 'Arus rata-rata (A)' : 'Suhu rata-rata (°C)';
+            const yLabel = mlLabDataset === 'beban' ? 'Tegangan rata-rata (V)' : 'Δ antar-fasa (°C)';
+            mlCharts['mllab-clustering'] = new Chart(ctx, {
+                type: 'scatter',
+                data: { datasets },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { position: 'top', labels: { font: { size: 9, weight: 'bold' } } } },
+                    scales: {
+                        x: { title: { display: true, text: xLabel, font: { size: 9 } }, ticks: { font: { size: 8 } } },
+                        y: { title: { display: true, text: yLabel, font: { size: 9 } }, ticks: { font: { size: 8 } }, grid: { color: '#f1f5f9' } }
+                    }
+                }
             });
         }
 
