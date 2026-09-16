@@ -61,10 +61,35 @@ def health():
     return {"status": "ok", "time": datetime.now(timezone.utc).isoformat()}
 
 
+@app.get("/api/temperature-logs/bounds")
+def temperature_logs_bounds(
+    trafo: int = Query(..., ge=2, le=4, description="Nomor trafo: 2, 3, atau 4"),
+    x_api_key: Optional[str] = Header(default=None, alias="X-API-Key"),
+):
+    """Rentang waktu data suhu yang tersedia untuk satu trafo (MIN/MAX
+    timestamp) — query murah (pakai index yang sama dengan endpoint utama),
+    dipakai frontend untuk membagi unduhan rentang penuh menjadi beberapa
+    bagian waktu yang bisa diambil paralel, bukan menebak dari mana histori
+    dimulai lewat trial-and-error."""
+    _check_api_key(x_api_key)
+    with _pool.connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+        cur.execute(
+            'SELECT min("timestamp") AS min_ts, max("timestamp") AS max_ts '
+            "FROM trafo_temperature WHERE trafo_id = %s",
+            (str(trafo),),
+        )
+        row = cur.fetchone()
+    return {
+        "trafo": trafo,
+        "min": row["min_ts"].isoformat() if row and row["min_ts"] else None,
+        "max": row["max_ts"].isoformat() if row and row["max_ts"] else None,
+    }
+
+
 @app.get("/api/temperature-logs")
 def temperature_logs(
     trafo: int = Query(..., ge=2, le=4, description="Nomor trafo: 2, 3, atau 4"),
-    limit: int = Query(300, ge=1, le=5000),
+    limit: int = Query(300, ge=1, le=20000),
     from_: Optional[datetime] = Query(default=None, alias="from", description="Batas awal ISO8601, opsional"),
     to_: Optional[datetime] = Query(default=None, alias="to", description="Batas akhir ISO8601, opsional — dipakai untuk paginasi mundur saat mengunduh rentang penuh"),
     x_api_key: Optional[str] = Header(default=None, alias="X-API-Key"),
@@ -100,10 +125,32 @@ def temperature_logs(
     return {"trafo": trafo, "count": len(rows), "rows": rows}
 
 
+@app.get("/api/beban-logs/bounds")
+def beban_logs_bounds(
+    trafo: int = Query(..., ge=2, le=4, description="Nomor trafo: 2, 3, atau 4"),
+    x_api_key: Optional[str] = Header(default=None, alias="X-API-Key"),
+):
+    """Rentang waktu data beban yang tersedia untuk satu trafo (MIN/MAX
+    timestamp) — lihat catatan di temperature_logs_bounds()."""
+    _check_api_key(x_api_key)
+    with _pool.connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+        cur.execute(
+            'SELECT min("timestamp") AS min_ts, max("timestamp") AS max_ts '
+            "FROM trafo_load WHERE trafo_id = %s",
+            (str(trafo),),
+        )
+        row = cur.fetchone()
+    return {
+        "trafo": trafo,
+        "min": row["min_ts"].isoformat() if row and row["min_ts"] else None,
+        "max": row["max_ts"].isoformat() if row and row["max_ts"] else None,
+    }
+
+
 @app.get("/api/beban-logs")
 def beban_logs(
     trafo: int = Query(..., ge=2, le=4, description="Nomor trafo: 2, 3, atau 4"),
-    limit: int = Query(300, ge=1, le=5000),
+    limit: int = Query(300, ge=1, le=20000),
     from_: Optional[datetime] = Query(default=None, alias="from", description="Batas awal ISO8601, opsional"),
     to_: Optional[datetime] = Query(default=None, alias="to", description="Batas akhir ISO8601, opsional — dipakai untuk paginasi mundur saat mengunduh rentang penuh"),
     x_api_key: Optional[str] = Header(default=None, alias="X-API-Key"),

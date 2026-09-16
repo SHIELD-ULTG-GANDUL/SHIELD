@@ -2456,8 +2456,10 @@
         // Nama field alternatif (Ir/Ia/current_a, MW/kw, dst.) tetap ditoleransi
         // karena baris beban dilewatkan ke parseBebanDoc() yang sama seperti versi Firestore.
         const TIMESCALE_ENDPOINTS = {
-            temperature: '/temperature-logs',
-            beban:       '/beban-logs'
+            temperature:       '/temperature-logs',
+            beban:             '/beban-logs',
+            temperatureBounds: '/temperature-logs/bounds',
+            bebanBounds:       '/beban-logs/bounds'
         };
 
         window.timescaleReady = !!TIMESCALE_API_BASE_URL;
@@ -2503,6 +2505,19 @@
             } finally {
                 clearTimeout(timer);
             }
+        }
+
+        // Ambil rentang waktu data yang tersedia ({min, max} ISO string) untuk satu
+        // trafo — query murah di server, dipakai untuk membagi unduhan rentang
+        // penuh (Download CSV Lengkap) menjadi beberapa bagian waktu yang bisa
+        // diambil paralel, bukan menebak lewat trial-and-error.
+        async function _tsFetchBounds(endpointKey, trafo) {
+            const url = new URL(TIMESCALE_API_BASE_URL + TIMESCALE_ENDPOINTS[endpointKey]);
+            url.searchParams.set('trafo', trafo);
+            const headers = TIMESCALE_API_KEY ? { 'X-API-Key': TIMESCALE_API_KEY } : {};
+            const res = await fetch(url.toString(), { headers, cache: 'no-store' });
+            if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+            return await res.json(); // { trafo, min, max }
         }
 
         function _tsCutoffISO(filter) {
@@ -4384,6 +4399,59 @@
             return all;
         }
 
+        // Versi cepat: kalau batas awal/akhir rentang belum tahu, tanyakan dulu ke
+        // endpoint /bounds (murah), lalu pecah rentang jadi beberapa bagian waktu
+        // (~2 hari/bagian) dan ambil beberapa bagian SEKALIGUS secara paralel
+        // (bukan satu per satu) — jauh lebih cepat untuk unduhan rentang besar/penuh.
+        // Kalau /bounds gagal (mis. server API lama, belum di-deploy ulang), otomatis
+        // jatuh ke mode sekuensial lama supaya tetap jalan.
+        async function _fetchAllLogsInRangeFast(fetchFn, boundsKey, trafo, fromISO, toISO, onProgress) {
+            let effFrom = fromISO, effTo = toISO;
+            if (!effFrom || !effTo) {
+                try {
+                    const bounds = await _tsFetchBounds(boundsKey, trafo);
+                    if (!effFrom) effFrom = bounds.min;
+                    if (!effTo) effTo = bounds.max;
+                } catch (err) {
+                    console.warn('[DOWNLOAD] Gagal mengambil batas rentang (/bounds), pakai mode sekuensial:', err.message);
+                }
+            }
+            if (!effFrom || !effTo) {
+                return _fetchAllLogsInRange(fetchFn, trafo, fromISO, toISO, (n) => onProgress && onProgress(n, 1, 1));
+            }
+
+            const fromMs  = new Date(effFrom).getTime();
+            const toMs    = new Date(effTo).getTime();
+            const spanMs  = Math.max(1, toMs - fromMs);
+            const CHUNK_MS   = 2 * 24 * 60 * 60 * 1000; // ~2 hari/bagian — jarang perlu sub-paginasi
+            const MAX_CHUNKS = 24;                      // batas jumlah bagian
+            const chunkCount = Math.min(MAX_CHUNKS, Math.max(1, Math.ceil(spanMs / CHUNK_MS)));
+            const chunkSpan  = spanMs / chunkCount;
+
+            const ranges = [];
+            for (let i = 0; i < chunkCount; i++) {
+                const cFrom = new Date(fromMs + i * chunkSpan).toISOString();
+                const cTo   = new Date(i === chunkCount - 1 ? toMs : Math.round(fromMs + (i + 1) * chunkSpan) - 1).toISOString();
+                ranges.push([cFrom, cTo]);
+            }
+
+            const CONCURRENCY = 4; // selaras dgn ukuran connection pool API (max_size=5) — sisakan slot utk dashboard live
+            const perChunkRows = new Array(ranges.length);
+            let totalSoFar = 0, doneChunks = 0, nextIdx = 0;
+            async function worker() {
+                while (nextIdx < ranges.length) {
+                    const my = nextIdx++;
+                    const [cFrom, cTo] = ranges[my];
+                    perChunkRows[my] = await _fetchAllLogsInRange(fetchFn, trafo, cFrom, cTo, null);
+                    totalSoFar += perChunkRows[my].length;
+                    doneChunks += 1;
+                    if (onProgress) onProgress(totalSoFar, doneChunks, ranges.length);
+                }
+            }
+            await Promise.all(Array.from({ length: Math.min(CONCURRENCY, ranges.length) }, worker));
+            return perChunkRows.flat();
+        }
+
         async function downloadFullSuhuCsv() {
             const fromVal = document.getElementById('tf-from').value;
             const toVal   = document.getElementById('tf-to').value;
@@ -4394,10 +4462,10 @@
             const info = document.getElementById('tf-info');
             if (btn) btn.disabled = true;
             try {
-                if (info) info.textContent = 'Mengunduh data suhu lengkap dari TimescaleDB…';
-                const rows = await _fetchAllLogsInRange(
-                    _fetchTimescaleTempRows, selectedTrafo, fromISO, toISO,
-                    (n, page) => { if (info) info.textContent = `Mengambil halaman ke-${page}… ${n} baris terkumpul.`; }
+                if (info) info.textContent = 'Mengunduh data suhu lengkap dari TimescaleDB (paralel)…';
+                const rows = await _fetchAllLogsInRangeFast(
+                    _fetchTimescaleTempRows, 'temperatureBounds', selectedTrafo, fromISO, toISO,
+                    (n, done, total) => { if (info) info.textContent = `Mengambil bagian ${done}/${total} secara paralel… ${n} baris terkumpul.`; }
                 );
                 if (!rows.length) {
                     if (info) info.textContent = 'Tidak ada data suhu pada rentang tersebut.';
@@ -4431,10 +4499,10 @@
             const info = document.getElementById('bf-info');
             if (btn) btn.disabled = true;
             try {
-                if (info) info.textContent = 'Mengunduh data beban lengkap dari TimescaleDB…';
-                const rows = await _fetchAllLogsInRange(
-                    _fetchTimescaleBebanRows, selectedTrafo, fromISO, toISO,
-                    (n, page) => { if (info) info.textContent = `Mengambil halaman ke-${page}… ${n} baris terkumpul.`; }
+                if (info) info.textContent = 'Mengunduh data beban lengkap dari TimescaleDB (paralel)…';
+                const rows = await _fetchAllLogsInRangeFast(
+                    _fetchTimescaleBebanRows, 'bebanBounds', selectedTrafo, fromISO, toISO,
+                    (n, done, total) => { if (info) info.textContent = `Mengambil bagian ${done}/${total} secara paralel… ${n} baris terkumpul.`; }
                 );
                 if (!rows.length) {
                     if (info) info.textContent = 'Tidak ada data beban pada rentang tersebut.';
