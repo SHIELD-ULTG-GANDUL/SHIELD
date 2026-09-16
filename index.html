@@ -4471,7 +4471,17 @@
                 }
             }
             await Promise.all(Array.from({ length: Math.min(CONCURRENCY, ranges.length) }, worker));
-            return perChunkRows.flat();
+
+            // PENTING: tiap chunk sudah urut DESC di dalam dirinya sendiri, tapi
+            // chunk ke-0..N digabung sesuai urutan waktu MULAI-nya (lama→baru),
+            // sedangkan isinya sendiri baru→lama — hasil flat() jadi "gigi gergaji"
+            // (turun, lompat naik ke chunk berikutnya, turun lagi), BUKAN urut
+            // kronologis penuh. Ini penyebab jam/tanggal terlihat acak di tabel &
+            // CSV. Urutkan ulang di sini supaya benar oleh desain, tidak bergantung
+            // tiap pemanggil untuk menyortir ulang.
+            const flatRows = perChunkRows.flat();
+            flatRows.sort((a, b) => _parseAnyTimestamp(b.timestamp) - _parseAnyTimestamp(a.timestamp));
+            return flatRows;
         }
 
         async function downloadFullSuhuCsv() {
