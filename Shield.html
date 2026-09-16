@@ -704,7 +704,7 @@
 
                     <!-- Filter Panel Suhu -->
                     <div id="fp-suhu" class="hidden border-b border-slate-200 bg-slate-50 px-6 py-4">
-                        <div class="grid grid-cols-2 md:grid-cols-5 gap-3 items-end">
+                        <div class="grid grid-cols-2 md:grid-cols-6 gap-3 items-end">
                             <div>
                                 <label class="filter-label">Dari Tanggal</label>
                                 <input type="date" id="tf-from" class="filter-input">
@@ -716,6 +716,14 @@
                             <div>
                                 <label class="filter-label">Suhu Maks ≥ (°C)</label>
                                 <input type="number" id="tf-mintemp" placeholder="Contoh: 60" class="filter-input">
+                            </div>
+                            <div>
+                                <label class="filter-label">Agregasi</label>
+                                <select id="tf-agg" class="filter-input" onchange="applyTempFilter()">
+                                    <option value="none">Data Mentah</option>
+                                    <option value="week">Rata-rata per Minggu</option>
+                                    <option value="month">Rata-rata per Bulan</option>
+                                </select>
                             </div>
                             <div>
                                 <label class="filter-label">Urutan Data</label>
@@ -730,10 +738,13 @@
                             </div>
                         </div>
                         <div class="mt-3 pt-3 border-t border-slate-200 flex items-center gap-3 flex-wrap">
+                            <button id="tf-loadall-btn" onclick="loadFullSuhuHistoryToTable()" class="flex items-center gap-1.5 bg-white border border-teal-300 hover:bg-teal-50 text-teal-700 text-xs font-bold px-4 py-2 rounded-lg transition-all disabled:opacity-50">
+                                <i data-lucide="history" class="w-3.5 h-3.5"></i> Muat Seluruh Histori (dari data pertama)
+                            </button>
                             <button id="tf-download-btn" onclick="downloadFullSuhuCsv()" class="flex items-center gap-1.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold px-4 py-2 rounded-lg transition-all disabled:opacity-50">
                                 <i data-lucide="download" class="w-3.5 h-3.5"></i> Download CSV Lengkap (sesuai rentang di atas)
                             </button>
-                            <span class="text-[10px] text-slate-400">Kosongkan Dari/Sampai Tanggal untuk mengunduh <b>seluruh</b> histori suhu trafo yang sedang dipilih — diambil langsung dari TimescaleDB, tidak dibatasi jumlah baris seperti tabel di bawah.</span>
+                            <span class="text-[10px] text-slate-400 basis-full">Kosongkan Dari/Sampai Tanggal untuk memuat/mengunduh <b>seluruh</b> histori suhu trafo yang sedang dipilih dari data pertama. Untuk histori panjang, pilih <b>Agregasi</b> Mingguan/Bulanan supaya tabel tetap ringan (bukan dari batasan sistem, hanya supaya browser tidak lambat menampilkan puluhan ribu baris mentah sekaligus).</span>
                         </div>
                         <div id="tf-info" class="mt-2 text-[10px] text-slate-400 font-mono"></div>
                     </div>
@@ -787,7 +798,7 @@
 
                     <!-- Filter Panel Beban -->
                     <div id="fp-beban" class="hidden border-b border-violet-200 bg-violet-50/40 px-6 py-4">
-                        <div class="grid grid-cols-2 md:grid-cols-5 gap-3 items-end">
+                        <div class="grid grid-cols-2 md:grid-cols-6 gap-3 items-end">
                             <div>
                                 <label class="filter-label">Dari Tanggal</label>
                                 <input type="date" id="bf-from" class="filter-input">
@@ -799,6 +810,14 @@
                             <div>
                                 <label class="filter-label">Arus I_max ≥ (A)</label>
                                 <input type="number" id="bf-minI" placeholder="Contoh: 500" class="filter-input">
+                            </div>
+                            <div>
+                                <label class="filter-label">Agregasi</label>
+                                <select id="bf-agg" class="filter-input" onchange="applyBebanFilter()">
+                                    <option value="none">Data Mentah</option>
+                                    <option value="week">Rata-rata per Minggu</option>
+                                    <option value="month">Rata-rata per Bulan</option>
+                                </select>
                             </div>
                             <div>
                                 <label class="filter-label">Urutan Data</label>
@@ -813,10 +832,13 @@
                             </div>
                         </div>
                         <div class="mt-3 pt-3 border-t border-violet-200 flex items-center gap-3 flex-wrap">
+                            <button id="bf-loadall-btn" onclick="loadFullBebanHistoryToTable()" class="flex items-center gap-1.5 bg-white border border-violet-300 hover:bg-violet-50 text-violet-700 text-xs font-bold px-4 py-2 rounded-lg transition-all disabled:opacity-50">
+                                <i data-lucide="history" class="w-3.5 h-3.5"></i> Muat Seluruh Histori (dari data pertama)
+                            </button>
                             <button id="bf-download-btn" onclick="downloadFullBebanCsv()" class="flex items-center gap-1.5 bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold px-4 py-2 rounded-lg transition-all disabled:opacity-50">
                                 <i data-lucide="download" class="w-3.5 h-3.5"></i> Download CSV Lengkap (sesuai rentang di atas)
                             </button>
-                            <span class="text-[10px] text-slate-400">Kosongkan Dari/Sampai Tanggal untuk mengunduh <b>seluruh</b> histori beban trafo yang sedang dipilih — diambil langsung dari TimescaleDB, tidak dibatasi jumlah baris seperti tabel di bawah.</span>
+                            <span class="text-[10px] text-slate-400 basis-full">Kosongkan Dari/Sampai Tanggal untuk memuat/mengunduh <b>seluruh</b> histori beban trafo yang sedang dipilih dari data pertama. Untuk histori panjang, pilih <b>Agregasi</b> Mingguan/Bulanan supaya tabel tetap ringan (bukan dari batasan sistem, hanya supaya browser tidak lambat menampilkan puluhan ribu baris mentah sekaligus).</span>
                         </div>
                         <div id="bf-info" class="mt-2 text-[10px] text-slate-400 font-mono"></div>
                     </div>
@@ -5156,10 +5178,62 @@
                 `Total: ${firestoreLogs.length} baris (belum difilter)`;
         };
 
+        // ── Agregasi Per Minggu/Bulan — dipakai bersama oleh filter Log Suhu & Log
+        // Beban supaya histori panjang tetap ringan ditampilkan sebagai rata-rata,
+        // bukan ribuan baris mentah sekaligus. Hasil agregasi punya field yang
+        // sama persis dengan baris mentah (formattedTime, docSortTime, trafo, +
+        // field numerik), jadi loop render tabel yang sudah ada tidak perlu diubah.
+        function _periodKeyAndLabel(d, mode) {
+            if (mode === 'month') {
+                const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                const label = d.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
+                const sortTime = new Date(d.getFullYear(), d.getMonth(), 1).getTime();
+                return { key, label, sortTime };
+            }
+            // week — Senin sebagai awal minggu
+            const monday = new Date(d);
+            const dayIdx = (d.getDay() + 6) % 7; // 0 = Senin
+            monday.setHours(0, 0, 0, 0);
+            monday.setDate(d.getDate() - dayIdx);
+            const sunday = new Date(monday);
+            sunday.setDate(monday.getDate() + 6);
+            const key = monday.toISOString().slice(0, 10);
+            const label = `${monday.toLocaleDateString('id-ID', { day: '2-digit', month: 'short' })} – ${sunday.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}`;
+            return { key, label, sortTime: monday.getTime() };
+        }
+
+        function _aggregateRowsByPeriod(rows, mode, numericFields) {
+            const groups = new Map();
+            rows.forEach(r => {
+                const d = new Date(r.docSortTime);
+                const { key, label, sortTime } = _periodKeyAndLabel(d, mode);
+                if (!groups.has(key)) groups.set(key, { label, sortTime, trafo: r.trafo, items: [] });
+                groups.get(key).items.push(r);
+            });
+            return Array.from(groups.values()).map(g => {
+                const out = {
+                    formattedTime: `${g.label} (rata-rata, n=${g.items.length})`,
+                    docSortTime: g.sortTime,
+                    trafo: g.trafo
+                };
+                numericFields.forEach(f => {
+                    const vals = g.items.map(it => it[f]).filter(v => Number.isFinite(v));
+                    out[f] = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
+                });
+                return out;
+            });
+        }
+
+        // Batas render mentah di browser — bukan batas data (Download CSV /
+        // Muat Seluruh Histori tetap mengambil semuanya), hanya supaya tabel
+        // HTML tidak dipaksa merender puluhan ribu baris sekaligus dan macet.
+        const RAW_TABLE_RENDER_CAP = 3000;
+
         function applyTempFilter() {
             const from    = document.getElementById('tf-from').value;
             const to      = document.getElementById('tf-to').value;
             const minTemp = parseFloat(document.getElementById('tf-mintemp').value);
+            const agg     = document.getElementById('tf-agg').value;
             const sort    = document.getElementById('tf-sort').value;
 
             let data = [..._tempLogsRaw];
@@ -5178,7 +5252,18 @@
                     return mx >= minTemp;
                 });
             }
+
+            const matchedCount = data.length;
+            if (agg !== 'none') {
+                data = _aggregateRowsByPeriod(data, agg, ['R_Atas', 'R_Bawah', 'S_Atas', 'S_Bawah', 'T_Atas', 'T_Bawah']);
+            }
             data.sort((a, b) => sort === 'asc' ? a.docSortTime - b.docSortTime : b.docSortTime - a.docSortTime);
+
+            let truncatedNote = '';
+            if (agg === 'none' && data.length > RAW_TABLE_RENDER_CAP) {
+                truncatedNote = ` — hanya ${RAW_TABLE_RENDER_CAP} baris (${sort === 'asc' ? 'terlama' : 'terbaru'}) ditampilkan mentah; pilih Agregasi Mingguan/Bulanan atau gunakan Download CSV untuk melihat semuanya.`;
+                data = data.slice(0, RAW_TABLE_RENDER_CAP);
+            }
 
             // Render hasil filter
             const tableBody = document.getElementById('logger-body');
@@ -5205,16 +5290,69 @@
             const badge = document.getElementById('fp-suhu-badge');
             if (badge) badge.classList.remove('hidden');
             document.getElementById('tf-info').textContent =
-                `Filter aktif: ${data.length} dari ${_tempLogsRaw.length} baris ditampilkan`;
+                `Filter aktif: ${matchedCount} dari ${_tempLogsRaw.length} baris cocok` +
+                (agg !== 'none' ? `, diringkas jadi ${data.length} periode (${agg === 'week' ? 'mingguan' : 'bulanan'})` : ` ditampilkan`) +
+                truncatedNote;
         }
 
         function resetTempFilter() {
             ['tf-from','tf-to','tf-mintemp'].forEach(id => { const e = document.getElementById(id); if(e) e.value = ''; });
             document.getElementById('tf-sort').value = 'desc';
-            firestoreLogs = [..._tempLogsRaw];
-            renderLoggerTable();
+            document.getElementById('tf-agg').value = 'none';
             const badge = document.getElementById('fp-suhu-badge');
             if (badge) badge.classList.add('hidden');
+            // Nyalakan lagi polling live (dihentikan oleh "Muat Seluruh Histori") dan
+            // biarkan itu yang memuat ulang ~300 baris terbaru + merender tabel.
+            if (window.timescaleReady && typeof subscribeTemperatureLogs === 'function') {
+                subscribeTemperatureLogs();
+            } else {
+                firestoreLogs = [..._tempLogsRaw];
+                renderLoggerTable();
+            }
+        }
+
+        // Ambil SELURUH histori suhu (dari data pertama, atau sesuai rentang
+        // Dari/Sampai Tanggal bila diisi) langsung dari TimescaleDB secara
+        // paralel, lalu muat ke tabel Logger (mengganti data yang tadinya
+        // dibatasi ~300 baris terbaru).
+        async function loadFullSuhuHistoryToTable() {
+            const fromVal = document.getElementById('tf-from').value;
+            const toVal   = document.getElementById('tf-to').value;
+            const fromISO = fromVal ? new Date(fromVal + 'T00:00:00').toISOString() : null;
+            const toISO   = toVal   ? new Date(toVal + 'T23:59:59.999').toISOString() : null;
+
+            const btn  = document.getElementById('tf-loadall-btn');
+            const info = document.getElementById('tf-info');
+            if (btn) btn.disabled = true;
+            try {
+                if (info) info.textContent = 'Memuat seluruh histori suhu dari TimescaleDB (paralel)…';
+                const rows = await _fetchAllLogsInRangeFast(
+                    _fetchTimescaleTempRows, 'temperatureBounds', selectedTrafo, fromISO, toISO,
+                    (n, done, total) => { if (info) info.textContent = `Mengambil bagian ${done}/${total} secara paralel… ${n} baris terkumpul.`; }
+                );
+                if (!rows.length) {
+                    if (info) info.textContent = 'Tidak ada data suhu pada rentang tersebut.';
+                    return;
+                }
+                // Hentikan polling live (30 detik) selagi menampilkan snapshot histori
+                // penuh — kalau tidak, poll berikutnya akan menimpa balik data ini
+                // dengan hanya ~300 baris terbaru. Diaktifkan lagi lewat "Reset".
+                if (_timescalePollTimer) { clearInterval(_timescalePollTimer); _timescalePollTimer = null; }
+
+                firestoreLogs = rows
+                    .map(_timescaleRowToLoggerRow)
+                    .filter(r => r.docSortTime > 0)
+                    .sort((a, b) => b.docSortTime - a.docSortTime);
+                _tempLogsRaw = [...firestoreLogs];
+                const aggSel = document.getElementById('tf-agg');
+                if (aggSel.value === 'none') aggSel.value = 'week'; // hindari render puluhan ribu baris mentah
+                applyTempFilter();
+            } catch (err) {
+                console.error('[LOAD FULL SUHU]', err);
+                if (info) info.textContent = 'Gagal memuat seluruh histori: ' + err.message;
+            } finally {
+                if (btn) btn.disabled = false;
+            }
         }
 
         // =========================================================
@@ -5234,6 +5372,7 @@
             const from = document.getElementById('bf-from').value;
             const to   = document.getElementById('bf-to').value;
             const minI = parseFloat(document.getElementById('bf-minI').value);
+            const agg  = document.getElementById('bf-agg').value;
             const sort = document.getElementById('bf-sort').value;
 
             let data = [..._bebanLogsRaw];
@@ -5249,7 +5388,18 @@
             if (!isNaN(minI)) {
                 data = data.filter(r => Math.max(r.I_R, r.I_S, r.I_T) >= minI);
             }
+
+            const matchedCount = data.length;
+            if (agg !== 'none') {
+                data = _aggregateRowsByPeriod(data, agg, ['I_R', 'I_S', 'I_T', 'V_R', 'V_S', 'V_T', 'kW', 'kVAR', 'kVA', 'PF', 'beban_persen']);
+            }
             data.sort((a, b) => sort === 'asc' ? a.docSortTime - b.docSortTime : b.docSortTime - a.docSortTime);
+
+            let truncatedNote = '';
+            if (agg === 'none' && data.length > RAW_TABLE_RENDER_CAP) {
+                truncatedNote = ` — hanya ${RAW_TABLE_RENDER_CAP} baris (${sort === 'asc' ? 'terlama' : 'terbaru'}) ditampilkan mentah; pilih Agregasi Mingguan/Bulanan atau gunakan Download CSV untuk melihat semuanya.`;
+                data = data.slice(0, RAW_TABLE_RENDER_CAP);
+            }
 
             const tableBody = document.getElementById('beban-logger-body');
             tableBody.innerHTML = '';
@@ -5279,16 +5429,69 @@
             const badge = document.getElementById('fp-beban-badge');
             if (badge) badge.classList.remove('hidden');
             const info = document.getElementById('bf-info');
-            if (info) info.textContent = `Filter aktif: ${data.length} dari ${_bebanLogsRaw.length} baris ditampilkan`;
+            if (info) info.textContent =
+                `Filter aktif: ${matchedCount} dari ${_bebanLogsRaw.length} baris cocok` +
+                (agg !== 'none' ? `, diringkas jadi ${data.length} periode (${agg === 'week' ? 'mingguan' : 'bulanan'})` : ` ditampilkan`) +
+                truncatedNote;
         }
 
         function resetBebanFilter() {
             ['bf-from','bf-to','bf-minI'].forEach(id => { const e = document.getElementById(id); if(e) e.value = ''; });
             document.getElementById('bf-sort').value = 'desc';
-            firestoreBebanLogs = [..._bebanLogsRaw];
-            renderBebanLoggerTable();
+            document.getElementById('bf-agg').value = 'none';
             const badge = document.getElementById('fp-beban-badge');
             if (badge) badge.classList.add('hidden');
+            // Nyalakan lagi polling live (dihentikan oleh "Muat Seluruh Histori") dan
+            // biarkan itu yang memuat ulang ~300 baris terbaru + merender tabel.
+            if (window.timescaleReady && typeof _subscribeBebanDataTimescale === 'function') {
+                _subscribeBebanDataTimescale();
+            } else {
+                firestoreBebanLogs = [..._bebanLogsRaw];
+                renderBebanLoggerTable();
+            }
+        }
+
+        // Ambil SELURUH histori beban (dari data pertama, atau sesuai rentang
+        // Dari/Sampai Tanggal bila diisi) langsung dari TimescaleDB secara
+        // paralel, lalu muat ke tabel Logger (mengganti data yang tadinya
+        // dibatasi ~300 baris terbaru).
+        async function loadFullBebanHistoryToTable() {
+            const fromVal = document.getElementById('bf-from').value;
+            const toVal   = document.getElementById('bf-to').value;
+            const fromISO = fromVal ? new Date(fromVal + 'T00:00:00').toISOString() : null;
+            const toISO   = toVal   ? new Date(toVal + 'T23:59:59.999').toISOString() : null;
+
+            const btn  = document.getElementById('bf-loadall-btn');
+            const info = document.getElementById('bf-info');
+            if (btn) btn.disabled = true;
+            try {
+                if (info) info.textContent = 'Memuat seluruh histori beban dari TimescaleDB (paralel)…';
+                const rows = await _fetchAllLogsInRangeFast(
+                    _fetchTimescaleBebanRows, 'bebanBounds', selectedTrafo, fromISO, toISO,
+                    (n, done, total) => { if (info) info.textContent = `Mengambil bagian ${done}/${total} secara paralel… ${n} baris terkumpul.`; }
+                );
+                if (!rows.length) {
+                    if (info) info.textContent = 'Tidak ada data beban pada rentang tersebut.';
+                    return;
+                }
+                // Hentikan polling live (30 detik) selagi menampilkan snapshot histori
+                // penuh — kalau tidak, poll berikutnya akan menimpa balik data ini
+                // dengan hanya ~300 baris terbaru. Diaktifkan lagi lewat "Reset".
+                if (_tsBebanLogsTimer) { clearInterval(_tsBebanLogsTimer); _tsBebanLogsTimer = null; }
+
+                firestoreBebanLogs = rows
+                    .map(r => _tsNormalizeBebanRow(r, selectedTrafo))
+                    .sort((a, b) => b.docSortTime - a.docSortTime);
+                _bebanLogsRaw = [...firestoreBebanLogs];
+                const aggSel = document.getElementById('bf-agg');
+                if (aggSel.value === 'none') aggSel.value = 'week'; // hindari render puluhan ribu baris mentah
+                applyBebanFilter();
+            } catch (err) {
+                console.error('[LOAD FULL BEBAN]', err);
+                if (info) info.textContent = 'Gagal memuat seluruh histori: ' + err.message;
+            } finally {
+                if (btn) btn.disabled = false;
+            }
         }
 
         // =============================================================
