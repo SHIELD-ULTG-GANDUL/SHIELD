@@ -66,6 +66,7 @@ def temperature_logs(
     trafo: int = Query(..., ge=2, le=4, description="Nomor trafo: 2, 3, atau 4"),
     limit: int = Query(300, ge=1, le=5000),
     from_: Optional[datetime] = Query(default=None, alias="from", description="Batas awal ISO8601, opsional"),
+    to_: Optional[datetime] = Query(default=None, alias="to", description="Batas akhir ISO8601, opsional — dipakai untuk paginasi mundur saat mengunduh rentang penuh"),
     x_api_key: Optional[str] = Header(default=None, alias="X-API-Key"),
 ):
     """Mengembalikan N pembacaan suhu terbaru untuk satu trafo, terurut dari
@@ -82,11 +83,13 @@ def temperature_logs(
                    temp_ambient AS "ambient",
                    timestamp AS ts
             FROM trafo_temperature
-            WHERE trafo_id = %s AND (%s::timestamptz IS NULL OR "timestamp" >= %s)
+            WHERE trafo_id = %s
+              AND (%s::timestamptz IS NULL OR "timestamp" >= %s)
+              AND (%s::timestamptz IS NULL OR "timestamp" <= %s)
             ORDER BY "timestamp" DESC
             LIMIT %s
             """,
-            (str(trafo), from_, from_, limit),
+            (str(trafo), from_, from_, to_, to_, limit),
         )
         rows = cur.fetchall()
 
@@ -102,6 +105,7 @@ def beban_logs(
     trafo: int = Query(..., ge=2, le=4, description="Nomor trafo: 2, 3, atau 4"),
     limit: int = Query(300, ge=1, le=5000),
     from_: Optional[datetime] = Query(default=None, alias="from", description="Batas awal ISO8601, opsional"),
+    to_: Optional[datetime] = Query(default=None, alias="to", description="Batas akhir ISO8601, opsional — dipakai untuk paginasi mundur saat mengunduh rentang penuh"),
     x_api_key: Optional[str] = Header(default=None, alias="X-API-Key"),
 ):
     """Mengembalikan N pembacaan beban (arus/tegangan/daya) terbaru untuk satu
@@ -121,11 +125,13 @@ def beban_logs(
                    current_max, freq,
                    timestamp AS ts
             FROM trafo_load
-            WHERE trafo_id = %s AND (%s::timestamptz IS NULL OR "timestamp" >= %s)
+            WHERE trafo_id = %s
+              AND (%s::timestamptz IS NULL OR "timestamp" >= %s)
+              AND (%s::timestamptz IS NULL OR "timestamp" <= %s)
             ORDER BY "timestamp" DESC
             LIMIT %s
             """,
-            (str(trafo), from_, from_, limit),
+            (str(trafo), from_, from_, to_, to_, limit),
         )
         rows = cur.fetchall()
 

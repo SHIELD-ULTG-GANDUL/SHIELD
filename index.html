@@ -729,6 +729,12 @@
                                 <button onclick="resetTempFilter()" class="bg-white border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 rounded-lg hover:bg-slate-50 flex items-center gap-1"><i data-lucide="x" class="w-3.5 h-3.5"></i> Reset</button>
                             </div>
                         </div>
+                        <div class="mt-3 pt-3 border-t border-slate-200 flex items-center gap-3 flex-wrap">
+                            <button id="tf-download-btn" onclick="downloadFullSuhuCsv()" class="flex items-center gap-1.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold px-4 py-2 rounded-lg transition-all disabled:opacity-50">
+                                <i data-lucide="download" class="w-3.5 h-3.5"></i> Download CSV Lengkap (sesuai rentang di atas)
+                            </button>
+                            <span class="text-[10px] text-slate-400">Kosongkan Dari/Sampai Tanggal untuk mengunduh <b>seluruh</b> histori suhu trafo yang sedang dipilih — diambil langsung dari TimescaleDB, tidak dibatasi jumlah baris seperti tabel di bawah.</span>
+                        </div>
                         <div id="tf-info" class="mt-2 text-[10px] text-slate-400 font-mono"></div>
                     </div>
 
@@ -805,6 +811,12 @@
                                 <button onclick="applyBebanFilter()" class="btn-action px-4 py-2 text-xs flex-1 flex items-center justify-center gap-1"><i data-lucide="check" class="w-3.5 h-3.5"></i> Terapkan</button>
                                 <button onclick="resetBebanFilter()" class="bg-white border border-violet-200 px-3 py-2 text-xs font-bold text-violet-700 rounded-lg hover:bg-violet-50 flex items-center gap-1"><i data-lucide="x" class="w-3.5 h-3.5"></i> Reset</button>
                             </div>
+                        </div>
+                        <div class="mt-3 pt-3 border-t border-violet-200 flex items-center gap-3 flex-wrap">
+                            <button id="bf-download-btn" onclick="downloadFullBebanCsv()" class="flex items-center gap-1.5 bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold px-4 py-2 rounded-lg transition-all disabled:opacity-50">
+                                <i data-lucide="download" class="w-3.5 h-3.5"></i> Download CSV Lengkap (sesuai rentang di atas)
+                            </button>
+                            <span class="text-[10px] text-slate-400">Kosongkan Dari/Sampai Tanggal untuk mengunduh <b>seluruh</b> histori beban trafo yang sedang dipilih — diambil langsung dari TimescaleDB, tidak dibatasi jumlah baris seperti tabel di bawah.</span>
                         </div>
                         <div id="bf-info" class="mt-2 text-[10px] text-slate-400 font-mono"></div>
                     </div>
@@ -2500,9 +2512,9 @@
         }
 
         // ── SUHU KONTAK INCOMING CB ───────────────────────────────────────
-        async function _fetchTimescaleTempRows(trafo, limit = 300, fromISO = null) {
+        async function _fetchTimescaleTempRows(trafo, limit = 300, fromISO = null, toISO = null) {
             return await _tsFetch(TIMESCALE_ENDPOINTS.temperature, {
-                trafo: trafo, limit: limit, from: fromISO
+                trafo: trafo, limit: limit, from: fromISO, to: toISO
             });
         }
 
@@ -2535,9 +2547,9 @@
         }
 
         // ── BEBAN TRAFO ───────────────────────────────────────────────────
-        async function _fetchTimescaleBebanRows(trafo, limit = 300, fromISO = null) {
+        async function _fetchTimescaleBebanRows(trafo, limit = 300, fromISO = null, toISO = null) {
             return await _tsFetch(TIMESCALE_ENDPOINTS.beban, {
-                trafo: trafo, limit: limit, from: fromISO
+                trafo: trafo, limit: limit, from: fromISO, to: toISO
             });
         }
 
@@ -4317,6 +4329,134 @@
             XLSX.utils.book_append_sheet(workbook, worksheet, "Log Beban PM Meter");
             XLSX.writeFile(workbook, `SHIELD_Beban_Log_Trafo_${selectedTrafo}_${new Date().toLocaleDateString().replace(/\//g, '-')}.xlsx`);
         };
+
+        // =========================================================
+        // DOWNLOAD LOG LENGKAP (BY RANGE) — Suhu & Beban, langsung dari
+        // TimescaleDB, tidak dibatasi oleh jumlah baris yang sedang di-load
+        // di tabel Logger. Mendukung paginasi karena API dibatasi 5000
+        // baris/request (lihat server/api.py).
+        // =========================================================
+        const LOG_DOWNLOAD_PAGE_LIMIT = 5000;
+
+        function _csvEscape(v) {
+            if (v === null || v === undefined) return '';
+            const s = String(v);
+            return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+        }
+
+        function _triggerCsvDownload(filename, headers, rows) {
+            const lines = [headers.map(_csvEscape).join(',')];
+            rows.forEach(r => lines.push(r.map(_csvEscape).join(',')));
+            // BOM (﻿) supaya karakter non-ASCII (°, Δ) tampil benar saat dibuka di Excel.
+            const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = filename;
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(url), 5000);
+        }
+
+        // Ambil SEMUA baris dalam rentang [fromISO, toISO] dengan paginasi mundur:
+        // API selalu ORDER BY timestamp DESC + LIMIT tanpa OFFSET, jadi setiap
+        // halaman berikutnya memakai timestamp tertua dari halaman sebelumnya
+        // sebagai batas `to` yang baru (eksklusif, -1ms supaya tidak dobel).
+        // fromISO/toISO kosong (null) berarti tanpa batas — otomatis mengambil
+        // SELURUH histori yang ada.
+        async function _fetchAllLogsInRange(fetchFn, trafo, fromISO, toISO, onProgress) {
+            let all = [];
+            let cursorTo = toISO;
+            const fromMs = fromISO ? new Date(fromISO).getTime() : -Infinity;
+            const MAX_PAGES = 1000; // batas pengaman (~5 juta baris)
+            for (let page = 0; page < MAX_PAGES; page++) {
+                const rows = await fetchFn(trafo, LOG_DOWNLOAD_PAGE_LIMIT, fromISO, cursorTo);
+                if (!rows || !rows.length) break;
+                all = all.concat(rows);
+                if (onProgress) onProgress(all.length, page + 1);
+                if (rows.length < LOG_DOWNLOAD_PAGE_LIMIT) break; // sudah mencapai ujung rentang
+                const times = rows
+                    .map(r => _parseAnyTimestamp(r.timestamp || r.time || r.ts || r.waktu || r.created_at))
+                    .filter(t => t > 0);
+                if (!times.length) break;
+                const oldest = Math.min(...times);
+                if (oldest <= fromMs) break;
+                cursorTo = new Date(oldest - 1).toISOString();
+            }
+            return all;
+        }
+
+        async function downloadFullSuhuCsv() {
+            const fromVal = document.getElementById('tf-from').value;
+            const toVal   = document.getElementById('tf-to').value;
+            const fromISO = fromVal ? new Date(fromVal + 'T00:00:00').toISOString() : null;
+            const toISO   = toVal   ? new Date(toVal + 'T23:59:59.999').toISOString() : null;
+
+            const btn  = document.getElementById('tf-download-btn');
+            const info = document.getElementById('tf-info');
+            if (btn) btn.disabled = true;
+            try {
+                if (info) info.textContent = 'Mengunduh data suhu lengkap dari TimescaleDB…';
+                const rows = await _fetchAllLogsInRange(
+                    _fetchTimescaleTempRows, selectedTrafo, fromISO, toISO,
+                    (n, page) => { if (info) info.textContent = `Mengambil halaman ke-${page}… ${n} baris terkumpul.`; }
+                );
+                if (!rows.length) {
+                    if (info) info.textContent = 'Tidak ada data suhu pada rentang tersebut.';
+                    return;
+                }
+                const normalized = rows
+                    .map(r => _tsNormalizeTempRow(r, selectedTrafo))
+                    .sort((a, b) => b.docSortTime - a.docSortTime);
+                const headers = ['Waktu', 'Trafo', 'R_Atas (C)', 'R_Bawah (C)', 'S_Atas (C)', 'S_Bawah (C)', 'T_Atas (C)', 'T_Bawah (C)'];
+                const csvRows = normalized.map(r => [r.formattedTime, `Trafo ${selectedTrafo}`, r.R_Atas, r.R_Bawah, r.S_Atas, r.S_Bawah, r.T_Atas, r.T_Bawah]);
+                _triggerCsvDownload(
+                    `SHIELD_Suhu_Trafo${selectedTrafo}_${fromVal || 'awal'}_sd_${toVal || 'sekarang'}.csv`,
+                    headers, csvRows
+                );
+                if (info) info.textContent = `✓ ${normalized.length} baris suhu Trafo ${selectedTrafo} berhasil diunduh sebagai CSV.`;
+            } catch (err) {
+                console.error('[DOWNLOAD SUHU CSV]', err);
+                if (info) info.textContent = 'Gagal mengunduh: ' + err.message;
+            } finally {
+                if (btn) btn.disabled = false;
+            }
+        }
+
+        async function downloadFullBebanCsv() {
+            const fromVal = document.getElementById('bf-from').value;
+            const toVal   = document.getElementById('bf-to').value;
+            const fromISO = fromVal ? new Date(fromVal + 'T00:00:00').toISOString() : null;
+            const toISO   = toVal   ? new Date(toVal + 'T23:59:59.999').toISOString() : null;
+
+            const btn  = document.getElementById('bf-download-btn');
+            const info = document.getElementById('bf-info');
+            if (btn) btn.disabled = true;
+            try {
+                if (info) info.textContent = 'Mengunduh data beban lengkap dari TimescaleDB…';
+                const rows = await _fetchAllLogsInRange(
+                    _fetchTimescaleBebanRows, selectedTrafo, fromISO, toISO,
+                    (n, page) => { if (info) info.textContent = `Mengambil halaman ke-${page}… ${n} baris terkumpul.`; }
+                );
+                if (!rows.length) {
+                    if (info) info.textContent = 'Tidak ada data beban pada rentang tersebut.';
+                    return;
+                }
+                const normalized = rows
+                    .map(r => _tsNormalizeBebanRow(r, selectedTrafo))
+                    .sort((a, b) => b.docSortTime - a.docSortTime);
+                const headers = ['Waktu', 'Trafo', 'I_R (A)', 'I_S (A)', 'I_T (A)', 'V_R (V)', 'V_S (V)', 'V_T (V)', 'MW', 'MVAR', 'MVA', 'PF', 'Beban (%)'];
+                const csvRows = normalized.map(r => [r.formattedTime, `Trafo ${selectedTrafo}`, r.I_R, r.I_S, r.I_T, r.V_R, r.V_S, r.V_T, r.kW, r.kVAR, r.kVA, r.PF, r.beban_persen]);
+                _triggerCsvDownload(
+                    `SHIELD_Beban_Trafo${selectedTrafo}_${fromVal || 'awal'}_sd_${toVal || 'sekarang'}.csv`,
+                    headers, csvRows
+                );
+                if (info) info.textContent = `✓ ${normalized.length} baris beban Trafo ${selectedTrafo} berhasil diunduh sebagai CSV.`;
+            } catch (err) {
+                console.error('[DOWNLOAD BEBAN CSV]', err);
+                if (info) info.textContent = 'Gagal mengunduh: ' + err.message;
+            } finally {
+                if (btn) btn.disabled = false;
+            }
+        }
 
         // =========================================================
         // KPI DELTA SUHU, IMBALANCE BEBAN & HOTSPOT (SKDIR PLN)
