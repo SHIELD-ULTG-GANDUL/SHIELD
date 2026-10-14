@@ -5679,6 +5679,39 @@
             if (typeof _scheduleMLRealtimeUpdate === 'function') _scheduleMLRealtimeUpdate('update suhu ambient GI Gandul');
         }
 
+        // T3 (SHIELD Tahap 1, Cabang B): server TIDAK bisa memanggil Open-Meteo
+        // langsung (proxy keluar meng-intercept TLS, dikonfirmasi audit Fase 0).
+        // Browser ini sudah berhasil fetch Open-Meteo di atas, jadi browser juga
+        // yang merelay hasilnya (ok maupun gagal) ke POST /api/ambient-logs supaya
+        // tersimpan sebagai histori di server (dipakai ambient_at(), T4). Dedup
+        // per slot 10 menit dilakukan SERVER-SIDE (ON CONFLICT DO NOTHING) — di
+        // sini sekadar best-effort, gagal kirim tidak mengganggu dashboard sama
+        // sekali (fire-and-forget, tanpa retry).
+        let _lastAmbientRelaySlotMs = null;
+        async function _relayAmbientLogToServer(temperatureC, ok) {
+            if (!window.timescaleReady) return; // T1: tidak ada endpoint server dikonfigurasi
+            const slotMs = Math.floor(Date.now() / (10 * 60 * 1000)) * (10 * 60 * 1000);
+            if (_lastAmbientRelaySlotMs === slotMs) return; // sudah dikirim utk slot ini
+            _lastAmbientRelaySlotMs = slotMs;
+            try {
+                const headers = { 'Content-Type': 'application/json' };
+                if (TIMESCALE_API_KEY) headers['X-API-Key'] = TIMESCALE_API_KEY;
+                await fetch(`${TIMESCALE_API_BASE_URL}/ambient-logs`, {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({
+                        timestamp: new Date().toISOString(),
+                        temperature_c: ok ? temperatureC : null,
+                        ok,
+                        latitude: GANDUL_WEATHER_POINT.latitude,
+                        longitude: GANDUL_WEATHER_POINT.longitude,
+                    }),
+                });
+            } catch (err) {
+                console.warn('[SHIELD AMBIENT] Gagal merelay ambient log ke server:', err.message);
+            }
+        }
+
         async function refreshGandulAmbientTemperature() {
             const { latitude, longitude } = GANDUL_WEATHER_POINT;
             const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m&timezone=Asia%2FJakarta`;
@@ -5689,6 +5722,7 @@
                 const temp = Number(json?.current?.temperature_2m);
                 if (!Number.isFinite(temp)) throw new Error('temperature_2m kosong');
                 _setAmbientWeatherBase(temp, 'Open-Meteo real-time GI Gandul', true);
+                _relayAmbientLogToServer(ambientWeatherState.temp, true);
             } catch (err) {
                 // Tidak ada fallback sinus sintetis di v2 — kalau API gagal, ambient
                 // tetap pada pembacaan API terakhir (apiOk diset false supaya
@@ -5696,6 +5730,7 @@
                 // sudah lewat ambientCfg.maxAgeMinutes).
                 ambientWeatherState.apiOk = false;
                 console.warn('[SHIELD AMBIENT] Failed to fetch real-time temperature for GI Gandul:', err.message);
+                _relayAmbientLogToServer(null, false);
             }
         }
 

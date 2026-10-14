@@ -163,3 +163,102 @@ class TestApiKeyAuth:
     def test_check_api_key_accepts_correct_key_when_enabled(self, monkeypatch):
         monkeypatch.setattr(api, "API_KEY", "rahasia")
         api._check_api_key("rahasia")  # tidak raise = lolos
+
+
+# ── /api/ambient-logs (T3, Cabang B) ─────────────────────────────────────
+
+class _FakeAmbientCursor:
+    """Simulasi INSERT ... ON CONFLICT (slot_10min) DO NOTHING RETURNING id
+    -- `seen_slots` dibagi antar panggilan dalam satu test lewat referensi."""
+
+    def __init__(self, seen_slots: set):
+        self._seen_slots = seen_slots
+        self._last_row = None
+
+    def execute(self, query, params=None):
+        if "INSERT INTO ambient_logs" in query:
+            slot = params[1]
+            if slot in self._seen_slots:
+                self._last_row = None
+            else:
+                self._seen_slots.add(slot)
+                self._last_row = {"id": 1}
+        elif "FROM ambient_logs" in query and "SELECT \"timestamp\"" in query:
+            self._last_row = None
+
+    def fetchone(self):
+        return self._last_row
+
+    def fetchall(self):
+        return []
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
+class _FakeAmbientConn:
+    def __init__(self, seen_slots: set):
+        self._seen_slots = seen_slots
+
+    def cursor(self, row_factory=None):
+        return _FakeAmbientCursor(self._seen_slots)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
+class _FakeAmbientPool:
+    def __init__(self):
+        self._seen_slots: set = set()
+
+    def connection(self):
+        return _FakeAmbientConn(self._seen_slots)
+
+
+@pytest.fixture
+def fake_ambient_pool(monkeypatch):
+    pool = _FakeAmbientPool()
+    monkeypatch.setattr(api, "_pool", pool)
+    return pool
+
+
+class TestCreateAmbientLog:
+    def test_valid_ok_true_is_stored(self, fake_ambient_pool):
+        body = api.AmbientLogIn(timestamp="2026-10-14T10:03:00+00:00", temperature_c=29.5, ok=True)
+        result = api.create_ambient_log(body, x_api_key=None)
+        assert result["stored"] is True
+
+    def test_duplicate_slot_is_not_stored_twice(self, fake_ambient_pool):
+        body1 = api.AmbientLogIn(timestamp="2026-10-14T10:03:00+00:00", temperature_c=29.5, ok=True)
+        body2 = api.AmbientLogIn(timestamp="2026-10-14T10:07:00+00:00", temperature_c=30.0, ok=True)
+        api.create_ambient_log(body1, x_api_key=None)
+        result = api.create_ambient_log(body2, x_api_key=None)
+        assert result["stored"] is False, "slot 10-menit yang sama harus dedup, bukan ditimpa"
+
+    def test_ok_false_with_null_temperature_is_accepted(self, fake_ambient_pool):
+        """ok=false (fetch Open-Meteo gagal di browser) adalah sinyal kualitas
+        data yang sah -- TIDAK ditolak, TIDAK dikarang nilainya."""
+        body = api.AmbientLogIn(timestamp="2026-10-14T10:23:00+00:00", temperature_c=None, ok=False)
+        result = api.create_ambient_log(body, x_api_key=None)
+        assert result["stored"] is True
+
+    def test_out_of_range_temperature_rejected(self, fake_ambient_pool):
+        from fastapi import HTTPException
+
+        body = api.AmbientLogIn(timestamp="2026-10-14T10:33:00+00:00", temperature_c=999.0, ok=True)
+        with pytest.raises(HTTPException) as exc_info:
+            api.create_ambient_log(body, x_api_key=None)
+        assert exc_info.value.status_code == 400
+
+
+class TestAmbientLogsGet:
+    def test_empty_result(self, fake_ambient_pool):
+        result = api.ambient_logs(limit=10, from_=None, to_=None, x_api_key=None)
+        assert result["count"] == 0
+        assert result["rows"] == []
