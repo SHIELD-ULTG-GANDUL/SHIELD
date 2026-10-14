@@ -478,3 +478,108 @@ class TestLntaiLatest:
         result = api.lntai_latest(trafo=2, x_api_key=None)
         assert result["row"]["level"] == "WARNING"
         assert result["row"]["timestamp"] == now.isoformat()
+
+
+# ── /api/ml/models (Stage 2, Part B) ─────────────────────────────────────
+
+class _FakeMlModelsCursor:
+    def __init__(self, list_rows, known_ids: set):
+        self._list_rows = list_rows
+        self._known_ids = known_ids
+        self._last = None
+
+    def execute(self, sql, params=None):
+        if "FROM ml_models" in sql and sql.strip().startswith("SELECT id, trafo, phase, model_type, version"):
+            self._last = ("rows", self._list_rows)
+        elif "SELECT trafo, phase FROM ml_models" in sql or "SELECT id, trafo, phase FROM ml_models" in sql:
+            model_id = params[0]
+            self._last = ("row", {"id": model_id, "trafo": "2", "phase": "R"}) if model_id in self._known_ids else ("row", None)
+        elif "UPDATE ml_models" in sql:
+            self._last = None
+
+    def fetchone(self):
+        return self._last[1] if self._last and self._last[0] == "row" else None
+
+    def fetchall(self):
+        return self._last[1] if self._last and self._last[0] == "rows" else []
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
+class _FakeMlModelsConn:
+    def __init__(self, list_rows, known_ids):
+        self._list_rows = list_rows
+        self._known_ids = known_ids
+
+    def cursor(self, row_factory=None):
+        return _FakeMlModelsCursor(self._list_rows, self._known_ids)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
+class _FakeMlModelsPool:
+    def __init__(self, list_rows=None, known_ids=None):
+        self._list_rows = list_rows or []
+        self._known_ids = known_ids or set()
+
+    def connection(self):
+        return _FakeMlModelsConn(self._list_rows, self._known_ids)
+
+
+class TestMlModelsList:
+    def test_list_returns_rows_with_isoformat_timestamps(self, monkeypatch):
+        now = datetime.now(timezone.utc)
+        rows = [{
+            "id": 1, "trafo": "2", "phase": "R", "model_type": "physics_rc", "version": "v1",
+            "trained_at": now, "healthy_from": now, "healthy_to": now,
+            "features": {}, "metrics": {"sigma": 0.3}, "artifact_path": "ml/artifacts/x.json",
+            "sigma": 0.3, "mu": 0.0, "is_active": False, "is_frozen_reference": False, "notes": None,
+        }]
+        monkeypatch.setattr(api, "_pool", _FakeMlModelsPool(list_rows=rows))
+        result = api.ml_models_list(trafo=2, x_api_key=None)
+        assert result["count"] == 1
+        assert result["rows"][0]["trained_at"] == now.isoformat()
+
+    def test_empty_list(self, monkeypatch):
+        monkeypatch.setattr(api, "_pool", _FakeMlModelsPool())
+        result = api.ml_models_list(trafo=None, x_api_key=None)
+        assert result["count"] == 0
+
+
+class TestMlModelActivate:
+    def test_activate_known_id(self, monkeypatch):
+        monkeypatch.setattr(api, "_pool", _FakeMlModelsPool(known_ids={1}))
+        result = api.ml_model_activate(1, x_api_key=None)
+        assert result["is_active"] is True
+        assert result["trafo"] == "2" and result["phase"] == "R"
+
+    def test_activate_unknown_id_raises_404(self, monkeypatch):
+        from fastapi import HTTPException
+
+        monkeypatch.setattr(api, "_pool", _FakeMlModelsPool(known_ids=set()))
+        with pytest.raises(HTTPException) as exc_info:
+            api.ml_model_activate(999, x_api_key=None)
+        assert exc_info.value.status_code == 404
+
+
+class TestMlModelFreezeReference:
+    def test_freeze_known_id(self, monkeypatch):
+        monkeypatch.setattr(api, "_pool", _FakeMlModelsPool(known_ids={1}))
+        result = api.ml_model_freeze_reference(1, x_api_key=None)
+        assert result["is_frozen_reference"] is True
+
+    def test_freeze_unknown_id_raises_404(self, monkeypatch):
+        from fastapi import HTTPException
+
+        monkeypatch.setattr(api, "_pool", _FakeMlModelsPool(known_ids=set()))
+        with pytest.raises(HTTPException) as exc_info:
+            api.ml_model_freeze_reference(999, x_api_key=None)
+        assert exc_info.value.status_code == 404

@@ -1,0 +1,33 @@
+{
+  "_note": "Stage 2 Part B -- konstanta rekayasa untuk ml/dataset.py & ml/train_baseline.py. TODO(verifikasi) di tiap field yang belum divalidasi dari data riil/eksperimen. Jangan diubah tanpa dasar data atau instruksi eksplisit.",
+
+  "dataset": {
+    "drop_flags": ["MISSING", "OUT_OF_RANGE", "STUCK", "ZERO_READING"],
+    "_drop_flags_note": "SENGAJA beda dari data_quality.should_skip_lntai() (yang TIDAK memblokir ZERO_READING, lihat T5) -- untuk melatih baseline 'perilaku sehat', sampel arus=0 (CB terbuka) bukan representasi beban normal dan ikut dibuang di sini, walau tetap dihitung skor LNTAI realtime seperti biasa.",
+
+    "load_roc_window_minutes": 60,
+    "_load_roc_note": "Jendela untuk fitur 'load rate of change (last hour)'. Baris tanpa sampel yang cukup dekat ke (t - load_roc_window_minutes) DIBUANG dari dataset training (bukan diisi 0), supaya model tidak belajar dari fitur yang dipalsukan.",
+    "load_roc_match_tolerance_minutes": 10,
+    "_load_roc_tolerance_note": "TODO(verifikasi): toleransi pencarian sampel 'satu jam lalu' -- default disamakan dengan pairing_tolerance_minutes x 2 (lntai_config.json=5), belum diverifikasi.",
+
+    "ambient_coverage_threshold": 0.8,
+    "_ambient_coverage_note": "TODO(verifikasi): proporsi minimum slot waktu dalam rentang [healthy_from, healthy_to] yang harus punya baris ambient_logs ok=true (dalam ambient_at() max_age) supaya dataset memakai ambient TERUKUR; di bawah itu, pakai ambient default konstan (config.LNTAI_V3_AMBIENT_C) untuk SELURUH rentang -- dicatat di metadata dataset mana yang dipakai, tidak pernah campur sebagian terukur/sebagian default dalam satu dataset training."
+  },
+
+  "split": {
+    "train_fraction": 0.8,
+    "_train_fraction_note": "TODO(verifikasi): split waktu-berurutan di dalam periode 'sehat' (healthy_from..healthy_to) -- 80% paling awal = train, 20% paling akhir = validasi. Default pragmatis, belum dioptimalkan."
+  },
+
+  "physics_rc_grid_search": {
+    "tau_minutes_candidates": [5, 10, 15, 20, 30, 45, 60, 90],
+    "_note": "TODO(verifikasi): kandidat tau (menit) untuk grid search physics_rc, dipusatkan di sekitar tau_minutes=20 (asumsi lntai_config.json thermal_lag, lihat T4/Stage1) dengan rentang lebih lebar -- bukan hasil studi termal aktual."
+  },
+
+  "gbm": {
+    "max_iter": 200,
+    "max_depth": 4,
+    "learning_rate": 0.05,
+    "_note": "TODO(verifikasi): hyperparameter default HistGradientBoostingRegressor/LightGBM, belum di-tuning lewat cross-validation."
+  }
+}

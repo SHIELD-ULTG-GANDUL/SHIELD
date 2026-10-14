@@ -17,3 +17,10 @@ server/beban_csv_export/
 # Folder output ekspor data (CSV/XLSX yang diunduh lewat dashboard atau skrip)
 *_export/
 *.csv_export/
+
+# Stage 2 Part B — artefak model baseline (dihasilkan ml/train_baseline.py,
+# bisa besar/biner-base64, dan berbeda tiap server/periode training -- bukan
+# sesuatu yang dipertahankan di git). Baris registry-nya tetap di DB (tabel
+# ml_models), bukan di sini.
+ml/artifacts/*.json
+!ml/artifacts/.gitkeep

@@ -54,6 +54,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "ml"))
 
 import config  # noqa: E402
 from lntai_calculator import LNTAICalculator  # noqa: E402
@@ -61,6 +62,9 @@ from lntai_calculator import LNTAICalculator  # noqa: E402
 import ambient  # noqa: E402
 import data_quality as dq  # noqa: E402
 from settings import load_database_settings, load_worker_settings  # noqa: E402
+
+import dataset as ml_dataset  # noqa: E402
+import model_registry as ml_registry  # noqa: E402
 
 from psycopg.rows import dict_row
 from psycopg_pool import ConnectionPool
@@ -197,13 +201,10 @@ def build_sample(temp_row: dict, load_row: Optional[dict], ambient_value: Option
     }
 
 
-def combined_quality_flags(temp_row: dict, load_row: Optional[dict], paired: bool) -> int:
-    """OR bitmask flag baris suhu + baris beban (kalau ada pasangan),
-    ditambah PAIRING_GAP kalau tidak ada beban dalam toleransi waktu."""
-    bitmask = (temp_row.get("quality_flags") or 0) | ((load_row or {}).get("quality_flags") or 0)
-    if not paired:
-        bitmask |= dq.flags_to_bitmask({"PAIRING_GAP"})
-    return bitmask
+# Re-export dari data_quality.py (bukan didefinisikan di sini lagi) --
+# lihat komentar di data_quality.combined_quality_flags() untuk kenapa
+# (menghindari import circular dengan ml/dataset.py, Stage 2 Part B).
+combined_quality_flags = dq.combined_quality_flags
 
 
 def should_compute(quality_flags: int, paired: bool) -> bool:
@@ -215,6 +216,93 @@ def should_compute(quality_flags: int, paired: bool) -> bool:
     if not paired:
         return False
     return not dq.should_skip_lntai(quality_flags)
+
+
+# ════════════════════════════════════════════════════════════════════════
+# Stage 2, Part B — baseline model AKTIF sebagai sumber delta_T_pred v3
+# (menggantikan fisika legacy HANYA untuk fasa yang punya model aktif,
+# lihat lntai_v3_step() baseline_overrides). Buffer kecil per trafo untuk
+# fitur "load rate of change (last hour)" (sama seperti ml/dataset.py,
+# versi STREAMING -- satu buffer diisi tiap sampel, dipangkas ke jendela
+# roc_window + toleransi).
+# ════════════════════════════════════════════════════════════════════════
+
+_ROC_WINDOW_MINUTES: float = ml_dataset.ML_CONFIG["dataset"]["load_roc_window_minutes"]
+_ROC_TOLERANCE_MINUTES: float = ml_dataset.ML_CONFIG["dataset"]["load_roc_match_tolerance_minutes"]
+_roc_history: dict[str, list[tuple[float, Optional[float], Optional[float], Optional[float]]]] = {}
+
+
+def _update_roc_history_and_get_past(
+    trafo: str, ts_epoch: float, ia: Optional[float], ib: Optional[float], ic: Optional[float],
+) -> Optional[tuple[float, Optional[float], Optional[float], Optional[float]]]:
+    """Catat sampel arus 3-fasa sekarang ke buffer trafo ini, lalu cari
+    sampel ~1 jam lalu dalam toleransi -- dipakai menghitung load_roc_1h
+    utk fitur model aktif (lihat ml/dataset.py build_phase_dataset() untuk
+    definisi yang sama, versi batch)."""
+    buf = _roc_history.setdefault(trafo, [])
+    buf.append((ts_epoch, ia, ib, ic))
+    cutoff = ts_epoch - (_ROC_WINDOW_MINUTES + _ROC_TOLERANCE_MINUTES) * 60.0
+    while buf and buf[0][0] < cutoff:
+        buf.pop(0)
+
+    target = ts_epoch - _ROC_WINDOW_MINUTES * 60.0
+    tolerance_s = _ROC_TOLERANCE_MINUTES * 60.0
+    best, best_dt = None, None
+    for item in buf:
+        dt = abs(item[0] - target)
+        if dt <= tolerance_s and (best_dt is None or dt < best_dt):
+            best, best_dt = item, dt
+    return best
+
+
+def compute_v3_baseline_overrides(
+    cur, trafo: str, ts: datetime, v2_result: dict[str, Any], load_row: Optional[dict],
+    i_rated_v2: float,
+) -> Optional[dict[str, tuple[float, str, bool]]]:
+    """Untuk tiap fasa (R/S/T) dengan model aktif di ml_models (lihat
+    ml/model_registry.py) DAN fitur yang cukup (arus & riwayat load_roc_1h
+    tersedia), hitung delta_T_pred dari model itu. Fasa TANPA model aktif,
+    ATAU fitur belum cukup (mis. load_roc_1h belum punya riwayat 1 jam),
+    TIDAK dimasukkan ke override -- lntai_v3_step() otomatis memakai
+    fisika legacy untuk fasa itu (lihat parameter baseline_overrides di
+    sana). Selalu mencatat buffer roc (lewat _update_roc_history_and_get_past)
+    SETIAP batch berjalan, apa pun hasilnya, supaya riwayat tidak bolong
+    kalau model baru diaktifkan belakangan."""
+    ts_epoch = ts.timestamp()
+    ia = load_row.get("ia") if load_row else None
+    ib = load_row.get("ib") if load_row else None
+    ic = load_row.get("ic") if load_row else None
+    past = _update_roc_history_and_get_past(trafo, ts_epoch, ia, ib, ic)
+
+    if load_row is None or not v2_result.get("per_phase"):
+        return None
+
+    hour_sin, hour_cos, weekday = ml_dataset.wib_hour_sin_cos_weekday(ts_epoch)
+    phase_current = {"R": ia, "S": ib, "T": ic}
+    past_current = {"R": past[1], "S": past[2], "T": past[3]} if past is not None else {}
+
+    overrides: dict[str, tuple[float, str, bool]] = {}
+    for p in ("R", "S", "T"):
+        current_amps = phase_current[p]
+        past_amps = past_current.get(p)
+        if current_amps is None or past_amps is None:
+            continue
+        v2p = v2_result["per_phase"].get(p)
+        if v2p is None:
+            continue
+
+        i2_eff_default_tau = (v2p["i_eff_norm"] * i_rated_v2) ** 2
+        load_roc_1h = (current_amps - past_amps) / (_ROC_WINDOW_MINUTES / 60.0)
+        row = {
+            "ts_epoch": ts_epoch, "current_amps": current_amps,
+            "i2_eff_default_tau": i2_eff_default_tau, "load_roc_1h": load_roc_1h,
+            "hour_sin": hour_sin, "hour_cos": hour_cos, "weekday": weekday,
+        }
+        delta_t_pred, meta = ml_registry.predict_delta_t_step(cur, trafo, p, row, config.LNTAI_V3_AMBIENT_C)
+        if delta_t_pred is not None and meta is not None:
+            overrides[p] = (delta_t_pred, f"ml_model:{meta['id']}", True)
+
+    return overrides or None
 
 
 # ════════════════════════════════════════════════════════════════════════
@@ -261,7 +349,14 @@ def process_trafo_batch(cur, calculator: LNTAICalculator, trafo: str) -> int:
         # konsisten untuk baris trafo_id+ts yang sama (lihat lntai_v3_step()
         # untuk kenapa input DATA_INVALID/tidak-terpasang otomatis membuat
         # v3 juga DATA_INVALID, tanpa logika gating terpisah di sini).
-        v3_result = calculator.update_v3(trafo, result, ts.timestamp())
+        #
+        # Stage 2 Part B: kalau ada model aktif (ml_models.is_active=true)
+        # untuk fasa (trafo, R/S/T) ini, baseline_overrides mengganti fisika
+        # legacy HANYA untuk fasa itu -- fasa tanpa model aktif (atau fitur
+        # belum cukup, mis. load_roc_1h belum punya riwayat 1 jam) tetap
+        # fisika legacy (fallback otomatis, lihat compute_v3_baseline_overrides()).
+        baseline_overrides = compute_v3_baseline_overrides(cur, trafo, ts, result, load_row, calculator.i_rated)
+        v3_result = calculator.update_v3(trafo, result, ts.timestamp(), baseline_overrides=baseline_overrides)
         insert_result(
             cur, trafo, ts, calculator.v3_model_version, v3_result, quality_flags, paired,
             baseline_id=v3_result.get("baseline_id"), calibrated=v3_result.get("calibrated"),

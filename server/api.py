@@ -481,3 +481,91 @@ def beban_logs(
         del row["ts"]
 
     return {"trafo": trafo, "count": len(rows), "rows": rows}
+
+
+# =====================================================
+# ML MODELS (Stage 2, Part B) — registry baseline "perilaku sehat"
+# =====================================================
+
+@app.get("/api/ml/models")
+def ml_models_list(
+    trafo: Optional[int] = Query(default=None, ge=2, le=4),
+    x_api_key: Optional[str] = Header(default=None, alias="X-API-Key"),
+):
+    """Daftar model baseline (ml/train_baseline.py) -- tanpa `trafo`,
+    kembalikan semua. Dipakai UI untuk menampilkan tabel perbandingan dan
+    tombol activate/freeze-reference."""
+    _check_api_key(x_api_key)
+
+    with _pool.connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+        if trafo is None:
+            cur.execute(
+                "SELECT id, trafo, phase, model_type, version, trained_at, healthy_from, healthy_to, "
+                "features, metrics, artifact_path, sigma, mu, is_active, is_frozen_reference, notes "
+                "FROM ml_models ORDER BY trafo, phase, model_type, trained_at DESC"
+            )
+        else:
+            cur.execute(
+                "SELECT id, trafo, phase, model_type, version, trained_at, healthy_from, healthy_to, "
+                "features, metrics, artifact_path, sigma, mu, is_active, is_frozen_reference, notes "
+                "FROM ml_models WHERE trafo = %s ORDER BY phase, model_type, trained_at DESC",
+                (str(trafo),),
+            )
+        rows = cur.fetchall()
+
+    for row in rows:
+        row["trained_at"] = row["trained_at"].isoformat()
+        row["healthy_from"] = row["healthy_from"].isoformat()
+        row["healthy_to"] = row["healthy_to"].isoformat()
+
+    return {"count": len(rows), "rows": rows}
+
+
+@app.post("/api/ml/models/{model_id}/activate")
+def ml_model_activate(
+    model_id: int,
+    x_api_key: Optional[str] = Header(default=None, alias="X-API-Key"),
+):
+    """Jadikan model ini AKTIF untuk (trafo, phase)-nya -- lntai_worker.py
+    memakainya sebagai sumber delta_T_pred v3 dalam <= model_registry.
+    ACTIVE_MODEL_CACHE_TTL_SECONDS detik ke depan (worker proses TERPISAH,
+    tidak bisa diberi tahu instan, lihat ml/model_registry.py). Model lain
+    untuk (trafo, phase) yang SAMA otomatis di-nonaktifkan (hanya satu
+    is_active=true per trafo+phase, lihat migrasi 009 partial unique index)."""
+    _check_api_key(x_api_key)
+
+    with _pool.connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+        cur.execute("SELECT trafo, phase FROM ml_models WHERE id = %s", (model_id,))
+        row = cur.fetchone()
+        if row is None:
+            raise HTTPException(status_code=404, detail=f"ml_models id={model_id} tidak ditemukan")
+
+        cur.execute(
+            "UPDATE ml_models SET is_active = FALSE WHERE trafo = %s AND phase = %s AND id != %s",
+            (row["trafo"], row["phase"], model_id),
+        )
+        cur.execute("UPDATE ml_models SET is_active = TRUE WHERE id = %s", (model_id,))
+
+    return {"id": model_id, "trafo": row["trafo"], "phase": row["phase"], "is_active": True}
+
+
+@app.post("/api/ml/models/{model_id}/freeze-reference")
+def ml_model_freeze_reference(
+    model_id: int,
+    x_api_key: Optional[str] = Header(default=None, alias="X-API-Key"),
+):
+    """Tandai model ini sebagai REFERENSI TETAP (dipakai Part D/H nanti) --
+    independen dari is_active (satu model BOLEH keduanya sekaligus, dan
+    BERBEDA dari model yang sedang is_active=true -- referensi tetap
+    sengaja TIDAK ikut berganti walau model adaptif baru diaktifkan)."""
+    _check_api_key(x_api_key)
+
+    with _pool.connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+        cur.execute("SELECT id, trafo, phase FROM ml_models WHERE id = %s", (model_id,))
+        row = cur.fetchone()
+        if row is None:
+            raise HTTPException(status_code=404, detail=f"ml_models id={model_id} tidak ditemukan")
+
+        cur.execute("UPDATE ml_models SET is_frozen_reference = TRUE WHERE id = %s", (model_id,))
+
+    return {"id": model_id, "trafo": row["trafo"], "phase": row["phase"], "is_frozen_reference": True}

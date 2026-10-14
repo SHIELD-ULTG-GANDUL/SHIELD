@@ -120,6 +120,22 @@ def detect_pairing_gap(paired: bool) -> bool:
     return not paired
 
 
+def combined_quality_flags(temp_row: dict, load_row: Optional[dict], paired: bool) -> int:
+    """OR bitmask flag baris suhu + baris beban (kalau ada pasangan),
+    ditambah PAIRING_GAP kalau tidak ada beban dalam toleransi waktu.
+
+    Diletakkan di sini (bukan di lntai_worker.py, pemakai aslinya) supaya
+    ml/dataset.py (Stage 2 Part B) bisa memakainya TANPA mengimpor
+    lntai_worker.py -- lntai_worker.py sendiri kini mengimpor ml/dataset.py
+    (untuk fitur jam/hari WIB dipakai ulang di baseline model aktif), jadi
+    arah impor sebaliknya (ml/dataset.py -> lntai_worker.py) akan membuat
+    import circular kalau fungsi ini tetap di lntai_worker.py."""
+    bitmask = (temp_row.get("quality_flags") or 0) | ((load_row or {}).get("quality_flags") or 0)
+    if not paired:
+        bitmask |= flags_to_bitmask({"PAIRING_GAP"})
+    return bitmask
+
+
 # ════════════════════════════════════════════════════════════════════════
 # Konversi flag <-> bitmask
 # ════════════════════════════════════════════════════════════════════════

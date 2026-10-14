@@ -288,20 +288,33 @@ def lntai_v3_step(
     baseline_id: str,
     calibrated: bool,
     model_version: str,
+    baseline_overrides: Optional[dict[str, tuple[float, str, bool]]] = None,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     """Satu langkah LNTAI v3, murni -- mengambil `v2_result` (hasil
     lntai_step() yang SAMA, SUDAH dihitung untuk sampel ini) sebagai input,
     bukan sample mentah. `state`: {"rolling_buffer": [(ts_epoch, instant), ...]}
     hanya untuk level (median 30 menit); TIDAK ada state filter I^2 di sini
-    (dipakai ulang dari v2_result["per_phase"][p]["i_eff_norm"])."""
+    (dipakai ulang dari v2_result["per_phase"][p]["i_eff_norm"]).
+
+    `baseline_overrides` (SHIELD Stage 2, Part B): {phase: (delta_t_pred,
+    baseline_id, calibrated)} opsional -- kalau ADA untuk satu fasa, nilai
+    itu DIPAKAI LANGSUNG sebagai delta_T_pred fasa itu (sudah dihitung
+    ml/model_registry.py dari model aktif yang dilatih ml/train_baseline.py),
+    MENGGANTI formula fisika legacy A/B HANYA untuk fasa itu -- fasa lain
+    tanpa override tetap memakai fisika legacy. Ini mewujudkan catatan di
+    Part A: "ΔT_pred,p = baseline_t,p(features) (until Part B: legacy
+    physics ...)" -- sekarang Part B tersedia, baseline_t,p menjadi model
+    aktif kalau ada, fisika legacy kalau tidak (lihat fallback di
+    ml/model_registry.py predict_delta_t_step())."""
     rolling_buffer: list[tuple[float, float]] = list(state.get("rolling_buffer", []))
+    overrides = baseline_overrides or {}
 
     if v2_result.get("level") == "DATA_INVALID" or not v2_result.get("per_phase"):
         new_state = {"rolling_buffer": rolling_buffer}
         reason = v2_result.get("error") or "Input v2 tidak valid (DATA_INVALID) -- v3 tidak bisa dihitung dari situ"
         return new_state, _v3_invalid_result(v2_result.get("timestamp"), model_version, reason)
 
-    per_phase_v3: dict[str, dict[str, float]] = {}
+    per_phase_v3: dict[str, dict[str, Any]] = {}
     for p in PHASES:
         v2p = v2_result["per_phase"][p]
         t_p = v2p["T"]
@@ -311,7 +324,13 @@ def lntai_v3_step(
         i_eff_amps = v2p["i_eff_norm"] * i_rated_v2
         i_eff_norm_legacy = (i_eff_amps / i_ref) if i_ref else 0.0
 
-        delta_t_pred = a * (i_eff_norm_legacy ** 2) + b
+        override = overrides.get(p)
+        if override is not None and override[0] is not None:
+            delta_t_pred, phase_baseline_id, phase_calibrated = override
+        else:
+            delta_t_pred = a * (i_eff_norm_legacy ** 2) + b
+            phase_baseline_id, phase_calibrated = baseline_id, calibrated
+
         delta_t_real = t_p - ambient_c
         residual_c = delta_t_real - delta_t_pred
         z = (residual_c - mu) / sigma if sigma else 0.0
@@ -319,6 +338,7 @@ def lntai_v3_step(
         per_phase_v3[p] = {
             "T": t_p, "delta_T_real": delta_t_real, "delta_T_pred": delta_t_pred,
             "residual_c": residual_c, "z": z,
+            "baseline_id": phase_baseline_id, "calibrated": phase_calibrated,
         }
 
     hottest_phase_v3 = max(PHASES, key=lambda p: per_phase_v3[p]["z"])
@@ -345,8 +365,12 @@ def lntai_v3_step(
         "level": level,
         "hottest_phase": hottest_phase_v3,
         "per_phase": per_phase_v3,
-        "baseline_id": baseline_id,
-        "calibrated": calibrated,
+        # baseline_id/calibrated di level baris = milik fasa TERPANAS (yang
+        # menentukan skor "lntai" di atas) -- lihat per_phase[p]["baseline_id"]
+        # untuk rincian per fasa kalau fasa lain memakai sumber berbeda
+        # (mis. satu fasa punya model aktif, fasa lain masih fallback legacy).
+        "baseline_id": per_phase_v3[hottest_phase_v3]["baseline_id"],
+        "calibrated": per_phase_v3[hottest_phase_v3]["calibrated"],
         "timestamp": v2_result["timestamp"],
         "model_version": model_version,
         "error": None,
@@ -437,13 +461,17 @@ class LNTAICalculator:
         self._state[trafo_key] = new_state
         return result
 
-    def update_v3(self, trafo: str, v2_result: dict[str, Any], ts_epoch: float) -> dict[str, Any]:
+    def update_v3(self, trafo: str, v2_result: dict[str, Any], ts_epoch: float,
+                   baseline_overrides: Optional[dict[str, tuple[float, str, bool]]] = None) -> dict[str, Any]:
         """LNTAI v3 realtime untuk `trafo`, dari `v2_result` (output `update()`
         UNTUK SAMPEL YANG SAMA, dipanggil sebelum ini). Buffer median bergulir
-        30 menit bertahan antar panggilan (self._state_v3[trafo])."""
+        30 menit bertahan antar panggilan (self._state_v3[trafo]).
+        `baseline_overrides` (Stage 2 Part B) -- lihat lntai_v3_step()."""
         trafo_key = str(trafo)
         v3_state = self._state_v3.get(trafo_key, {})
-        new_state, result = lntai_v3_step(v3_state, v2_result, ts_epoch, **self._v3_kwargs())
+        new_state, result = lntai_v3_step(
+            v3_state, v2_result, ts_epoch, baseline_overrides=baseline_overrides, **self._v3_kwargs()
+        )
         self._state_v3[trafo_key] = new_state
         return result
 

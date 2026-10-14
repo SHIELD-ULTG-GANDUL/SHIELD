@@ -14,6 +14,19 @@ httpx==0.27.2
 # T8 — test suite server/tests/
 pytest==8.3.3
 
+# SHIELD Stage 2 Part B — ml_gbm/hybrid (ml/models.py) butuh backend GBM.
+# scikit-learn dipakai SEBAGAI FALLBACK (HistGradientBoostingRegressor) --
+# LightGBM dicoba lebih dulu kalau terpasang (lihat ml/models.py
+# _try_import_gbm_backend()), tapi TIDAK dicantumkan di sini: sandbox
+# pengembangan tidak punya akses internet untuk memverifikasi apakah
+# LightGBM punya wheel yang kompatibel dengan Python 3.14 di server ini
+# (lihat laporan audit Stage 2 kickoff). Coba dulu secara manual di server:
+#   pip install lightgbm
+# kalau berhasil dan ingin dipakai, tambahkan baris versi-nya di sini
+# setelah diverifikasi -- JANGAN ditambah tanpa verifikasi langsung.
+# physics_quadratic dan physics_rc TIDAK butuh baris ini sama sekali.
+scikit-learn==1.5.2
+
 # CATATAN (Tahap 1, Oktober 2026): versi di atas dipin saat server memakai
 # Python 3.14.4 (lihat audit Fase 0, Q4) — semuanya pure-Python/wheel umum,
 # seharusnya kompatibel, tapi belum sempat diverifikasi `pip install` di
