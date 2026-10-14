@@ -1,5 +1,5 @@
 {
-  "_note": "Golden vectors LNTAI v2. 'expected' dihasilkan oleh lntai_calculator.py (Python, implementasi referensi) dan dipakai sebagai nilai yang WAJIB direproduksi persis (toleransi 1e-6) oleh implementasi JS di Shield.html/index.html (<LNTAI-CORE>). Untuk vector dengan >1 'steps', 'expected' adalah hasil langkah TERAKHIR (langkah sebelumnya membangun state filter lag termal).",
+  "_note": "Golden vectors LNTAI v2. 'expected' dihasilkan oleh lntai_calculator.py (Python, implementasi referensi), PRESISI PENUH (tidak dibulatkan) -- dipakai sebagai nilai yang WAJIB direproduksi (toleransi 1e-6) oleh implementasi JS di Shield.html/index.html (<LNTAI-CORE>). Untuk vector dengan >1 'steps', 'expected' adalah hasil langkah TERAKHIR (langkah sebelumnya membangun state filter lag termal).",
   "model_version": "lntai-v2",
   "vectors": [
     {
@@ -21,9 +21,9 @@
         }
       ],
       "expected": {
-        "lntai": 2.738,
+        "lntai": 2.73839018842023,
         "level": "NORMAL",
-        "S_Temp": 6.846,
+        "S_Temp": 6.845975471050575,
         "S_DeltaT": 0.0,
         "S_RES": 0.0,
         "hottest_phase": "R",
@@ -31,9 +31,9 @@
         "t_ambient": 30.0,
         "ambient_source": "measured",
         "delta_T_real": 31.0,
-        "delta_T_pred": 31.02,
-        "residual": -0.02,
-        "z": -0.0043,
+        "delta_T_pred": 31.0199317696,
+        "residual": -0.019931769599999427,
+        "z": -0.004262477192532116,
         "i_eff_norm": 0.4,
         "delta_phase": 0.0,
         "dAB_max": 0.0,
@@ -42,8 +42,8 @@
             "T": 61.0,
             "I": 712.0,
             "dT": 31.0,
-            "dT_pred": 31.02,
-            "z": -0.0043,
+            "dT_pred": 31.0199317696,
+            "z": -0.004262477192532116,
             "dAB": 0.0,
             "i_eff_norm": 0.4
           },
@@ -51,8 +51,8 @@
             "T": 61.0,
             "I": 712.0,
             "dT": 31.0,
-            "dT_pred": 31.02,
-            "z": -0.0043,
+            "dT_pred": 31.0199317696,
+            "z": -0.004262477192532116,
             "dAB": 0.0,
             "i_eff_norm": 0.4
           },
@@ -60,8 +60,8 @@
             "T": 61.0,
             "I": 712.0,
             "dT": 31.0,
-            "dT_pred": 31.02,
-            "z": -0.0043,
+            "dT_pred": 31.0199317696,
+            "z": -0.004262477192532116,
             "dAB": 0.0,
             "i_eff_norm": 0.4
           }
@@ -89,19 +89,19 @@
         }
       ],
       "expected": {
-        "lntai": 2.928,
+        "lntai": 2.9279825863831914,
         "level": "NORMAL",
-        "S_Temp": 5.391,
-        "S_DeltaT": 2.572,
+        "S_Temp": 5.390963171992739,
+        "S_DeltaT": 2.571991058620319,
         "S_RES": 0.0,
         "hottest_phase": "R",
         "t_contact": 58.0,
         "t_ambient": 30.0,
         "ambient_source": "measured",
         "delta_T_real": 28.0,
-        "delta_T_pred": 27.9,
-        "residual": 0.1,
-        "z": 0.0214,
+        "delta_T_pred": 27.8999829424,
+        "residual": 0.1000170575999988,
+        "z": 0.021388990312439595,
         "i_eff_norm": 0.2,
         "delta_phase": 3.0,
         "dAB_max": 2.0,
@@ -110,8 +110,8 @@
             "T": 58.0,
             "I": 356.0,
             "dT": 28.0,
-            "dT_pred": 27.9,
-            "z": 0.0214,
+            "dT_pred": 27.8999829424,
+            "z": 0.021388990312439595,
             "dAB": 2.0,
             "i_eff_norm": 0.2
           },
@@ -119,8 +119,8 @@
             "T": 55.0,
             "I": 356.0,
             "dT": 25.0,
-            "dT_pred": 27.9,
-            "z": -0.6202,
+            "dT_pred": 27.8999829424,
+            "z": -0.620171284275358,
             "dAB": 1.0,
             "i_eff_norm": 0.2
           },
@@ -128,8 +128,8 @@
             "T": 57.0,
             "I": 356.0,
             "dT": 27.0,
-            "dT_pred": 27.9,
-            "z": -0.1925,
+            "dT_pred": 27.8999829424,
+            "z": -0.19246443455015957,
             "dAB": 2.0,
             "i_eff_norm": 0.2
           }
@@ -157,19 +157,19 @@
         }
       ],
       "expected": {
-        "lntai": 26.47,
+        "lntai": 26.47053173665452,
         "level": "WARNING",
         "S_Temp": 40.0,
-        "S_DeltaT": 8.246,
-        "S_RES": 26.655,
+        "S_DeltaT": 8.246383477520588,
+        "S_RES": 26.655388977994477,
         "hottest_phase": "R",
         "t_contact": 100.0,
         "t_ambient": 30.0,
         "ambient_source": "measured",
         "delta_T_real": 70.0,
-        "delta_T_pred": 52.86,
-        "residual": 17.14,
-        "z": 3.6655,
+        "delta_T_pred": 52.85957356,
+        "residual": 17.14042644,
+        "z": 3.665538897799448,
         "i_eff_norm": 1.0,
         "delta_phase": 8.0,
         "dAB_max": 2.0,
@@ -178,8 +178,8 @@
             "T": 100.0,
             "I": 1780.0,
             "dT": 70.0,
-            "dT_pred": 52.86,
-            "z": 3.6655,
+            "dT_pred": 52.85957356,
+            "z": 3.665538897799448,
             "dAB": 2.0,
             "i_eff_norm": 1.0
           },
@@ -187,8 +187,8 @@
             "T": 92.0,
             "I": 1780.0,
             "dT": 62.0,
-            "dT_pred": 52.86,
-            "z": 1.9547,
+            "dT_pred": 52.85957356,
+            "z": 1.9547114988986547,
             "dAB": 2.0,
             "i_eff_norm": 1.0
           },
@@ -196,8 +196,8 @@
             "T": 95.0,
             "I": 1780.0,
             "dT": 65.0,
-            "dT_pred": 52.86,
-            "z": 2.5963,
+            "dT_pred": 52.85957356,
+            "z": 2.596271773486452,
             "dAB": 2.0,
             "i_eff_norm": 1.0
           }
@@ -225,20 +225,20 @@
         }
       ],
       "expected": {
-        "lntai": 38.789,
+        "lntai": 38.789196766536215,
         "level": "CRITICAL",
         "S_Temp": 40.0,
         "S_DeltaT": 40.0,
-        "S_RES": 35.964,
+        "S_RES": 35.963989221787386,
         "hottest_phase": "R",
         "t_contact": 85.0,
         "t_ambient": 30.0,
         "ambient_source": "measured",
         "delta_T_real": 55.0,
-        "delta_T_pred": 33.507,
-        "residual": 21.493,
-        "z": 4.5964,
-        "i_eff_norm": 0.50562,
+        "delta_T_pred": 33.506779,
+        "residual": 21.493221,
+        "z": 4.5963989221787385,
+        "i_eff_norm": 0.5056179775280899,
         "delta_phase": 31.0,
         "dAB_max": 33.0,
         "per_phase": {
@@ -246,28 +246,28 @@
             "T": 85.0,
             "I": 900.0,
             "dT": 55.0,
-            "dT_pred": 33.507,
-            "z": 4.5964,
+            "dT_pred": 33.506779,
+            "z": 4.5963989221787385,
             "dAB": 33.0,
-            "i_eff_norm": 0.50562
+            "i_eff_norm": 0.5056179775280899
           },
           "S": {
             "T": 54.0,
             "I": 900.0,
             "dT": 24.0,
-            "dT_pred": 33.507,
-            "z": -2.0331,
+            "dT_pred": 33.506779,
+            "z": -2.033057248561836,
             "dAB": 1.0,
-            "i_eff_norm": 0.50562
+            "i_eff_norm": 0.5056179775280899
           },
           "T": {
             "T": 55.0,
             "I": 900.0,
             "dT": 25.0,
-            "dT_pred": 33.507,
-            "z": -1.8192,
+            "dT_pred": 33.506779,
+            "z": -1.819203823699237,
             "dAB": 1.0,
-            "i_eff_norm": 0.50562
+            "i_eff_norm": 0.5056179775280899
           }
         },
         "timestamp": "1970-01-01T00:00:00+00:00",
@@ -293,20 +293,20 @@
         }
       ],
       "expected": {
-        "lntai": 28.904,
+        "lntai": 28.903421702282234,
         "level": "WARNING",
-        "S_Temp": 24.275,
+        "S_Temp": 24.275420875324492,
         "S_DeltaT": 40.0,
-        "S_RES": 23.978,
+        "S_RES": 23.97751117384145,
         "hottest_phase": "R",
         "t_contact": 78.0,
         "t_ambient": 30.0,
         "ambient_source": "measured",
         "delta_T_real": 48.0,
-        "delta_T_pred": 32.112,
-        "residual": 15.888,
-        "z": 3.3978,
-        "i_eff_norm": 0.44944,
+        "delta_T_pred": 32.111776,
+        "residual": 15.888224000000001,
+        "z": 3.397751117384145,
+        "i_eff_norm": 0.449438202247191,
         "delta_phase": 23.0,
         "dAB_max": 2.0,
         "per_phase": {
@@ -314,28 +314,28 @@
             "T": 78.0,
             "I": 800.0,
             "dT": 48.0,
-            "dT_pred": 32.112,
-            "z": 3.3978,
+            "dT_pred": 32.111776,
+            "z": 3.397751117384145,
             "dAB": 2.0,
-            "i_eff_norm": 0.44944
+            "i_eff_norm": 0.449438202247191
           },
           "S": {
             "T": 55.0,
             "I": 800.0,
             "dT": 25.0,
-            "dT_pred": 32.112,
-            "z": -1.5209,
+            "dT_pred": 32.111776,
+            "z": -1.520877654455636,
             "dAB": 1.0,
-            "i_eff_norm": 0.44944
+            "i_eff_norm": 0.449438202247191
           },
           "T": {
             "T": 56.0,
             "I": 800.0,
             "dT": 26.0,
-            "dT_pred": 32.112,
-            "z": -1.307,
+            "dT_pred": 32.111776,
+            "z": -1.3070242295930368,
             "dAB": 1.0,
-            "i_eff_norm": 0.44944
+            "i_eff_norm": 0.449438202247191
           }
         },
         "timestamp": "1970-01-01T00:00:00+00:00",
@@ -361,9 +361,9 @@
         }
       ],
       "expected": {
-        "lntai": 1.085,
+        "lntai": 1.0846272749414136,
         "level": "NORMAL",
-        "S_Temp": 2.712,
+        "S_Temp": 2.711568187353534,
         "S_DeltaT": 0.0,
         "S_RES": 0.0,
         "hottest_phase": "R",
@@ -372,8 +372,8 @@
         "ambient_source": "measured",
         "delta_T_real": 20.0,
         "delta_T_pred": 26.86,
-        "residual": -6.86,
-        "z": -1.467,
+        "residual": -6.859999999999999,
+        "z": -1.4670344945574303,
         "i_eff_norm": 0.0,
         "delta_phase": 0.0,
         "dAB_max": 0.0,
@@ -383,7 +383,7 @@
             "I": 0.0,
             "dT": 20.0,
             "dT_pred": 26.86,
-            "z": -1.467,
+            "z": -1.4670344945574303,
             "dAB": 0.0,
             "i_eff_norm": 0.0
           },
@@ -392,7 +392,7 @@
             "I": 0.0,
             "dT": 20.0,
             "dT_pred": 26.86,
-            "z": -1.467,
+            "z": -1.4670344945574303,
             "dAB": 0.0,
             "i_eff_norm": 0.0
           },
@@ -401,7 +401,7 @@
             "I": 0.0,
             "dT": 20.0,
             "dT_pred": 26.86,
-            "z": -1.467,
+            "z": -1.4670344945574303,
             "dAB": 0.0,
             "i_eff_norm": 0.0
           }
@@ -470,9 +470,9 @@
         }
       ],
       "expected": {
-        "lntai": 2.633,
+        "lntai": 2.6327951035222044,
         "level": "NORMAL",
-        "S_Temp": 6.582,
+        "S_Temp": 6.581987758805511,
         "S_DeltaT": 0.0,
         "S_RES": 0.0,
         "hottest_phase": "R",
@@ -480,9 +480,9 @@
         "t_ambient": 34.5,
         "ambient_source": "measured",
         "delta_T_real": 30.5,
-        "delta_T_pred": 31.02,
-        "residual": -0.52,
-        "z": -0.1112,
+        "delta_T_pred": 31.0199317696,
+        "residual": -0.5199317695999994,
+        "z": -0.1111891896238317,
         "i_eff_norm": 0.4,
         "delta_phase": 0.0,
         "dAB_max": 0.0,
@@ -491,8 +491,8 @@
             "T": 65.0,
             "I": 712.0,
             "dT": 30.5,
-            "dT_pred": 31.02,
-            "z": -0.1112,
+            "dT_pred": 31.0199317696,
+            "z": -0.1111891896238317,
             "dAB": 0.0,
             "i_eff_norm": 0.4
           },
@@ -500,8 +500,8 @@
             "T": 65.0,
             "I": 712.0,
             "dT": 30.5,
-            "dT_pred": 31.02,
-            "z": -0.1112,
+            "dT_pred": 31.0199317696,
+            "z": -0.1111891896238317,
             "dAB": 0.0,
             "i_eff_norm": 0.4
           },
@@ -509,8 +509,8 @@
             "T": 65.0,
             "I": 712.0,
             "dT": 30.5,
-            "dT_pred": 31.02,
-            "z": -0.1112,
+            "dT_pred": 31.0199317696,
+            "z": -0.1111891896238317,
             "dAB": 0.0,
             "i_eff_norm": 0.4
           }
@@ -537,9 +537,9 @@
         }
       ],
       "expected": {
-        "lntai": 3.729,
+        "lntai": 3.7288431812646468,
         "level": "NORMAL",
-        "S_Temp": 9.322,
+        "S_Temp": 9.322107953161616,
         "S_DeltaT": 0.0,
         "S_RES": 0.0,
         "hottest_phase": "R",
@@ -547,9 +547,9 @@
         "t_ambient": 30.0,
         "ambient_source": "default",
         "delta_T_real": 35.0,
-        "delta_T_pred": 31.02,
-        "residual": 3.98,
-        "z": 0.8512,
+        "delta_T_pred": 31.0199317696,
+        "residual": 3.9800682304000006,
+        "z": 0.8511512222578645,
         "i_eff_norm": 0.4,
         "delta_phase": 0.0,
         "dAB_max": 0.0,
@@ -558,8 +558,8 @@
             "T": 65.0,
             "I": 712.0,
             "dT": 35.0,
-            "dT_pred": 31.02,
-            "z": 0.8512,
+            "dT_pred": 31.0199317696,
+            "z": 0.8511512222578645,
             "dAB": 0.0,
             "i_eff_norm": 0.4
           },
@@ -567,8 +567,8 @@
             "T": 65.0,
             "I": 712.0,
             "dT": 35.0,
-            "dT_pred": 31.02,
-            "z": 0.8512,
+            "dT_pred": 31.0199317696,
+            "z": 0.8511512222578645,
             "dAB": 0.0,
             "i_eff_norm": 0.4
           },
@@ -576,8 +576,8 @@
             "T": 65.0,
             "I": 712.0,
             "dT": 35.0,
-            "dT_pred": 31.02,
-            "z": 0.8512,
+            "dT_pred": 31.0199317696,
+            "z": 0.8511512222578645,
             "dAB": 0.0,
             "i_eff_norm": 0.4
           }
@@ -618,9 +618,9 @@
         }
       ],
       "expected": {
-        "lntai": 0.661,
+        "lntai": 0.6610539765808082,
         "level": "NORMAL",
-        "S_Temp": 1.653,
+        "S_Temp": 1.6526349414520205,
         "S_DeltaT": 0.0,
         "S_RES": 0.0,
         "hottest_phase": "R",
@@ -628,10 +628,10 @@
         "t_ambient": 30.0,
         "ambient_source": "measured",
         "delta_T_real": 15.0,
-        "delta_T_pred": 27.188,
-        "residual": -12.188,
-        "z": -2.6065,
-        "i_eff_norm": 0.11236,
+        "delta_T_pred": 27.188236,
+        "residual": -12.188236,
+        "z": -2.6064960116336264,
+        "i_eff_norm": 0.11235955056179775,
         "delta_phase": 0.0,
         "dAB_max": 0.0,
         "per_phase": {
@@ -639,28 +639,28 @@
             "T": 45.0,
             "I": 200.0,
             "dT": 15.0,
-            "dT_pred": 27.188,
-            "z": -2.6065,
+            "dT_pred": 27.188236,
+            "z": -2.6064960116336264,
             "dAB": 0.0,
-            "i_eff_norm": 0.11236
+            "i_eff_norm": 0.11235955056179775
           },
           "S": {
             "T": 45.0,
             "I": 200.0,
             "dT": 15.0,
-            "dT_pred": 27.188,
-            "z": -2.6065,
+            "dT_pred": 27.188236,
+            "z": -2.6064960116336264,
             "dAB": 0.0,
-            "i_eff_norm": 0.11236
+            "i_eff_norm": 0.11235955056179775
           },
           "T": {
             "T": 45.0,
             "I": 200.0,
             "dT": 15.0,
-            "dT_pred": 27.188,
-            "z": -2.6065,
+            "dT_pred": 27.188236,
+            "z": -2.6064960116336264,
             "dAB": 0.0,
-            "i_eff_norm": 0.11236
+            "i_eff_norm": 0.11235955056179775
           }
         },
         "timestamp": "1970-01-01T02:00:00+00:00",
@@ -699,9 +699,9 @@
         }
       ],
       "expected": {
-        "lntai": 1.188,
+        "lntai": 1.1884238817198793,
         "level": "NORMAL",
-        "S_Temp": 2.971,
+        "S_Temp": 2.9710597042996985,
         "S_DeltaT": 0.0,
         "S_RES": 0.0,
         "hottest_phase": "R",
@@ -709,10 +709,10 @@
         "t_ambient": 30.0,
         "ambient_source": "measured",
         "delta_T_real": 21.0,
-        "delta_T_pred": 32.867,
-        "residual": -11.867,
-        "z": -2.5377,
-        "i_eff_norm": 0.48066,
+        "delta_T_pred": 32.866715765781635,
+        "residual": -11.866715765781635,
+        "z": -2.5377378083834037,
+        "i_eff_norm": 0.48065717379666717,
         "delta_phase": 0.0,
         "dAB_max": 0.0,
         "per_phase": {
@@ -720,28 +720,28 @@
             "T": 51.0,
             "I": 1780.0,
             "dT": 21.0,
-            "dT_pred": 32.867,
-            "z": -2.5377,
+            "dT_pred": 32.866715765781635,
+            "z": -2.5377378083834037,
             "dAB": 0.0,
-            "i_eff_norm": 0.48066
+            "i_eff_norm": 0.48065717379666717
           },
           "S": {
             "T": 51.0,
             "I": 1780.0,
             "dT": 21.0,
-            "dT_pred": 32.867,
-            "z": -2.5377,
+            "dT_pred": 32.866715765781635,
+            "z": -2.5377378083834037,
             "dAB": 0.0,
-            "i_eff_norm": 0.48066
+            "i_eff_norm": 0.48065717379666717
           },
           "T": {
             "T": 51.0,
             "I": 1780.0,
             "dT": 21.0,
-            "dT_pred": 32.867,
-            "z": -2.5377,
+            "dT_pred": 32.866715765781635,
+            "z": -2.5377378083834037,
             "dAB": 0.0,
-            "i_eff_norm": 0.48066
+            "i_eff_norm": 0.48065717379666717
           }
         },
         "timestamp": "1970-01-01T00:05:00+00:00",
@@ -767,11 +767,11 @@
         }
       ],
       "expected": {
-        "lntai": 17.686,
+        "lntai": 17.68585471925786,
         "level": "NORMAL",
-        "S_Temp": 21.016,
+        "S_Temp": 21.01597765911854,
         "S_DeltaT": 0.0,
-        "S_RES": 30.932,
+        "S_RES": 30.93154551870148,
         "hottest_phase": "R",
         "t_contact": 76.0,
         "t_ambient": 30.0,
@@ -779,7 +779,7 @@
         "delta_T_real": 46.0,
         "delta_T_pred": 26.86,
         "residual": 19.14,
-        "z": 4.0932,
+        "z": 4.093154551870148,
         "i_eff_norm": 0.0,
         "delta_phase": 0.0,
         "dAB_max": 0.0,
@@ -789,7 +789,7 @@
             "I": 0.0,
             "dT": 46.0,
             "dT_pred": 26.86,
-            "z": 4.0932,
+            "z": 4.093154551870148,
             "dAB": 0.0,
             "i_eff_norm": 0.0
           },
@@ -798,7 +798,7 @@
             "I": 0.0,
             "dT": 46.0,
             "dT_pred": 26.86,
-            "z": 4.0932,
+            "z": 4.093154551870148,
             "dAB": 0.0,
             "i_eff_norm": 0.0
           },
@@ -807,7 +807,7 @@
             "I": 0.0,
             "dT": 46.0,
             "dT_pred": 26.86,
-            "z": 4.0932,
+            "z": 4.093154551870148,
             "dAB": 0.0,
             "i_eff_norm": 0.0
           }
@@ -835,10 +835,10 @@
         }
       ],
       "expected": {
-        "lntai": 29.999,
+        "lntai": 29.998929865762086,
         "level": "WARNING",
         "S_Temp": 40.0,
-        "S_DeltaT": 6.663,
+        "S_DeltaT": 6.663099552540292,
         "S_RES": 40.0,
         "hottest_phase": "T",
         "t_contact": 106.77,
@@ -847,9 +847,9 @@
         "delta_T_real": 76.77,
         "delta_T_pred": 26.86,
         "residual": 49.91,
-        "z": 10.6734,
+        "z": 10.673424434892324,
         "i_eff_norm": 0.0,
-        "delta_phase": 6.77,
+        "delta_phase": 6.769999999999996,
         "dAB_max": 0.0,
         "per_phase": {
           "R": {
@@ -857,7 +857,7 @@
             "I": 0.0,
             "dT": 70.0,
             "dT_pred": 26.86,
-            "z": 9.2256,
+            "z": 9.225636748572528,
             "dAB": 0.0,
             "i_eff_norm": 0.0
           },
@@ -866,7 +866,7 @@
             "I": 0.0,
             "dT": 70.0,
             "dT_pred": 26.86,
-            "z": 9.2256,
+            "z": 9.225636748572528,
             "dAB": 0.0,
             "i_eff_norm": 0.0
           },
@@ -875,7 +875,7 @@
             "I": 0.0,
             "dT": 76.77,
             "dT_pred": 26.86,
-            "z": 10.6734,
+            "z": 10.673424434892324,
             "dAB": 0.0,
             "i_eff_norm": 0.0
           }

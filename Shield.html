@@ -5586,105 +5586,57 @@
 
         // Konfigurasi LNTAI mengikuti flowchart: skor komponen 0-40, digabung berbobot
         // (0.40 S_Temp + 0.30 S_ΔT + 0.30 S_TLR) sehingga hasil akhir selalu 0-40.
+        // SINKRON dengan lntai_config.json di root repo — tests/test_lntai_js.mjs
+        // memverifikasi kedua sumber ini sama persis. JANGAN ubah salah satu file
+        // tanpa mengubah yang lain. A/B/sigma sudah dikonversi ke basis I_RATED=1780A
+        // (lihat lntai_config.json untuk derivasinya) — basis lama (1000A) TIDAK
+        // dipakai lagi di sini.
         const LNTAI_CFG = {
-            scoreMax: 40,
-            weights: { temp: 0.40, deltaT: 0.30, tlr: 0.30 },
-            refTempRise: 55,      // Kenaikan suhu terminal kontak yang masih masuk rentang pengamatan wajar
-            refPhaseDelta: 22,    // Ambang selisih antar fasa yang lebih realistis untuk menjaga alarm tidak terlalu cepat
-            refTLR: 110,          // Referensi TLR yang lebih konservatif agar rasio beban tidak menjadikan semua data warning
-            tlrLoadFloor: 0.25,   // Floor I_norm meminimalkan dominasi TLR pada beban sangat rendah
-            ambient: 30,
-            iRated: I_NOMINAL_TRAFO,
+            modelVersion: 'lntai-v2',
+            baselineCalibrated: false, // TODO(kalibrasi): lihat catatan di lntai_config.json
+            baseline: { A: 25.99957356, B: 26.86, sigma: 4.6761, iRated: I_NOMINAL_TRAFO },
+            thermalLag: { tauMinutes: 20, maxGapMinutes: 60 }, // TODO(kalibrasi): asumsi rekayasa
+            pairingToleranceMinutes: 5,
+            residualScore: { zFloor: 1.0, zFull: 5.0 },
+            componentRefs: { refTempRise: 55, refPhaseDelta: 22, doublingK: 10 },
+            weights: { temp: 0.40, deltaT: 0.30, res: 0.30 },
             thresholds: { warning: 18, critical: 30 },
-            // Kaidah percepatan penuaan termal Montsinger/Arrhenius: laju degradasi kira-kira
-            // berlipat ganda setiap kenaikan suhu sebesar arrheniusDoublingK (°C/K). Dipakai agar
-            // S_Temp & S_ΔT naik non-linear mendekati batas referensi — lebih presisi secara fisik
-            // dibanding skala linear murni. Konstanta rule-of-thumb yang sama juga dipakai pada
-            // F_AA (faktor percepatan penuaan) di modul lain pada dashboard ini.
-            arrheniusDoublingK: 10,
-            smoothingWindow: 3    // jumlah sampel median untuk meredam noise sensor sesaat
+            scoreMax: 40,
+            ambientCfg: { default: 30, maxAgeMinutes: 30 },
+            smoothingWindow: 3,
+            // ── Alias flat (field lama yang masih dibaca langsung oleh beberapa
+            // render function panel LNTAI di bawah) — nilainya duplikat dari field
+            // terstruktur di atas, JANGAN diubah terpisah dari situ.
+            refTempRise: 55, refPhaseDelta: 22, arrheniusDoublingK: 10,
+            iRated: I_NOMINAL_TRAFO, ambient: 30
         };
 
         const GANDUL_WEATHER_POINT = {
             label: 'GI Gandul',
             latitude: -6.346667,
             longitude: 106.7875,
-            refreshMs: 10 * 60 * 1000,
-            variationMs: 30 * 1000
+            refreshMs: 10 * 60 * 1000
         };
 
+        // Ambient real GI Gandul dari Open-Meteo. Tidak ada lagi variasi sinus
+        // sintetis (dihapus di v2) — nilainya murni hasil fetch API atau, kalau API
+        // gagal, tetap angka terakhir yang berhasil diambil (bukan estimasi rekaan).
         const ambientWeatherState = {
-            baseTemp: 30,
             temp: 30,
-            source: 'Estimasi awal GI Gandul',
+            source: 'Belum ada pembacaan API',
             updatedAt: null,
             apiOk: false
         };
 
-        function _clampNumber(value, min, max) {
-            return Math.min(max, Math.max(min, value));
-        }
-
-        // Skor eksponensial berbasis kaidah percepatan termal Montsinger/Arrhenius: nilai
-        // berlipat ganda setiap kenaikan `doublingK`. Menghasilkan 0 pada rise<=0, ~separuh
-        // scoreMax pada rise=ref-doublingK, dan scoreMax tepat pada rise=ref.
-        function _arrheniusScore(rise, ref, doublingK, scoreMax) {
-            if (!Number.isFinite(rise) || !Number.isFinite(ref) || ref <= 0) return 0;
-            const num = Math.pow(2, rise / doublingK) - 1;
-            const den = Math.pow(2, ref / doublingK) - 1;
-            if (!Number.isFinite(num) || !Number.isFinite(den) || den <= 0) return 0;
-            return _clampNumber((num / den) * scoreMax, 0, scoreMax);
-        }
-
-        function _medianOf(arr) {
-            const s = [...arr].sort((a, b) => a - b);
-            const mid = Math.floor(s.length / 2);
-            return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
-        }
-
-        // Filter median bergerak (jendela LNTAI_CFG.smoothingWindow) untuk meredam lonjakan
-        // pembacaan sensor sesaat sebelum dipakai menghitung skor LNTAI — tanpa menutupi tren
-        // suhu yang sesungguhnya (median jauh lebih tahan outlier dibanding rata-rata).
-        function _smoothedPhaseAverages(ph, historyBuf, windowSize = LNTAI_CFG.smoothingWindow) {
-            if (!ph || !Number.isFinite(ph.tContact) || !Number.isFinite(ph.deltaPhase)) return ph;
-            historyBuf.push({ tContact: ph.tContact, deltaPhase: ph.deltaPhase });
-            if (historyBuf.length > windowSize) historyBuf.shift();
-            if (historyBuf.length < 2) return ph;
-            return {
-                ...ph,
-                tContact: _medianOf(historyBuf.map(h => h.tContact)),
-                deltaPhase: _medianOf(historyBuf.map(h => h.deltaPhase))
-            };
-        }
-
-        // Buffer smoothing realtime per trafo (state global, dipakai oleh _currentLNTAIResult)
-        let _lntaiRealtimeSmoothBuf = { '2': [], '3': [], '4': [] };
-
-        function _fallbackGandulAmbientBase(now = Date.now()) {
-            const d = new Date(now);
-            const hour = d.getHours() + (d.getMinutes() / 60);
-            const diurnal = Math.sin(((hour - 7) / 24) * Math.PI * 2) * 2.1;
-            const slowWave = Math.sin(now / (1000 * 60 * 37)) * 0.45;
-            return _clampNumber(29.2 + diurnal + slowWave, 25.5, 34.5);
-        }
-
-        function _applyAmbientVariation() {
-            const now = Date.now();
-            const micro = Math.sin(now / (1000 * 53)) * 0.22 + Math.sin(now / (1000 * 131)) * 0.16;
-            const nextTemp = _clampNumber(ambientWeatherState.baseTemp + micro, 24, 38);
-            ambientWeatherState.temp = Number(nextTemp.toFixed(2));
-            T_AMBIENT_REF = ambientWeatherState.temp;
-            if (typeof _scheduleMLRealtimeUpdate === 'function') _scheduleMLRealtimeUpdate('update suhu ambient GI Gandul');
-        }
-
         function _setAmbientWeatherBase(temp, source, apiOk = false) {
             const parsed = Number(temp);
             if (!Number.isFinite(parsed)) return;
-            ambientWeatherState.baseTemp = _clampNumber(parsed, 24, 38);
+            ambientWeatherState.temp = Number(parsed.toFixed(2));
             ambientWeatherState.source = source;
             ambientWeatherState.updatedAt = new Date();
             ambientWeatherState.apiOk = apiOk;
-            _applyAmbientVariation();
+            T_AMBIENT_REF = ambientWeatherState.temp;
+            if (typeof _scheduleMLRealtimeUpdate === 'function') _scheduleMLRealtimeUpdate('update suhu ambient GI Gandul');
         }
 
         async function refreshGandulAmbientTemperature() {
@@ -5698,89 +5650,198 @@
                 if (!Number.isFinite(temp)) throw new Error('temperature_2m kosong');
                 _setAmbientWeatherBase(temp, 'Open-Meteo real-time GI Gandul', true);
             } catch (err) {
-                _setAmbientWeatherBase(_fallbackGandulAmbientBase(), 'Local GI Gandul estimate (fallback)', false);
+                // Tidak ada fallback sinus sintetis di v2 — kalau API gagal, ambient
+                // tetap pada pembacaan API terakhir (apiOk diset false supaya
+                // _currentLNTAIResult() tahu untuk pakai default config kalau umurnya
+                // sudah lewat ambientCfg.maxAgeMinutes).
+                ambientWeatherState.apiOk = false;
                 console.warn('[SHIELD AMBIENT] Failed to fetch real-time temperature for GI Gandul:', err.message);
             }
         }
 
         refreshGandulAmbientTemperature();
         setInterval(refreshGandulAmbientTemperature, GANDUL_WEATHER_POINT.refreshMs);
-        setInterval(_applyAmbientVariation, GANDUL_WEATHER_POINT.variationMs);
 
-        // Langkah 3-6 flowchart: agregasi parameter → skor komponen 0-40 → skor berbobot → klasifikasi.
-        // `ph` adalah hasil _phaseAveragesFromTemp (berisi tContact/hottestPhase/deltaPhase/T_R/T_S/T_T).
-        function _calcLNTAIFrontend(ph, iAvg, tAmbient = LNTAI_CFG.ambient, iRated = LNTAI_CFG.iRated) {
-            const tc = Number(ph?.tContact);
-            const dPhase = Number(ph?.deltaPhase);
-            const ia = Number(iAvg);
-            const ta = Number(tAmbient);
-            const ir = Number(iRated);
-            if (![tc, dPhase, ia, ta, ir].every(Number.isFinite) || ir === 0) return null;
+        // ════════════════════════════════════════════════════════════════════
+        // <LNTAI-CORE>
+        // Blok ini murni (tidak menyentuh DOM/window, hanya menerima waktu lewat
+        // parameter sample.timestamp dalam EPOCH DETIK — sama seperti lntai_step()
+        // di lntai_calculator.py) supaya bisa diekstrak apa adanya oleh
+        // tests/test_lntai_js.mjs dan dijalankan di Node untuk verifikasi parity
+        // terhadap implementasi Python dari vector yang sama
+        // (lntai_test_vectors.json). JANGAN taruh kode yang menyentuh DOM di sini.
+        // ════════════════════════════════════════════════════════════════════
 
-            const iNorm = ia / ir;
-            const loadingPct = iNorm * 100;
-            const deltaReal = tc - ta;
-            // Floor mencegah rasio TLR meledak saat beban mendekati nol
-            const iNormFloor = Math.max(iNorm, LNTAI_CFG.tlrLoadFloor);
-            const tlr = deltaReal / Math.pow(iNormFloor, 2);
+        function _clampNumber(value, min, max) {
+            return Math.min(max, Math.max(min, value));
+        }
 
-            // Skor S_Temp & S_ΔT memakai kurva eksponensial (kaidah Montsinger/Arrhenius: risiko
-            // berlipat ganda setiap kenaikan arrheniusDoublingK °C) alih-alih linear murni, supaya
-            // skor naik lebih tajam saat mendekati/melewati batas referensi — merepresentasikan
-            // percepatan degradasi termal yang sesungguhnya non-linear terhadap suhu.
-            const S_Temp = _arrheniusScore(deltaReal, LNTAI_CFG.refTempRise, LNTAI_CFG.arrheniusDoublingK, LNTAI_CFG.scoreMax);
-            const S_DeltaT = _arrheniusScore(dPhase, LNTAI_CFG.refPhaseDelta, LNTAI_CFG.arrheniusDoublingK, LNTAI_CFG.scoreMax);
-            const S_TLR = _clampNumber((tlr / LNTAI_CFG.refTLR) * LNTAI_CFG.scoreMax, 0, LNTAI_CFG.scoreMax);
+        // Skor eksponensial heuristik (terinspirasi kaidah Montsinger untuk isolasi;
+        // belum divalidasi untuk kontak finger): nilai berlipat ganda setiap kenaikan
+        // `doublingK`. Menghasilkan 0 pada rise<=0, ~separuh scoreMax pada
+        // rise=ref-doublingK, dan scoreMax tepat pada rise=ref.
+        function _arrheniusScore(rise, ref, doublingK, scoreMax) {
+            if (!Number.isFinite(rise) || !Number.isFinite(ref) || ref <= 0) return 0;
+            const num = Math.pow(2, rise / doublingK) - 1;
+            const den = Math.pow(2, ref / doublingK) - 1;
+            if (!Number.isFinite(num) || !Number.isFinite(den) || den <= 0) return 0;
+            return _clampNumber((num / den) * scoreMax, 0, scoreMax);
+        }
 
-            const lntai = LNTAI_CFG.weights.temp * S_Temp + LNTAI_CFG.weights.deltaT * S_DeltaT + LNTAI_CFG.weights.tlr * S_TLR;
+        // Number(null) === 0 di JS (lolos Number.isFinite!), beda dengan Python
+        // float(None) yang melempar TypeError -- cek null/undefined/string-kosong
+        // eksplisit dulu di sini supaya field suhu/arus yang hilang (null) dikenali
+        // sebagai data tidak lengkap, BUKAN sebagai bacaan 0 yang sah.
+        function _isFiniteNumber(v) {
+            if (v === null || v === undefined) return false;
+            if (typeof v === 'string' && v.trim() === '') return false;
+            return Number.isFinite(Number(v));
+        }
 
-            const level = lntai >= LNTAI_CFG.thresholds.critical ? 'CRITICAL'
-                : lntai >= LNTAI_CFG.thresholds.warning ? 'WARNING'
-                : 'NORMAL';
+        const LNTAI_PHASES = ['R', 'S', 'T'];
+
+        function _lntaiInvalidResult(timestampIso, modelVersion, error) {
+            return {
+                lntai: null, level: 'DATA_INVALID', S_Temp: null, S_DeltaT: null, S_RES: null,
+                hottest_phase: null, t_contact: null, t_ambient: null, ambient_source: null,
+                delta_T_real: null, delta_T_pred: null, residual: null, z: null, i_eff_norm: null,
+                delta_phase: null, dAB_max: null, per_phase: null, timestamp: timestampIso,
+                model_version: modelVersion, error,
+                S_TLR: null, hottestPhase: null, i_avg: null, loading_pct: null, i_rated: null,
+                icon: '⚪', cls: 'bg-slate-100 text-slate-500', rec: 'Data sensor tidak valid.'
+            };
+        }
+
+        // Satu langkah LNTAI v2, murni: state masuk & keluar eksplisit (dipakai baik
+        // untuk tick realtime dengan state yang bertahan antar panggilan, maupun fold
+        // atas histori dengan state lokal). Lihat lntai_step() di
+        // lntai_calculator.py untuk definisi rinci tiap field.
+        //   state: { R: {i2Eff, lastTime(detik)}, S: {...}, T: {...} }
+        //   sample: { R_Atas..T_Bawah, I_R, I_S, I_T, t_ambient?, ambient_source?, timestamp?(detik) }
+        function _lntaiStep(state, sample, cfg) {
+            const nowSec = Number.isFinite(sample.timestamp) ? sample.timestamp : Date.now() / 1000;
+            const tsIso = new Date(nowSec * 1000).toISOString();
+
+            const tempKeys = ['R_Atas','R_Bawah','S_Atas','S_Bawah','T_Atas','T_Bawah'];
+            const currentKeys = ['I_R','I_S','I_T'];
+            const allFinite = [...tempKeys, ...currentKeys].every(k => _isFiniteNumber(sample[k]));
+            if (!allFinite || cfg.baseline.iRated === 0 || cfg.baseline.sigma === 0) {
+                return { state, result: _lntaiInvalidResult(tsIso, cfg.modelVersion, 'Data suhu/arus tidak lengkap atau tidak valid') };
+            }
+
+            const temps = {};
+            tempKeys.forEach(k => { temps[k] = Number(sample[k]); });
+            const currents = { R: Number(sample.I_R), S: Number(sample.I_S), T: Number(sample.I_T) };
+
+            let tAmbient, ambientSource;
+            if (sample.t_ambient != null && Number.isFinite(Number(sample.t_ambient))) {
+                tAmbient = Number(sample.t_ambient);
+                ambientSource = sample.ambient_source || 'measured';
+            } else {
+                tAmbient = cfg.ambientCfg.default;
+                ambientSource = sample.ambient_source || 'default';
+            }
+
+            const newState = {};
+            const perPhase = {};
+            LNTAI_PHASES.forEach(p => {
+                const atas = temps[`${p}_Atas`], bawah = temps[`${p}_Bawah`];
+                const tP = Math.max(atas, bawah);
+                const dabP = Math.abs(atas - bawah);
+                const deltaTP = tP - tAmbient;
+
+                const phState = state[p] || { i2Eff: null, lastTime: null };
+                const i2Sample = currents[p] ** 2;
+                let i2Eff;
+                if (phState.i2Eff == null || phState.lastTime == null) {
+                    i2Eff = i2Sample; // sampel pertama / state kosong: mulai dari nilai sesaat
+                } else {
+                    const dtMinutes = Math.max(0, (nowSec - phState.lastTime) / 60);
+                    if (dtMinutes > cfg.thermalLag.maxGapMinutes) {
+                        i2Eff = i2Sample; // gap > maxGapMinutes: reset filter, jangan bawa estimasi basi
+                    } else {
+                        const phi = cfg.thermalLag.tauMinutes > 0 ? Math.exp(-dtMinutes / cfg.thermalLag.tauMinutes) : 0;
+                        i2Eff = phi * phState.i2Eff + (1 - phi) * i2Sample;
+                    }
+                }
+                newState[p] = { i2Eff, lastTime: nowSec };
+
+                const iEffNormP = Math.sqrt(Math.max(i2Eff, 0)) / cfg.baseline.iRated;
+                const deltaTPredP = cfg.baseline.A * (iEffNormP ** 2) + cfg.baseline.B;
+                const zP = (deltaTP - deltaTPredP) / cfg.baseline.sigma;
+
+                perPhase[p] = { T: tP, I: currents[p], dT: deltaTP, dT_pred: deltaTPredP, z: zP, dAB: dabP, i_eff_norm: iEffNormP };
+            });
+
+            const hottestPhase = LNTAI_PHASES.reduce((a, b) => perPhase[a].T >= perPhase[b].T ? a : b);
+            const phaseTemps = LNTAI_PHASES.map(p => perPhase[p].T);
+            const deltaPhase = Math.max(...phaseTemps) - Math.min(...phaseTemps);
+            const dabMax = Math.max(...LNTAI_PHASES.map(p => perPhase[p].dAB));
+            const maxDeltaT = Math.max(...LNTAI_PHASES.map(p => perPhase[p].dT));
+            const maxZ = Math.max(...LNTAI_PHASES.map(p => perPhase[p].z));
+
+            const sTemp = _arrheniusScore(maxDeltaT, cfg.componentRefs.refTempRise, cfg.componentRefs.doublingK, cfg.scoreMax);
+            const sDeltaT = _arrheniusScore(deltaPhase, cfg.componentRefs.refPhaseDelta, cfg.componentRefs.doublingK, cfg.scoreMax);
+            const zRange = cfg.residualScore.zFull - cfg.residualScore.zFloor;
+            const sRes = zRange !== 0 ? _clampNumber((maxZ - cfg.residualScore.zFloor) / zRange * cfg.scoreMax, 0, cfg.scoreMax) : 0;
+
+            const lntai = cfg.weights.temp * sTemp + cfg.weights.deltaT * sDeltaT + cfg.weights.res * sRes;
+            const level = lntai >= cfg.thresholds.critical ? 'CRITICAL' : lntai >= cfg.thresholds.warning ? 'WARNING' : 'NORMAL';
+
+            const hp = perPhase[hottestPhase];
             const meta = {
                 NORMAL:   { icon: '🟢', cls: 'bg-emerald-100 text-emerald-700', rec: 'Normal condition. Continue routine monitoring.' },
                 WARNING:  { icon: '🟡', cls: 'bg-amber-100 text-amber-700', rec: 'Monitor the component score trend and sensor validity, schedule an inspection.' },
                 CRITICAL: { icon: '🔴', cls: 'bg-red-100 text-red-700 animate-pulse', rec: 'Take immediate action, inspect the finger contacts, and evaluate the load.' }
             }[level];
-            return {
-                t_contact: tc,
-                t_ambient: ta,
-                i_avg: ia,
-                i_rated: ir,
-                i_norm: iNorm,
-                loading_pct: loadingPct,
-                delta_T_real: deltaReal,
-                delta_phase: dPhase,
-                tlr,
-                S_Temp, S_DeltaT, S_TLR,
-                lntai,
-                level,
+
+            const result = {
+                lntai, level, S_Temp: sTemp, S_DeltaT: sDeltaT, S_RES: sRes,
+                hottest_phase: hottestPhase, t_contact: hp.T, t_ambient: tAmbient, ambient_source: ambientSource,
+                delta_T_real: hp.dT, delta_T_pred: hp.dT_pred, residual: hp.dT - hp.dT_pred, z: hp.z,
+                i_eff_norm: hp.i_eff_norm, delta_phase: deltaPhase, dAB_max: dabMax, per_phase: perPhase,
+                timestamp: tsIso, model_version: cfg.modelVersion,
+                // ── Alias deprecated — kompatibilitas tab Executive Summary & Analisa/
+                // Rekomendasi yang membaca field ini langsung (lihat laporan migrasi).
+                // JANGAN dipakai untuk logika BARU, baca field snake_case di atas.
+                S_TLR: sRes, hottestPhase: hottestPhase, i_avg: (currents.R + currents.S + currents.T) / 3,
+                loading_pct: (hp.I / cfg.baseline.iRated) * 100, i_rated: cfg.baseline.iRated,
                 ...meta
             };
+            return { state: newState, result };
+        }
+        // </LNTAI-CORE>
+
+        // Filter median 3-sampel per sensor (bukan di dalam LNTAI-CORE — ini murni
+        // tahap UX pre-processing realtime, Python TIDAK melakukan smoothing ini,
+        // jadi tidak ikut diverifikasi di test parity). Tiap dari 6 bacaan
+        // (R_Atas..T_Bawah) disaring INDEPENDEN supaya noise sensor sesaat teredam
+        // tanpa menghapus sinyal dAB (selisih Atas/Bawah) yang dipakai mendeteksi
+        // hotspot lokal satu titik.
+        function _medianOf(arr) {
+            const s = [...arr].sort((a, b) => a - b);
+            const mid = Math.floor(s.length / 2);
+            return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
         }
 
-        function _phaseAveragesFromTemp(row) {
-            if (!row) return null;
-            const vals = ['R_Atas','R_Bawah','S_Atas','S_Bawah','T_Atas','T_Bawah'].map(k => Number(row[k]));
-            if (!vals.every(Number.isFinite) || vals.every(v => v <= 0)) return null;
-            const phases = {
-                R: (Number(row.R_Atas) + Number(row.R_Bawah)) / 2,
-                S: (Number(row.S_Atas) + Number(row.S_Bawah)) / 2,
-                T: (Number(row.T_Atas) + Number(row.T_Bawah)) / 2
-            };
-            const hottest = Object.keys(phases).reduce((a, b) => phases[a] >= phases[b] ? a : b);
-            return {
-                T_R: phases.R,
-                T_S: phases.S,
-                T_T: phases.T,
-                tContact: phases[hottest],
-                hottestPhase: hottest,
-                deltaPhase: Math.max(phases.R, phases.S, phases.T) - Math.min(phases.R, phases.S, phases.T)
-            };
+        function _smoothedTempSample(rawSample, historyBuf, windowSize = LNTAI_CFG.smoothingWindow) {
+            const keys = ['R_Atas','R_Bawah','S_Atas','S_Bawah','T_Atas','T_Bawah'];
+            if (!keys.every(k => _isFiniteNumber(rawSample[k]))) return rawSample;
+            historyBuf.push(keys.reduce((acc, k) => { acc[k] = Number(rawSample[k]); return acc; }, {}));
+            if (historyBuf.length > windowSize) historyBuf.shift();
+            if (historyBuf.length < 2) return rawSample;
+            const smoothed = { ...rawSample };
+            keys.forEach(k => { smoothed[k] = _medianOf(historyBuf.map(h => h[k])); });
+            return smoothed;
         }
 
-        // Cache LNTAI valid terakhir per trafo — langkah 2 flowchart: jika bacaan baru tidak
-        // lengkap/valid, data tidak dipakai dan nilai LNTAI sebelumnya dipertahankan.
+        // Buffer smoothing + state filter lag termal realtime, per trafo.
+        let _lntaiRealtimeTempBuf = { '2': [], '3': [], '4': [] };
+        let _lntaiRealtimeState = { '2': {}, '3': {}, '4': {} };
+
+        // Cache LNTAI valid terakhir per trafo — kalau sampel baru tidak lengkap/valid,
+        // nilai ini dipertahankan dan ditandai stale:true (bukan DATA_INVALID seperti
+        // di Python) supaya UI tidak "berkedip kosong" tiap kali satu paket hilang.
         let _lastValidLNTAIResult = { '2': null, '3': null, '4': null };
 
         // Buffer histori LNTAI in-memory per trafo — terisi setiap kali ada skor LNTAI baru yang
@@ -5794,28 +5855,52 @@
         function _pushLNTAIHistory(trafo, result, timeMs) {
             const buf = _lntaiHistoryBuffer[trafo] || (_lntaiHistoryBuffer[trafo] = []);
             const last = buf[buf.length - 1];
-            if (last && Math.abs(last.time - timeMs) < 15000) return; // hindari duplikat sub-15 detik
+            // Hindari duplikat: hanya push kalau timestamp SAMPEL beda dari push
+            // terakhir (bukan sekadar beda waktu wall-clock >15 detik — itu masih
+            // bisa lolos duplikat kalau fungsi ini dipanggil berkali-kali untuk
+            // paket yang identik dalam window singkat).
+            if (last && last.timestamp === result.timestamp) return;
             buf.push({ ...result, time: timeMs, source: 'realtime buffer' });
             if (buf.length > LNTAI_HISTORY_MAX) buf.shift();
         }
 
         function _currentLNTAIResult() {
-            const td = temperatureData[selectedTrafo];
-            const bd = latestBebanData[selectedTrafo];
-            const ph = _phaseAveragesFromTemp(td);
-            const validTemp = ph && hasValidTemperaturePacket(td);
-            const validBeban = bd && hasValidBebanPacket(bd);
-            if (!validTemp || !validBeban) return _lastValidLNTAIResult[selectedTrafo];
+            const td = temperatureData[selectedTrafo] || {};
+            const bd = latestBebanData[selectedTrafo] || {};
 
-            const iAvg = (Number(bd.I_R) || 0) + (Number(bd.I_S) || 0) + (Number(bd.I_T) || 0);
-            const smoothBuf = _lntaiRealtimeSmoothBuf[selectedTrafo] || (_lntaiRealtimeSmoothBuf[selectedTrafo] = []);
-            const phSmoothed = _smoothedPhaseAverages(ph, smoothBuf);
-            const calc = _calcLNTAIFrontend(phSmoothed, iAvg / 3);
-            if (!calc) return _lastValidLNTAIResult[selectedTrafo];
-            const result = { ...calc, ...ph, timestamp: td.timestamp || bd.timestamp || new Date().toISOString(), source: 'realtime snapshot' };
-            _lastValidLNTAIResult[selectedTrafo] = result;
-            _pushLNTAIHistory(selectedTrafo, result, _parseAnyTimestamp(result.timestamp) || Date.now());
-            return result;
+            const rawSample = {
+                R_Atas: td.R_Atas, R_Bawah: td.R_Bawah, S_Atas: td.S_Atas, S_Bawah: td.S_Bawah,
+                T_Atas: td.T_Atas, T_Bawah: td.T_Bawah,
+                I_R: bd.I_R, I_S: bd.I_S, I_T: bd.I_T,
+                timestamp: (_parseAnyTimestamp(td.timestamp || bd.timestamp) || Date.now()) / 1000
+            };
+
+            // Ambient real-time dari Open-Meteo kalau masih "segar" (< ambientCfg.maxAgeMinutes);
+            // kalau tidak, biarkan _lntaiStep pakai default config (ambient_source='default') —
+            // TIDAK pernah ada backfill/estimasi sintetis di v2.
+            const ambientAgeMinutes = ambientWeatherState.updatedAt
+                ? (Date.now() - ambientWeatherState.updatedAt.getTime()) / 60000 : Infinity;
+            if (ambientWeatherState.apiOk && ambientAgeMinutes < LNTAI_CFG.ambientCfg.maxAgeMinutes) {
+                rawSample.t_ambient = ambientWeatherState.temp;
+                rawSample.ambient_source = `measured (${ambientWeatherState.source})`;
+            }
+
+            const smoothBuf = _lntaiRealtimeTempBuf[selectedTrafo] || (_lntaiRealtimeTempBuf[selectedTrafo] = []);
+            const smoothedSample = _smoothedTempSample(rawSample, smoothBuf);
+
+            const stateIn = _lntaiRealtimeState[selectedTrafo] || {};
+            const { state: stateOut, result } = _lntaiStep(stateIn, smoothedSample, LNTAI_CFG);
+            _lntaiRealtimeState[selectedTrafo] = stateOut;
+
+            if (result.level === 'DATA_INVALID') {
+                const lastValid = _lastValidLNTAIResult[selectedTrafo];
+                return lastValid ? { ...lastValid, stale: true } : null;
+            }
+
+            const finalResult = { ...result, stale: false, source: 'realtime snapshot' };
+            _lastValidLNTAIResult[selectedTrafo] = finalResult;
+            _pushLNTAIHistory(selectedTrafo, finalResult, Date.parse(finalResult.timestamp) || Date.now());
+            return finalResult;
         }
 
         function _rowTime(row) {
@@ -5825,29 +5910,41 @@
             return _parseAnyTimestamp(row.timestamp || row.ts || row.receivedAt || row.formattedTime);
         }
 
+        function _lntaiRowIsComplete(r) {
+            return ['R_Atas','R_Bawah','S_Atas','S_Bawah','T_Atas','T_Bawah'].every(k => Number.isFinite(Number(r[k])));
+        }
+
         function _buildLNTAISeries() {
             const paired = [];
             const tempRows = [...(firestoreLogs || [])]
                 .map(r => ({ ...r, _time: _rowTime(r) }))
-                .filter(r => Number.isFinite(r._time) && _phaseAveragesFromTemp(r))
+                .filter(r => Number.isFinite(r._time) && _lntaiRowIsComplete(r))
                 .sort((a, b) => a._time - b._time);
             const bebanRows = [...(firestoreBebanLogs || [])]
                 .map(r => ({ ...r, _time: _rowTime(r) }))
                 .filter(r => Number.isFinite(r._time) && ['I_R','I_S','I_T'].some(k => Number(r[k]) > 0))
                 .sort((a, b) => a._time - b._time);
 
+            // Rentang histori: ambient DEFAULT selalu dipakai (bukan ambient live hari ini) —
+            // histori belum pernah menyimpan ambient historisnya sendiri, jadi tidak di-backfill
+            // dengan data rekaan apa pun (lihat catatan di panel LNTAI).
             if (tempRows.length && bebanRows.length) {
                 let j = 0;
-                const historyBuf = [];
+                let localState = {};
                 tempRows.slice(-240).forEach(t => {
                     while (j + 1 < bebanRows.length && bebanRows[j + 1]._time <= t._time) j++;
                     const candidates = [bebanRows[j], bebanRows[j + 1]].filter(Boolean);
                     const nearest = candidates.sort((a, b) => Math.abs(a._time - t._time) - Math.abs(b._time - t._time))[0];
-                    if (!nearest || Math.abs(nearest._time - t._time) > 30 * 60 * 1000) return;
-                    const ph = _phaseAveragesFromTemp(t);
-                    const iAvg = ((Number(nearest.I_R) || 0) + (Number(nearest.I_S) || 0) + (Number(nearest.I_T) || 0)) / 3;
-                    const calc = _calcLNTAIFrontend(_smoothedPhaseAverages(ph, historyBuf), iAvg);
-                    if (calc) paired.push({ ...calc, ...ph, time: t._time, source: 'Firestore temperature + load history' });
+                    if (!nearest || Math.abs(nearest._time - t._time) > LNTAI_CFG.pairingToleranceMinutes * 60 * 1000) return;
+                    const sample = {
+                        R_Atas: t.R_Atas, R_Bawah: t.R_Bawah, S_Atas: t.S_Atas, S_Bawah: t.S_Bawah,
+                        T_Atas: t.T_Atas, T_Bawah: t.T_Bawah,
+                        I_R: Number(nearest.I_R) || 0, I_S: Number(nearest.I_S) || 0, I_T: Number(nearest.I_T) || 0,
+                        timestamp: t._time / 1000
+                    };
+                    const { state, result } = _lntaiStep(localState, sample, LNTAI_CFG);
+                    localState = state;
+                    if (result.level !== 'DATA_INVALID') paired.push({ ...result, time: t._time, source: 'Firestore temperature + load history' });
                 });
             }
 
@@ -5875,22 +5972,25 @@
             const n = Math.min(chartDataPoints.timestamps.length, (bebanLiveChartBuffer[selectedTrafo] || []).length, 60);
             if (n > 0) {
                 const loadRows = (bebanLiveChartBuffer[selectedTrafo] || []).slice(-n);
-                const historyBuf = [];
+                let localState = {};
                 for (let idx = 0; idx < n; idx++) {
                     const tempIdx = chartDataPoints.timestamps.length - n + idx;
-                    const tempRow = {
+                    const timeMs = Date.now() - (n - idx) * 60000;
+                    const sample = {
                         R_Atas: chartDataPoints.R_Atas[tempIdx],
                         R_Bawah: chartDataPoints.R_Bawah[tempIdx],
                         S_Atas: chartDataPoints.S_Atas[tempIdx],
                         S_Bawah: chartDataPoints.S_Bawah[tempIdx],
                         T_Atas: chartDataPoints.T_Atas[tempIdx],
-                        T_Bawah: chartDataPoints.T_Bawah[tempIdx]
+                        T_Bawah: chartDataPoints.T_Bawah[tempIdx],
+                        I_R: Number((loadRows[idx] || {}).I_R) || 0,
+                        I_S: Number((loadRows[idx] || {}).I_S) || 0,
+                        I_T: Number((loadRows[idx] || {}).I_T) || 0,
+                        timestamp: timeMs / 1000
                     };
-                    const ph = _phaseAveragesFromTemp(tempRow);
-                    const load = loadRows[idx];
-                    const iAvg = ((Number(load.I_R) || 0) + (Number(load.I_S) || 0) + (Number(load.I_T) || 0)) / 3;
-                    const calc = ph ? _calcLNTAIFrontend(_smoothedPhaseAverages(ph, historyBuf), iAvg) : null;
-                    if (calc) paired.push({ ...calc, ...ph, time: Date.now() - (n - idx) * 60000, source: 'live buffer' });
+                    const { state, result } = _lntaiStep(localState, sample, LNTAI_CFG);
+                    localState = state;
+                    if (result.level !== 'DATA_INVALID') paired.push({ ...result, time: timeMs, source: 'live buffer' });
                 }
                 if (paired.length) return { rows: paired, source: 'live chart buffer' };
             }
@@ -6021,15 +6121,16 @@
                         : 'Awaiting weather refresh';
                     const calcRows = [
                         ['T_contact', `${current.t_contact.toFixed(2)} °C`, `Average temperature of phase ${current.hottestPhase}, selected as the hottest contact.`],
-                        ['T_ambient', `${current.t_ambient.toFixed(2)} °C`, `${ambientWeatherState.source} (${GANDUL_WEATHER_POINT.latitude.toFixed(6)}, ${GANDUL_WEATHER_POINT.longitude.toFixed(4)}) + local micro-variation. ${ambientUpdated}.`],
+                        ['T_ambient', `${current.t_ambient.toFixed(2)} °C`, `Source: ${current.ambient_source} — ${ambientWeatherState.source} (${GANDUL_WEATHER_POINT.latitude.toFixed(6)}, ${GANDUL_WEATHER_POINT.longitude.toFixed(4)}). ${ambientUpdated}.`],
                         ['I_avg', `${current.i_avg.toFixed(2)} A`, 'Average current across the three phases I_R/I_S/I_T.'],
-                        ['Loading %', `${current.loading_pct.toFixed(1)} %`, `I_avg / I_nominal (${current.i_rated} A) × 100%.`],
+                        ['i_eff (lag-filtered)', `${(current.i_eff_norm * 100).toFixed(1)} %`, `Effective current (thermal-lag filtered, τ=${LNTAI_CFG.thermalLag.tauMinutes} min) on the hottest phase, as a % of rated current.`],
+                        ['Loading %', `${current.loading_pct.toFixed(1)} %`, `I_avg / I_nominal (${current.i_rated} A) × 100% (instantaneous, not lag-filtered).`],
                         ['ΔT real (rise)', `${current.delta_T_real.toFixed(2)} °C`, 'Temperature rise of the hottest contact above ambient.'],
                         ['ΔT inter-phase', `${current.delta_phase.toFixed(2)} °C`, 'Highest-minus-lowest temperature difference among phases R/S/T.'],
-                        ['TLR', `${current.tlr.toFixed(2)} K/unit²`, 'Temperature rise relative to the squared normalized load.'],
-                        ['S_Temp', `${current.S_Temp.toFixed(1)} / 40`, `Temperature-rise score vs the ${LNTAI_CFG.refTempRise}K terminal rise limit (IEC 62271-1).`],
+                        ['z (residual)', `${current.z.toFixed(2)} σ`, 'Standardized residual between actual and baseline-predicted temperature rise (uses i_eff, not instantaneous current).'],
+                        ['S_Temp', `${current.S_Temp.toFixed(1)} / 40`, `Temperature-rise score vs an internal ${LNTAI_CFG.refTempRise}K reference curve (compare separately to IEC 62271-1 contact-material rise limits).`],
                         ['S_ΔT', `${current.S_DeltaT.toFixed(1)} / 40`, `Inter-phase difference score vs the ${LNTAI_CFG.refPhaseDelta}K reference.`],
-                        ['S_TLR', `${current.S_TLR.toFixed(1)} / 40`, `Temperature/load² ratio score vs the ${LNTAI_CFG.refTLR} K/unit² reference.`],
+                        ['S_RES', `${current.S_RES.toFixed(1)} / 40`, `Residual-anomaly score: z mapped from ${LNTAI_CFG.residualScore.zFloor}σ (score 0) to ${LNTAI_CFG.residualScore.zFull}σ (score 40).`],
                         ['LNTAI', `${current.lntai.toFixed(2)} / 40`, `0.40·S_Temp + 0.30·S_ΔT + 0.30·S_TLR, giving level ${current.level}.`]
                     ];
                     calcBody.innerHTML = calcRows.map(([p,v,m]) => `
@@ -6390,9 +6491,9 @@
             }
             if (empty) empty.classList.add('hidden');
 
-            // S_Temp/S_DeltaT/S_TLR dan lntai sudah dijamin 0-40 oleh engine (_calcLNTAIFrontend)
+            // S_Temp/S_DeltaT/S_RES dan lntai sudah dijamin 0-40 oleh engine (_lntaiStep)
             const otNormPct = (current.S_Temp / LNTAI_CFG.scoreMax) * 100;
-            const loadFactorPct = current.i_norm * 100;
+            const loadFactorPct = current.i_eff_norm * 100; // lag-filtered, bukan arus sesaat
 
             _setLNTAIText('lntai-kpi-score', current.lntai.toFixed(1));
             _setLNTAIText('lntai-kpi-ot-norm', (otNormPct / 100).toFixed(3));

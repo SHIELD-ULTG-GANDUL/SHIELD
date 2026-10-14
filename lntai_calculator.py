@@ -159,14 +159,18 @@ def lntai_step(
         delta_t_pred_p = a * (i_eff_norm_p ** 2) + b
         z_p = (delta_t_p - delta_t_pred_p) / sigma
 
+        # Presisi penuh (tidak dibulatkan) -- pembulatan untuk tampilan adalah
+        # urusan lapisan display (mis. realtime_monitor.py print / UI .toFixed()),
+        # BUKAN hasil komputasi. Membulatkan di sini akan membuat test parity
+        # Python<->JS gagal pada toleransi ketat (noise pembulatan >> 1e-6).
         per_phase[p] = {
-            "T": round(t_p, 3),
-            "I": round(currents[p], 3),
-            "dT": round(delta_t_p, 3),
-            "dT_pred": round(delta_t_pred_p, 3),
-            "z": round(z_p, 4),
-            "dAB": round(dab_p, 3),
-            "i_eff_norm": round(i_eff_norm_p, 5),
+            "T": t_p,
+            "I": currents[p],
+            "dT": delta_t_p,
+            "dT_pred": delta_t_pred_p,
+            "z": z_p,
+            "dAB": dab_p,
+            "i_eff_norm": i_eff_norm_p,
         }
 
     hottest_phase = max(PHASES, key=lambda p: per_phase[p]["T"])
@@ -190,22 +194,24 @@ def lntai_step(
 
     hp = per_phase[hottest_phase]
     result = {
-        "lntai": round(lntai, 3),
+        # Presisi penuh (lihat catatan di per_phase di atas) -- pembulatan
+        # adalah urusan lapisan display, bukan hasil komputasi.
+        "lntai": lntai,
         "level": level,
-        "S_Temp": round(s_temp, 3),
-        "S_DeltaT": round(s_delta_t, 3),
-        "S_RES": round(s_res, 3),
+        "S_Temp": s_temp,
+        "S_DeltaT": s_delta_t,
+        "S_RES": s_res,
         "hottest_phase": hottest_phase,
         "t_contact": hp["T"],
-        "t_ambient": round(t_ambient, 3),
+        "t_ambient": t_ambient,
         "ambient_source": ambient_source,
         "delta_T_real": hp["dT"],
         "delta_T_pred": hp["dT_pred"],
-        "residual": round(hp["dT"] - hp["dT_pred"], 3),
+        "residual": hp["dT"] - hp["dT_pred"],
         "z": hp["z"],
         "i_eff_norm": hp["i_eff_norm"],
-        "delta_phase": round(delta_phase, 3),
-        "dAB_max": round(dab_max, 3),
+        "delta_phase": delta_phase,
+        "dAB_max": dab_max,
         "per_phase": per_phase,
         "timestamp": ts_iso,
         "model_version": model_version,
