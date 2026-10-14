@@ -2124,7 +2124,12 @@
                 ts: row.ts || new Date(docTime).toLocaleString('id-ID'),
                 timestamp: row.timestamp || row.receivedAt || new Date(docTime).toISOString(),
                 receivedAt: row.receivedAt || row.timestamp || new Date(docTime).toISOString(),
-                deviceTimestamp: row.deviceTimestamp || row.timestamp || row.ts || null
+                deviceTimestamp: row.deviceTimestamp || row.timestamp || row.ts || null,
+                // T2: teruskan penanda field-yang-sebenarnya-NULL dari
+                // _tsNormalizeTempRow -- function ini membangun ulang objeknya
+                // sendiri (hanya memilih field tertentu), jadi _rawNullFields perlu
+                // disalin eksplisit supaya tidak hilang di titik ini.
+                _rawNullFields: row._rawNullFields || []
             };
 
             temperatureData[trafo] = payload;
@@ -2580,6 +2585,19 @@
             };
             const rawTs = row.timestamp || row.time || row.ts || row.waktu || row.created_at || row.received_at || row.receivedAt;
             const docTime = _parseAnyTimestamp(rawTs);
+            // T2 (Tahap 1): field di atas TETAP default 0 kalau hilang -- mengubahnya
+            // jadi null akan merembet ke ratusan titik .toFixed() di seluruh dashboard
+            // yang belum diaudit null-safety-nya satu per satu (di luar scope Tahap 1
+            // ini, lihat laporan migrasi). Sebagai gantinya, field mana yang SEBENARNYA
+            // NULL di respons API (bukan 0 yang sah) dicatat terpisah di
+            // _rawNullFields, supaya kode yang sadar kualitas data (LNTAI v2 --
+            // _currentLNTAIResult, _buildLNTAISeries) bisa tetap membedakan "data
+            // hilang" dari "bacaan 0 yang sah", tanpa perlu mengubah 203 titik
+            // tampilan lama. _tsNormalizeTempRow hanya dipakai jalur TimescaleDB, yang
+            // key-nya SELALU persis R_Atas/R_Bawah/dst (lihat SELECT ... AS di
+            // server/api.py), jadi aman dicek langsung tanpa daftar alias.
+            const rawNullFields = ['R_Atas','R_Bawah','S_Atas','S_Bawah','T_Atas','T_Bawah']
+                .filter(k => row[k] === null || row[k] === undefined);
             return {
                 R_Atas:  pick(['R_Atas','r_atas','RAtas','R1','temp_r_atas','R_top']),
                 R_Bawah: pick(['R_Bawah','r_bawah','RBawah','R2','temp_r_bawah','R_bottom']),
@@ -2594,7 +2612,8 @@
                 formattedTime: new Date(docTime).toLocaleString('id-ID'),
                 ts: new Date(docTime).toLocaleString('id-ID'),
                 trafo: `Trafo ${trafo}`,
-                sourcePath: `TimescaleDB ${TIMESCALE_HOST}:${TIMESCALE_PORT}`
+                sourcePath: `TimescaleDB ${TIMESCALE_HOST}:${TIMESCALE_PORT}`,
+                _rawNullFields: rawNullFields
             };
         }
 
@@ -2612,13 +2631,22 @@
             const docTime = _parseAnyTimestamp(
                 row.timestamp || row.time || row.ts || row.waktu || row.created_at || parsed.timestamp
             );
+            // T2 (Tahap 1): lihat catatan _rawNullFields di _tsNormalizeTempRow --
+            // pola yang sama di sini. parseBebanDoc() sengaja TIDAK diubah (masih
+            // default 0) karena juga dipakai jalur Firestore lama lain yang tidak
+            // diaudit di Tahap 1 ini; _rawNullFields dihitung langsung dari `row`
+            // (respons API TimescaleDB, key selalu persis I_R/V_R/dst, lihat
+            // server/api.py) supaya tidak perlu mengubah parseBebanDoc().
+            const rawNullFields = ['I_R','I_S','I_T','V_R','V_S','V_T','V_RS','V_ST','V_TR','kW','kVAR','kVA','PF']
+                .filter(k => row[k] === null || row[k] === undefined);
             return {
                 ...parsed,
                 _time: docTime,
                 docSortTime: docTime,
                 formattedTime: new Date(docTime).toLocaleString('id-ID'),
                 trafo: `Trafo ${trafo}`,
-                sourcePath: `TimescaleDB ${TIMESCALE_HOST}:${TIMESCALE_PORT}`
+                sourcePath: `TimescaleDB ${TIMESCALE_HOST}:${TIMESCALE_PORT}`,
+                _rawNullFields: rawNullFields
             };
         }
 
@@ -5886,6 +5914,13 @@
                 I_R: bd.I_R, I_S: bd.I_S, I_T: bd.I_T,
                 timestamp: (_parseAnyTimestamp(td.timestamp || bd.timestamp) || Date.now()) / 1000
             };
+            // T2: field yang di layer tampilan sengaja dibiarkan 0 (lihat catatan
+            // _rawNullFields di _tsNormalizeTempRow) harus dikembalikan jadi null DI
+            // SINI, supaya _lntaiStep benar-benar menandai DATA_INVALID untuk sensor
+            // yang betul-betul tidak mengirim data -- bukan diam-diam menghitung
+            // LNTAI seolah-olah sensor itu membaca 0.
+            (td._rawNullFields || []).forEach(k => { if (k in rawSample) rawSample[k] = null; });
+            (bd._rawNullFields || []).forEach(k => { if (k in rawSample) rawSample[k] = null; });
 
             // Ambient real-time dari Open-Meteo kalau masih "segar" (< ambientCfg.maxAgeMinutes);
             // kalau tidak, biarkan _lntaiStep pakai default config (ambient_source='default') —
@@ -5923,7 +5958,9 @@
         }
 
         function _lntaiRowIsComplete(r) {
-            return ['R_Atas','R_Bawah','S_Atas','S_Bawah','T_Atas','T_Bawah'].every(k => Number.isFinite(Number(r[k])));
+            const nullSet = new Set(r._rawNullFields || []);
+            return ['R_Atas','R_Bawah','S_Atas','S_Bawah','T_Atas','T_Bawah']
+                .every(k => !nullSet.has(k) && Number.isFinite(Number(r[k])));
         }
 
         function _buildLNTAISeries() {
@@ -5954,6 +5991,9 @@
                         I_R: Number(nearest.I_R) || 0, I_S: Number(nearest.I_S) || 0, I_T: Number(nearest.I_T) || 0,
                         timestamp: t._time / 1000
                     };
+                    // T2: lihat catatan _rawNullFields di _currentLNTAIResult -- sama di sini.
+                    (t._rawNullFields || []).forEach(k => { if (k in sample) sample[k] = null; });
+                    (nearest._rawNullFields || []).forEach(k => { if (k in sample) sample[k] = null; });
                     const { state, result } = _lntaiStep(localState, sample, LNTAI_CFG);
                     localState = state;
                     if (result.level !== 'DATA_INVALID') paired.push({ ...result, time: t._time, source: 'Firestore temperature + load history' });
@@ -6654,13 +6694,23 @@
             return parts.join(' + ');
         }
 
+        // T2 (Tahap 1): sebelumnya memakai "> 0" untuk cek validitas, yang secara
+        // tidak sengaja MENYAMAKAN "data hilang" dengan "bacaan 0 yang sah" (mis.
+        // arus 0 A saat CB terbuka dianggap sama "tidak valid"-nya dengan field
+        // yang memang tidak ada datanya). Sekarang: valid = angka berhingga DAN
+        // bukan field yang ditandai _rawNullFields (lihat _tsNormalizeTempRow/
+        // _tsNormalizeBebanRow) -- 0 yang sah kini lolos sebagai data valid.
         function hasValidTemperaturePacket(td) {
             const keys = ['R_Atas','R_Bawah','S_Atas','S_Bawah','T_Atas','T_Bawah'];
-            return !!td && keys.every(k => Number.isFinite(Number(td[k])) && Number(td[k]) > 0);
+            if (!td) return false;
+            const nullSet = new Set(td._rawNullFields || []);
+            return keys.every(k => !nullSet.has(k) && Number.isFinite(Number(td[k])));
         }
 
         function hasValidBebanPacket(bd) {
-            return !!bd && ['I_R','I_S','I_T'].every(k => Number.isFinite(Number(bd[k])) && Number(bd[k]) > 0);
+            if (!bd) return false;
+            const nullSet = new Set(bd._rawNullFields || []);
+            return ['I_R','I_S','I_T'].every(k => !nullSet.has(k) && Number.isFinite(Number(bd[k])));
         }
 
         function resetChart(id) {

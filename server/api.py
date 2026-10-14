@@ -89,7 +89,16 @@ def temperature_logs(
 ):
     """Mengembalikan N pembacaan suhu terbaru untuk satu trafo, terurut dari
     yang paling baru. Bentuk field sengaja disamakan dengan skema lama di
-    Firestore supaya sisi frontend (Shield.html) tinggal memetakan langsung."""
+    Firestore supaya sisi frontend (Shield.html) tinggal memetakan langsung.
+
+    T2/T3 (Tahap 1, Oktober 2026): field "ambient" yang dulu diambil dari
+    kolom temp_ambient DIHAPUS dari respons ini -- audit Fase 0 mengonfirmasi
+    kolom itu selalu bernilai 30 (default statis, bukan pengukuran) untuk
+    SEMUA baris yang ada. Suhu ambient yang sebenarnya akan datang dari
+    ambient_logs (T3), lewat endpoint /api/ambient-logs terpisah, bukan
+    menumpang di endpoint ini. Kolom temp_ambient sendiri TETAP ADA di tabel,
+    dicadangkan untuk sensor ambient di dalam panel trafo di masa depan
+    (lihat docs/DATA_DICTIONARY.md, T9)."""
     _check_api_key(x_api_key)
 
     with _pool.connection() as conn, conn.cursor(row_factory=dict_row) as cur:
@@ -98,7 +107,7 @@ def temperature_logs(
             SELECT trafo_id AS trafo, r_atas AS "R_Atas", r_bawah AS "R_Bawah",
                    s_atas AS "S_Atas", s_bawah AS "S_Bawah",
                    t_atas AS "T_Atas", t_bawah AS "T_Bawah",
-                   temp_ambient AS "ambient",
+                   quality_flags,
                    timestamp AS ts
             FROM trafo_temperature
             WHERE trafo_id = %s
@@ -152,17 +161,24 @@ def beban_logs(
     trafo, dari tabel trafo_load (shield_data). Nama field disamakan dengan
     alias yang dikenali parseBebanDoc() di Shield.html (I_R, kW, dst.) supaya
     frontend tidak perlu mapping ulang. V_R/V_S/V_T adalah tegangan fasa-netral
-    (van/vbn/vcn); V_RS/V_ST/V_TR adalah tegangan fasa-fasa (vab/vbc/vca)."""
+    (van/vbn/vcn); V_RS/V_ST/V_TR adalah tegangan fasa-fasa (vab/vbc/vca).
+
+    T2 (Tahap 1, Oktober 2026): COALESCE(..., 0) pada kolom tegangan/kVAR
+    DIHAPUS -- sebelumnya API ini sendiri yang mengubah NULL (data hilang)
+    jadi 0 sebelum sampai ke frontend, padahal mqtt_subscriber.py (T2) sudah
+    diperbaiki supaya tidak lagi menulis 0 untuk data yang hilang. Frontend
+    (parseBebanDoc, dll.) sekarang bertanggung jawab memperlakukan null
+    sebagai "data tidak tersedia", bukan API yang menyamarkannya jadi 0."""
     _check_api_key(x_api_key)
 
     with _pool.connection() as conn, conn.cursor(row_factory=dict_row) as cur:
         cur.execute(
             """
             SELECT trafo_id AS trafo, ia AS "I_R", ib AS "I_S", ic AS "I_T",
-                   COALESCE(van, 0) AS "V_R", COALESCE(vbn, 0) AS "V_S", COALESCE(vcn, 0) AS "V_T",
-                   COALESCE(vab, 0) AS "V_RS", COALESCE(vbc, 0) AS "V_ST", COALESCE(vca, 0) AS "V_TR",
-                   kw_total AS "kW", COALESCE(kvar_total, 0) AS "kVAR", kva_total AS "kVA", pf_total AS "PF",
-                   current_max, freq,
+                   van AS "V_R", vbn AS "V_S", vcn AS "V_T",
+                   vab AS "V_RS", vbc AS "V_ST", vca AS "V_TR",
+                   kw_total AS "kW", kvar_total AS "kVAR", kva_total AS "kVA", pf_total AS "PF",
+                   current_max, freq, quality_flags,
                    timestamp AS ts
             FROM trafo_load
             WHERE trafo_id = %s

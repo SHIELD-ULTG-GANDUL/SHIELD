@@ -15,25 +15,46 @@ inserting a timezone-AWARE datetime (UTC), ignoring any timestamp the
 payload itself may carry, since this subscriber writes essentially at
 the moment the message arrives — the "timestamp" is this process's own
 wall clock, not a value that needs interpreting from the payload.
+
+T2 (Tahap 1, Oktober 2026) — perubahan dari versi sebelumnya:
+  - Field yang hilang/null/tidak numerik dari payload disimpan sebagai
+    SQL NULL, BUKAN 0. Nilai 0 yang memang dikirim device tetap disimpan
+    apa adanya (0.0 adalah bacaan yang sah, bukan "tidak ada data").
+    temp_max/temp_avg dihitung hanya dari nilai suhu yang non-NULL.
+  - Pindah dari psycopg2 (buka koneksi baru tiap pesan) ke psycopg3 +
+    connection pool (pola yang sama dengan api.py/mqtt_ingester.py).
+  - print() diganti logging; tambah reconnect_delay_set + on_disconnect
+    supaya status putus-sambung MQTT tercatat, bukan diam-diam hilang.
+  - Kredensial/host dibaca dari settings.py (lihat T1), tidak ada lagi
+    hardcode di file ini.
+
+Kolom quality_flags (lihat migrations/001_add_quality_flags.sql) BELUM
+diisi oleh skrip ini -- itu pekerjaan T5 (data_quality.py), yang akan
+mengimpor dan memanggil modul itu dari sini.
 """
 
-import paho.mqtt.client as mqtt
-import psycopg2
-import psycopg2.extras
+from __future__ import annotations
+
 import json
+import logging
 import sys
-import time
 from datetime import datetime, timezone
+from typing import Any, Optional
+
+import paho.mqtt.client as mqtt
+from psycopg_pool import ConnectionPool
 
 from settings import load_database_settings, load_local_mqtt_settings
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+)
+log = logging.getLogger("mqtt-subscriber")
 
 # =====================================================
 # CONFIGURATION
 # =====================================================
-# T1: kredensial/host dibaca dari settings.py (env var), tidak ada lagi
-# password/host hardcode di sini. Koneksi DB per-pesan, print() alih-alih
-# logging, dan "data hilang jadi 0" (T2) BELUM diubah di tahap ini --
-# itu scope T2, bukan T1.
 _db_settings = load_database_settings()
 _mqtt_settings = load_local_mqtt_settings()
 
@@ -46,120 +67,146 @@ MQTT_LOCAL_USER = _mqtt_settings.user
 MQTT_LOCAL_PASS = _mqtt_settings.password
 MQTT_CLIENT_ID = "shield_subscriber"
 
+_pool = ConnectionPool(conninfo=DATABASE_URL, min_size=1, max_size=5, open=True)
+
+
+# =====================================================
+# PARSING — NULL untuk hilang/tidak valid, bukan 0
+# =====================================================
+def _to_float_or_none(data: dict[str, Any], key: str) -> Optional[float]:
+    """Kembalikan None kalau field `key` hilang dari payload, bernilai null,
+    atau tidak bisa dikonversi ke angka -- BUKAN 0. Nilai 0 yang memang ada
+    di payload (mis. ia=0 saat CB terbuka) tetap dikembalikan sebagai 0.0,
+    karena itu bacaan yang sah, bukan data yang hilang."""
+    value = data.get(key)
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
 # =====================================================
 # SAVE TO DATABASE
 # =====================================================
-def save_to_database(data):
+def save_to_database(data: dict[str, Any]) -> bool:
     try:
         trafo_id = str(data.get('trafo_id', '2'))
         # Always use this process's own current time, timezone-aware (UTC),
-        # so psycopg2 binds it to the TIMESTAMPTZ column unambiguously.
+        # so psycopg binds it to the TIMESTAMPTZ column unambiguously.
         # See the timezone note in the module docstring for why the
         # payload's own "timestamp" field is intentionally not used here.
         timestamp = datetime.now(timezone.utc)
 
-        ia = float(data.get('ia', 0))
-        ib = float(data.get('ib', 0))
-        ic = float(data.get('ic', 0))
-        current_max = max(ia, ib, ic)
-        kw_total = float(data.get('kw_total', 0))
-        kva_total = float(data.get('kva_total', 0))
-        kvar_total = float(data.get('kvar_total', 0))
-        pf_total = float(data.get('pf_total', 0))
-        freq = float(data.get('freq', 0))
+        ia = _to_float_or_none(data, 'ia')
+        ib = _to_float_or_none(data, 'ib')
+        ic = _to_float_or_none(data, 'ic')
+        _currents = [v for v in (ia, ib, ic) if v is not None]
+        current_max = max(_currents) if _currents else None
 
-        # Phase-to-neutral and phase-to-phase voltage. Present in every
-        # payload from the device (van/vbn/vcn, vab/vbc/vca) but previously
-        # dropped here, which is why the dashboard always showed 0 V.
-        van = float(data.get('van', 0))
-        vbn = float(data.get('vbn', 0))
-        vcn = float(data.get('vcn', 0))
-        vab = float(data.get('vab', 0))
-        vbc = float(data.get('vbc', 0))
-        vca = float(data.get('vca', 0))
+        kw_total = _to_float_or_none(data, 'kw_total')
+        kva_total = _to_float_or_none(data, 'kva_total')
+        kvar_total = _to_float_or_none(data, 'kvar_total')
+        pf_total = _to_float_or_none(data, 'pf_total')
+        freq = _to_float_or_none(data, 'freq')
 
-        r_atas = float(data.get('r_atas', 0))
-        r_bawah = float(data.get('r_bawah', 0))
-        s_atas = float(data.get('s_atas', 0))
-        s_bawah = float(data.get('s_bawah', 0))
-        t_atas = float(data.get('t_atas', 0))
-        t_bawah = float(data.get('t_bawah', 0))
+        # Phase-to-neutral and phase-to-phase voltage.
+        van = _to_float_or_none(data, 'van')
+        vbn = _to_float_or_none(data, 'vbn')
+        vcn = _to_float_or_none(data, 'vcn')
+        vab = _to_float_or_none(data, 'vab')
+        vbc = _to_float_or_none(data, 'vbc')
+        vca = _to_float_or_none(data, 'vca')
+
+        r_atas = _to_float_or_none(data, 'r_atas')
+        r_bawah = _to_float_or_none(data, 'r_bawah')
+        s_atas = _to_float_or_none(data, 's_atas')
+        s_bawah = _to_float_or_none(data, 's_bawah')
+        t_atas = _to_float_or_none(data, 't_atas')
+        t_bawah = _to_float_or_none(data, 't_bawah')
 
         all_temps = [r_atas, r_bawah, s_atas, s_bawah, t_atas, t_bawah]
-        valid_temps = [t for t in all_temps if t > 0]
-        temp_max = max(valid_temps) if valid_temps else 0
-        temp_avg = sum(valid_temps) / len(valid_temps) if valid_temps else 0
+        valid_temps = [t for t in all_temps if t is not None]
+        temp_max = max(valid_temps) if valid_temps else None
+        temp_avg = (sum(valid_temps) / len(valid_temps)) if valid_temps else None
 
-        conn = psycopg2.connect(DATABASE_URL)
-        cur = conn.cursor()
+        with _pool.connection() as conn, conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO trafo_load (
+                    timestamp, trafo_id, ia, ib, ic, current_max,
+                    kw_total, kva_total, kvar_total, pf_total, freq,
+                    van, vbn, vcn, vab, vbc, vca
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING id
+                """,
+                (timestamp, trafo_id, ia, ib, ic, current_max,
+                 kw_total, kva_total, kvar_total, pf_total, freq,
+                 van, vbn, vcn, vab, vbc, vca),
+            )
+            load_id = cur.fetchone()[0]
 
-        cur.execute("""
-            INSERT INTO trafo_load (
-                timestamp, trafo_id, ia, ib, ic, current_max,
-                kw_total, kva_total, kvar_total, pf_total, freq,
-                van, vbn, vcn, vab, vbc, vca
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            RETURNING id
-        """, (timestamp, trafo_id, ia, ib, ic, current_max,
-              kw_total, kva_total, kvar_total, pf_total, freq,
-              van, vbn, vcn, vab, vbc, vca))
-        load_id = cur.fetchone()[0]
+            cur.execute(
+                """
+                INSERT INTO trafo_temperature (
+                    timestamp, trafo_id,
+                    r_atas, r_bawah, s_atas, s_bawah, t_atas, t_bawah,
+                    temp_max, temp_avg
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING id
+                """,
+                (timestamp, trafo_id, r_atas, r_bawah, s_atas, s_bawah,
+                 t_atas, t_bawah, temp_max, temp_avg),
+            )
+            temp_id = cur.fetchone()[0]
 
-        cur.execute("""
-            INSERT INTO trafo_temperature (
-                timestamp, trafo_id,
-                r_atas, r_bawah, s_atas, s_bawah, t_atas, t_bawah,
-                temp_max, temp_avg
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            RETURNING id
-        """, (timestamp, trafo_id, r_atas, r_bawah, s_atas, s_bawah,
-              t_atas, t_bawah, temp_max, temp_avg))
-        temp_id = cur.fetchone()[0]
-
-        conn.commit()
-        cur.close()
-        conn.close()
-
-        print(f"✅ Trafo-{trafo_id} saved (load_id={load_id}, temp_id={temp_id})")
+        log.info("Trafo-%s saved (load_id=%s, temp_id=%s)", trafo_id, load_id, temp_id)
         return True
 
-    except Exception as e:
-        print(f"❌ Error: {e}")
+    except Exception:
+        log.exception("Gagal menyimpan data ke database")
         return False
+
 
 # =====================================================
 # MQTT CALLBACKS
 # =====================================================
-def on_connect(client, userdata, flags, rc):
+def on_connect(client: mqtt.Client, userdata, flags, rc):
     if rc == 0:
-        print(f"✅ Connected to {MQTT_BROKER}:{MQTT_PORT}")
+        log.info("Connected to %s:%s", MQTT_BROKER, MQTT_PORT)
         client.subscribe(MQTT_TOPIC)
-        print(f"Subscribed to {MQTT_TOPIC}")
-        print("=" * 50)
-        print("Waiting for data...")
-        print("=" * 50)
+        log.info("Subscribed to %s", MQTT_TOPIC)
     else:
-        print(f"❌ Connection failed (rc={rc})")
+        log.error("Connection failed (rc=%s)", rc)
 
-def on_message(client, userdata, msg):
+
+def on_disconnect(client: mqtt.Client, userdata, rc):
+    if rc != 0:
+        log.warning("Unexpected disconnect (rc=%s) -- paho akan mencoba reconnect otomatis", rc)
+    else:
+        log.info("Disconnected")
+
+
+def on_message(client: mqtt.Client, userdata, msg: mqtt.MQTTMessage):
     try:
         payload = json.loads(msg.payload.decode())
-        print(f"\n[{datetime.now().strftime('%H:%M:%S')}] {msg.topic}")
+        log.debug("Pesan diterima di topik %s", msg.topic)
         save_to_database(payload)
-    except Exception as e:
-        print(f"❌ Error: {e}")
+    except Exception:
+        log.exception("Gagal memproses pesan MQTT dari topik %s", msg.topic)
+
 
 # =====================================================
 # MAIN
 # =====================================================
 if __name__ == "__main__":
-    print("=" * 60)
-    print("  MQTT Subscriber - Shield Data")
-    print("=" * 60)
-    print(f"  Broker: {MQTT_BROKER}:{MQTT_PORT}")
-    print(f"  Topic:  {MQTT_TOPIC}")
-    print(f"  DB:     {DATABASE_URL.rsplit('/', 1)[-1]}")
-    print("=" * 60)
+    log.info("=" * 60)
+    log.info("MQTT Subscriber - Shield Data")
+    log.info("Broker: %s:%s", MQTT_BROKER, MQTT_PORT)
+    log.info("Topic:  %s", MQTT_TOPIC)
+    log.info("DB:     %s", DATABASE_URL.rsplit('/', 1)[-1])
+    log.info("=" * 60)
 
     client = mqtt.Client(MQTT_CLIENT_ID)
     if MQTT_LOCAL_USER and MQTT_LOCAL_PASS:
@@ -167,18 +214,20 @@ if __name__ == "__main__":
         # disiapkan di sini supaya tinggal jalan begitu ACL/autentikasi
         # ditambahkan (rekomendasi keamanan T1), tanpa perlu ubah kode lagi.
         client.username_pw_set(MQTT_LOCAL_USER, MQTT_LOCAL_PASS)
+    client.reconnect_delay_set(min_delay=1, max_delay=60)
     client.on_connect = on_connect
+    client.on_disconnect = on_disconnect
     client.on_message = on_message
 
     try:
         client.connect(MQTT_BROKER, MQTT_PORT, 60)
-    except Exception as e:
-        print(f"❌ Failed to connect: {e}")
+    except Exception:
+        log.exception("Failed to connect")
         sys.exit(1)
 
     try:
-        client.loop_forever()
+        client.loop_forever(retry_first_connection=True)
     except KeyboardInterrupt:
-        print("\n\n⏹️  Stopped")
+        log.info("Stopped")
         client.disconnect()
         sys.exit(0)
