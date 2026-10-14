@@ -1,0 +1,8 @@
+{
+  "suggested_actions": {
+    "Caution": "Monitor more frequently and verify sensor readings; no immediate action required.",
+    "Alert": "Schedule a finger-contact inspection within the week; review the loading plan for this transformer.",
+    "Critical": "Immediate inspection required; consider controlled load reduction until the thermal/resistance cause is confirmed and resolved."
+  },
+  "_suggested_actions_note": "Fixed list, not calibrated per trafo -- same wording regardless of which (trafo, phase) triggers the warning. Edit this file to change wording; no code change needed."
+}

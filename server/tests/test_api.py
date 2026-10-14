@@ -929,3 +929,111 @@ class TestResistanceRelative:
         monkeypatch.setattr(api, "_pool", _FakeResistancePool([]))
         result = api.resistance_relative(trafo=2, from_=None, to_=None, x_api_key=None)
         assert result["count"] == 0
+
+
+# ── /api/forecast (Stage 2, Part F) ───────────────────────────────────────
+
+class _FakeForecastCursor:
+    def __init__(self, rows_by_phase, aging_rows=None):
+        self._rows_by_phase = rows_by_phase
+        self._aging_rows = aging_rows or []
+        self._last = None
+
+    def execute(self, sql, params=None):
+        if "FROM forecasts" in sql:
+            phase = params[1]
+            self._last = ("rows", self._rows_by_phase.get(phase, []))
+        elif "FROM aging_daily" in sql:
+            self._last = ("rows", self._aging_rows)
+
+    def fetchone(self):
+        return None
+
+    def fetchall(self):
+        return self._last[1] if self._last else []
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
+class _FakeForecastConn:
+    def __init__(self, rows_by_phase, aging_rows):
+        self._rows_by_phase = rows_by_phase
+        self._aging_rows = aging_rows
+
+    def cursor(self, row_factory=None):
+        return _FakeForecastCursor(self._rows_by_phase, self._aging_rows)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
+class _FakeForecastCtx:
+    def __init__(self, rows_by_phase, aging_rows):
+        self._rows_by_phase = rows_by_phase
+        self._aging_rows = aging_rows
+
+    def __enter__(self):
+        return _FakeForecastConn(self._rows_by_phase, self._aging_rows)
+
+    def __exit__(self, *exc):
+        return False
+
+
+class _FakeForecastPool:
+    def __init__(self, rows_by_phase=None, aging_rows=None):
+        self._rows_by_phase = rows_by_phase or {}
+        self._aging_rows = aging_rows or []
+
+    def connection(self):
+        return _FakeForecastCtx(self._rows_by_phase, self._aging_rows)
+
+
+class TestForecastEndpoint:
+    def test_warning_triggered_for_phase_with_level_crossing(self, monkeypatch):
+        now = datetime.now(timezone.utc)
+        rows_r = []
+        for i in range(1, 25):
+            score = 0.5 if i < 5 else 1.8
+            rows_r.append({
+                "target_ts": now + timedelta(hours=i), "load_p10_a": 1000.0, "load_p50_a": 1200.0,
+                "load_p90_a": 1400.0, "t_hot_pred_c": 75.0, "lntai_pred_p10": score - 0.2,
+                "lntai_pred_p50": score, "lntai_pred_p90": score + 0.2, "aging_f_pred": None,
+                "method": "seasonal_naive", "excess_method": "recent_residual_median",
+            })
+        aging_rows = [
+            {"date": date(2026, 9, 15), "eq_days_cum": 10.0},
+            {"date": date(2026, 10, 14), "eq_days_cum": 20.0},
+        ]
+        monkeypatch.setattr(api, "_pool", _FakeForecastPool({"R": rows_r}, aging_rows))
+        result = api.forecast_endpoint(trafo=2, horizon="24h", x_api_key=None)
+        assert result["phases"]["R"]["count"] == 24
+        assert result["phases"]["R"]["warning"] is not None
+        assert result["phases"]["R"]["warning"]["to_level"] == "Caution"
+        assert result["phases"]["S"]["count"] == 0
+        assert result["phases"]["S"]["warning"] is None
+
+    def test_no_warning_when_no_crossing(self, monkeypatch):
+        now = datetime.now(timezone.utc)
+        rows_r = [{
+            "target_ts": now + timedelta(hours=1), "load_p10_a": 1000.0, "load_p50_a": 1200.0,
+            "load_p90_a": 1400.0, "t_hot_pred_c": 70.0, "lntai_pred_p10": 0.1, "lntai_pred_p50": 0.3,
+            "lntai_pred_p90": 0.5, "aging_f_pred": None, "method": "gbm_calendar", "excess_method": "r_relative",
+        }]
+        monkeypatch.setattr(api, "_pool", _FakeForecastPool({"R": rows_r}))
+        result = api.forecast_endpoint(trafo=2, horizon="24h", x_api_key=None)
+        assert result["phases"]["R"]["warning"] is None
+        assert result["phases"]["R"]["method"] == "gbm_calendar"
+
+    def test_horizon_hour_counts(self):
+        # FastAPI's Query pattern validation (^(24h|7d)$) rejects anything
+        # else at the framework level before the function body runs; here
+        # we just confirm the two valid horizons map to the expected counts.
+        assert api._HORIZON_HOURS["24h"] == 24
+        assert api._HORIZON_HOURS["7d"] == 168

@@ -15,7 +15,7 @@ belakang reverse proxy nginx dengan HTTPS — lihat README.md.
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
-from typing import Literal, Optional
+from typing import Any, Literal, Optional
 
 from psycopg.rows import dict_row
 from psycopg_pool import ConnectionPool
@@ -26,6 +26,7 @@ from pydantic import BaseModel, Field
 import ambient
 import aging
 import resistance
+import forecast as fc
 import data_quality as dq
 from settings import load_ambient_location_settings, load_api_settings, load_database_settings
 
@@ -791,7 +792,7 @@ def resistance_relative(
             """
             SELECT phase, week_start, r_ratio_median_pct, r_ratio_q1_pct, r_ratio_q3_pct,
                    r_ratio_iqr_pct, phase_relative_ratio_pct, n_samples_valid, n_samples_total,
-                   reference_model_id, a_ref, status, reason
+                   reference_model_id, a_ref, i_ref, status, reason
             FROM r_relative_weekly
             WHERE trafo = %s
               AND (%s::date IS NULL OR week_start >= %s)
@@ -816,3 +817,63 @@ def resistance_relative(
             "citation": resistance.GUIDANCE_CITATION,
         },
     }
+
+
+# =====================================================
+# FORECAST & EARLY WARNING (Stage 2, Part F)
+# =====================================================
+
+_HORIZON_HOURS = {"24h": 24, "7d": 168}
+
+
+@app.get("/api/forecast")
+def forecast_endpoint(
+    trafo: int = Query(..., ge=2, le=4, description="Nomor trafo: 2, 3, atau 4"),
+    horizon: str = Query("24h", pattern="^(24h|7d)$", description="'24h' atau '7d'"),
+    x_api_key: Optional[str] = Header(default=None, alias="X-API-Key"),
+):
+    """Forecast per jam (Stage 2 Part F) untuk ketiga fasa trafo ini,
+    plus early warning (titik PERTAMA di mana LNTAI_pred P50 melewati
+    ambang level, kalau ada, dalam horizon yang diminta). Baris
+    forecasts ditulis server/forecast_job.py -- endpoint ini hanya
+    membaca + menyusun ringkasan warning, tidak menghitung ulang."""
+    _check_api_key(x_api_key)
+
+    n_hours = _HORIZON_HOURS[horizon]
+    now = datetime.now(timezone.utc)
+    horizon_end = now + timedelta(hours=n_hours)
+
+    result: dict[str, Any] = {"trafo": trafo, "horizon": horizon, "phases": {}}
+
+    with _pool.connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+        for phase in ("R", "S", "T"):
+            cur.execute(
+                """
+                SELECT target_ts, load_p10_a, load_p50_a, load_p90_a, t_hot_pred_c,
+                       lntai_pred_p10, lntai_pred_p50, lntai_pred_p90, aging_f_pred,
+                       method, excess_method
+                FROM forecasts
+                WHERE trafo = %s AND phase = %s AND target_ts > %s AND target_ts <= %s
+                ORDER BY target_ts ASC
+                """,
+                (str(trafo), phase, now, horizon_end),
+            )
+            rows = cur.fetchall()
+            for row in rows:
+                row["target_ts"] = row["target_ts"].isoformat()
+
+            warning = None
+            crossing = fc.find_level_crossing(rows)
+            if crossing is not None:
+                from forecast_job import fetch_aging_rates
+
+                last_7d, avg_30d = fetch_aging_rates(cur, str(trafo), phase, now)
+                aging_comparison = fc.compare_aging_rate(last_7d, avg_30d)
+                warning = fc.build_warning(crossing, aging_comparison)
+
+            result["phases"][phase] = {
+                "count": len(rows), "points": rows, "warning": warning,
+                "method": rows[0]["method"] if rows else None,
+            }
+
+    return result

@@ -140,28 +140,31 @@ def _load_artifact(artifact_path: str) -> dict[str, Any]:
 def _a_ref_and_i_eff_norm(
     model_type: str, frozen_model: Any, frozen_state: dict[str, Any],
     borrowed_model: Optional[Any], borrowed_state: dict[str, Any],
-) -> tuple[Optional[float], Optional[float]]:
-    """A_ref + i_eff_norm untuk DENOMINATOR estimate_r_ratio(), dari basis
-    yang KONSISTEN dengan asal A_ref itu sendiri (lihat server/resistance.py
-    docstring modul). TIDAK dipanggil untuk model_type='physics_quadratic'
-    -- ditangani inline di compute_week() karena tidak punya state filter
-    sama sekali (i_eff_norm = arus sesaat / i_ref langsung)."""
+) -> tuple[Optional[float], Optional[float], Optional[float]]:
+    """(A_ref, i_ref, i_eff_norm) -- i_ref dikembalikan SEPASANG dengan
+    A_ref (lihat migrasi 016: r_relative_weekly.i_ref) supaya
+    server/forecast_job.py (Part F) bisa memakai ulang pasangan A_ref/
+    i_ref yang SAMA PERSIS tanpa harus menelusuri ulang model physics_rc
+    "pinjaman" mana yang dipakai run ini. TIDAK dipanggil untuk
+    model_type='physics_quadratic' -- ditangani inline di compute_week()
+    karena tidak punya state filter sama sekali (i_eff_norm = arus sesaat
+    / i_ref langsung)."""
     if model_type == "physics_rc":
         i2_eff = frozen_state.get("i2_eff")
         i_eff_norm = (i2_eff ** 0.5) / frozen_model.i_ref if i2_eff is not None else None
-        return frozen_model.a, i_eff_norm
+        return frozen_model.a, frozen_model.i_ref, i_eff_norm
     if model_type == "hybrid":
         physics_state = frozen_state.get("physics", {}) or {}
         i2_eff = physics_state.get("i2_eff")
         i_eff_norm = (i2_eff ** 0.5) / frozen_model.physics.i_ref if i2_eff is not None else None
-        return frozen_model.physics.a, i_eff_norm
+        return frozen_model.physics.a, frozen_model.physics.i_ref, i_eff_norm
     if model_type == "ml_gbm":
         if borrowed_model is None:
-            return None, None
+            return None, None, None
         i2_eff = borrowed_state.get("i2_eff")
         i_eff_norm = (i2_eff ** 0.5) / borrowed_model.i_ref if i2_eff is not None else None
-        return borrowed_model.a, i_eff_norm
-    return None, None
+        return borrowed_model.a, borrowed_model.i_ref, i_eff_norm
+    return None, None, None
 
 
 def compute_week(cur, trafo: str, phase: str, week_start: date) -> dict[str, Any]:
@@ -170,7 +173,7 @@ def compute_week(cur, trafo: str, phase: str, week_start: date) -> dict[str, Any
     base: dict[str, Any] = {
         "trafo": trafo, "phase": phase, "week_start": week_start,
         "r_ratio_median_pct": None, "r_ratio_q1_pct": None, "r_ratio_q3_pct": None, "r_ratio_iqr_pct": None,
-        "n_samples_valid": 0, "n_samples_total": 0, "reference_model_id": None, "a_ref": None,
+        "n_samples_valid": 0, "n_samples_total": 0, "reference_model_id": None, "a_ref": None, "i_ref": None,
         "status": "ok", "reason": None,
     }
 
@@ -219,6 +222,7 @@ def compute_week(cur, trafo: str, phase: str, week_start: date) -> dict[str, Any
     ratios_pct: list[float] = []
     n_total = 0
     a_ref_used: Optional[float] = None
+    i_ref_used: Optional[float] = None
 
     for t_row, l_row in zip(temp_rows, paired):
         if l_row is None:
@@ -256,12 +260,13 @@ def compute_week(cur, trafo: str, phase: str, week_start: date) -> dict[str, Any
         if model_type == "physics_quadratic":
             frozen_state, pred = frozen_model.predict_step(frozen_state, row_for_model)
             a_ref = frozen_model.a
+            i_ref = frozen_model.i_ref
             i_eff_norm = current_amps / frozen_model.i_ref if frozen_model.i_ref else None
         else:
             frozen_state, pred = frozen_model.predict_step(frozen_state, row_for_model)
             if model_type == "ml_gbm" and borrowed_model is not None:
                 borrowed_state, _ = borrowed_model.predict_step(borrowed_state, row_for_model)
-            a_ref, i_eff_norm = _a_ref_and_i_eff_norm(model_type, frozen_model, frozen_state, borrowed_model, borrowed_state)
+            a_ref, i_ref, i_eff_norm = _a_ref_and_i_eff_norm(model_type, frozen_model, frozen_state, borrowed_model, borrowed_state)
 
         if pred is None or a_ref is None or i_eff_norm is None:
             continue
@@ -278,10 +283,12 @@ def compute_week(cur, trafo: str, phase: str, week_start: date) -> dict[str, Any
 
         ratios_pct.append(ratio * 100.0)
         a_ref_used = a_ref
+        i_ref_used = i_ref
 
     base["n_samples_total"] = n_total
     base["n_samples_valid"] = len(ratios_pct)
     base["a_ref"] = a_ref_used
+    base["i_ref"] = i_ref_used
 
     if len(ratios_pct) < _MIN_VALID_SAMPLES:
         base["status"] = "insufficient_data"
@@ -302,15 +309,15 @@ def insert_week_row(cur, row: dict[str, Any]) -> None:
         INSERT INTO r_relative_weekly (
             trafo, phase, week_start, r_ratio_median_pct, r_ratio_q1_pct, r_ratio_q3_pct,
             r_ratio_iqr_pct, phase_relative_ratio_pct, n_samples_valid, n_samples_total,
-            reference_model_id, a_ref, status, reason
-        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            reference_model_id, a_ref, i_ref, status, reason
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         ON CONFLICT (trafo, phase, week_start) DO NOTHING
         """,
         (
             row["trafo"], row["phase"], row["week_start"], row["r_ratio_median_pct"],
             row["r_ratio_q1_pct"], row["r_ratio_q3_pct"], row["r_ratio_iqr_pct"],
             row.get("phase_relative_ratio_pct"), row["n_samples_valid"], row["n_samples_total"],
-            row["reference_model_id"], row["a_ref"], row["status"], row["reason"],
+            row["reference_model_id"], row["a_ref"], row.get("i_ref"), row["status"], row["reason"],
         ),
     )
 
