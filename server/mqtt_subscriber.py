@@ -25,20 +25,25 @@ import sys
 import time
 from datetime import datetime, timezone
 
+from settings import load_database_settings, load_local_mqtt_settings
+
 # =====================================================
 # CONFIGURATION
 # =====================================================
-DB_CONFIG = {
-    'host': 'localhost',
-    'port': 5432,
-    'database': 'shield_data',
-    'user': 'postgres',
-    'password': 'postgres'
-}
+# T1: kredensial/host dibaca dari settings.py (env var), tidak ada lagi
+# password/host hardcode di sini. Koneksi DB per-pesan, print() alih-alih
+# logging, dan "data hilang jadi 0" (T2) BELUM diubah di tahap ini --
+# itu scope T2, bukan T1.
+_db_settings = load_database_settings()
+_mqtt_settings = load_local_mqtt_settings()
 
-MQTT_BROKER = "127.0.0.1"
-MQTT_PORT = 1883
-MQTT_TOPIC = "shield/trafo/#"
+DATABASE_URL = _db_settings.url
+
+MQTT_BROKER = _mqtt_settings.broker
+MQTT_PORT = _mqtt_settings.port
+MQTT_TOPIC = _mqtt_settings.topic
+MQTT_LOCAL_USER = _mqtt_settings.user
+MQTT_LOCAL_PASS = _mqtt_settings.password
 MQTT_CLIENT_ID = "shield_subscriber"
 
 # =====================================================
@@ -85,7 +90,7 @@ def save_to_database(data):
         temp_max = max(valid_temps) if valid_temps else 0
         temp_avg = sum(valid_temps) / len(valid_temps) if valid_temps else 0
 
-        conn = psycopg2.connect(**DB_CONFIG)
+        conn = psycopg2.connect(DATABASE_URL)
         cur = conn.cursor()
 
         cur.execute("""
@@ -153,10 +158,15 @@ if __name__ == "__main__":
     print("=" * 60)
     print(f"  Broker: {MQTT_BROKER}:{MQTT_PORT}")
     print(f"  Topic:  {MQTT_TOPIC}")
-    print(f"  DB:     {DB_CONFIG['database']}")
+    print(f"  DB:     {DATABASE_URL.rsplit('/', 1)[-1]}")
     print("=" * 60)
 
     client = mqtt.Client(MQTT_CLIENT_ID)
+    if MQTT_LOCAL_USER and MQTT_LOCAL_PASS:
+        # Broker lokal saat ini belum pakai autentikasi (lihat audit Fase 0) --
+        # disiapkan di sini supaya tinggal jalan begitu ACL/autentikasi
+        # ditambahkan (rekomendasi keamanan T1), tanpa perlu ubah kode lagi.
+        client.username_pw_set(MQTT_LOCAL_USER, MQTT_LOCAL_PASS)
     client.on_connect = on_connect
     client.on_message = on_message
 

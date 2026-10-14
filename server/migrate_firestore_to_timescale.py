@@ -45,11 +45,15 @@ Optional CLI args scope a run to just one piece:
 Examples:
     migrate_firestore_to_timescale.py temp 4      # only trafo 4 temperature
     migrate_firestore_to_timescale.py beban        # beban, all trafos
+
+DEPRECATED (Tahap 1, Oktober 2026): audit Fase 0 mengonfirmasi backfill ini
+sudah 100% selesai (semua marker .done ada) dan cron harian yang
+menjalankannya sudah dinonaktifkan -- setiap run menyisipkan 0 baris sejak
+saat itu. Dibiarkan di repo sebagai referensi/riwayat, bukan dihapus.
 """
 
 from __future__ import annotations
 
-import os
 import sys
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -58,16 +62,10 @@ import firebase_admin
 import psycopg2
 from firebase_admin import credentials, firestore
 
+from settings import load_database_settings
+
 SERVICE_ACCOUNT_KEY = "/home/shield_gandul/trafo_early_warning/serviceAccountKey.json"
 JAKARTA = ZoneInfo("Asia/Jakarta")
-
-DB_CONFIG = {
-    "host": "localhost",
-    "port": 5432,
-    "database": "shield_data",
-    "user": "postgres",
-    "password": "postgres",
-}
 
 TRAFOS = ["2", "3", "4"]
 CHUNK_SIZE = 2000  # documents per commit + checkpoint
@@ -308,7 +306,7 @@ def main() -> None:
     firebase_admin.initialize_app(cred)
     db = firestore.client()
 
-    conn = psycopg2.connect(**DB_CONFIG)
+    conn = psycopg2.connect(load_database_settings().url)
     try:
         with conn.cursor() as cur:
             cur.execute(

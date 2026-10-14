@@ -14,7 +14,6 @@ belakang reverse proxy nginx dengan HTTPS — lihat README.md.
 
 from __future__ import annotations
 
-import os
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -23,32 +22,26 @@ from psycopg_pool import ConnectionPool
 from fastapi import FastAPI, Header, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
-DATABASE_URL = os.environ.get("DATABASE_URL")
-if not DATABASE_URL:
-    raise RuntimeError("DATABASE_URL belum diset. Contoh: postgresql://shield:password@localhost:5432/shield")
+from settings import load_api_settings, load_database_settings
 
-# Opsional: kalau diisi, semua request wajib menyertakan header X-API-Key yang cocok.
-# Kosongkan (jangan diset) kalau API ini hanya dipakai secara internal/read-only publik.
-API_KEY = os.environ.get("API_KEY", "")
+_db_settings = load_database_settings()
+_api_settings = load_api_settings()
 
-# Origin yang boleh memanggil API ini dari browser. Isi domain GitHub Pages Anda,
-# tambahkan yang lain kalau perlu (mis. domain custom).
-ALLOWED_ORIGINS = [
-    o.strip() for o in os.environ.get(
-        "ALLOWED_ORIGINS",
-        "https://shield-ultg-gandul.github.io"
-    ).split(",") if o.strip()
-]
+# Opsional: kalau API_KEY diisi (lewat settings.py/env var), semua request wajib
+# menyertakan header X-API-Key yang cocok. Kosongkan kalau API ini hanya dipakai
+# secara internal/read-only publik -- perilaku ini dipertahankan dari versi lama,
+# bukan diubah oleh migrasi ke settings.py.
+API_KEY = _api_settings.api_key
 
 app = FastAPI(title="SHIELD Temperature Log API")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
+    allow_origins=_api_settings.allowed_origins,
     allow_methods=["GET"],
     allow_headers=["X-API-Key"],
 )
 
-_pool = ConnectionPool(conninfo=DATABASE_URL, min_size=1, max_size=5, open=True)
+_pool = ConnectionPool(conninfo=_db_settings.url, min_size=1, max_size=5, open=True)
 
 
 def _check_api_key(x_api_key: Optional[str]) -> None:

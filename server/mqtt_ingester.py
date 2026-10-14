@@ -6,8 +6,20 @@ di broker HiveMQ, lalu menulis tiap pembacaan ke TimescaleDB. Berjalan
 independen dari browser — data tetap tercatat walau tidak ada yang membuka
 dashboard, beda dengan pendekatan lama yang menulis dari dalam browser.
 
-Konfigurasi lewat environment variable (lihat .env.example):
-    MQTT_BROKER, MQTT_PORT, MQTT_USER, MQTT_PASS   -- sama seperti di Shield.html
+DEPRECATED (Tahap 1, Oktober 2026): service `shield-ingester` dinonaktifkan
+di server intranet setelah audit menemukan restart-loop terus-menerus
+(counter 194.272+) tanpa pernah berhasil menulis data -- tabel yang
+sebenarnya dibaca dashboard (`trafo_temperature`/`trafo_load`) diisi oleh
+`mqtt_subscriber.py` (service `mqtt-subscriber`), bukan skrip ini. Skrip ini
+juga menulis ke tabel lama `temperature_logs` (lihat schema.sql, sama-sama
+deprecated), bukan ke tabel live. Dibiarkan di repo sebagai referensi,
+JANGAN diaktifkan kembali tanpa memperbaiki dulu bug transport/TLS yang
+ditemukan saat audit (lihat README.md bagian "Layanan Deprecated").
+
+Konfigurasi lewat environment variable (lihat .env.example), dibaca lewat
+settings.py -- TIDAK ADA LAGI default yang jatuh ke broker/kredensial HiveMQ
+produksi asli kalau env var belum diisi (lihat MissingSettingError):
+    HIVEMQ_BROKER, HIVEMQ_PORT, HIVEMQ_USER, HIVEMQ_PASS
     DATABASE_URL                                    -- postgresql://user:pass@host:5432/shield
 
 Jalankan manual untuk tes:
@@ -16,13 +28,13 @@ Jalankan manual untuk tes:
     python mqtt_ingester.py
 
 Untuk produksi, jalankan sebagai systemd service — lihat shield-ingester.service.
+(DEPRECATED, lihat catatan di atas -- service ini sudah di-disable manual.)
 """
 
 from __future__ import annotations
 
 import json
 import logging
-import os
 import re
 import signal
 import ssl
@@ -34,29 +46,32 @@ import paho.mqtt.client as mqtt
 import psycopg
 from psycopg_pool import ConnectionPool
 
+from settings import load_database_settings, load_hivemq_settings, load_worker_settings
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
 )
 log = logging.getLogger("shield-ingester")
 
-MQTT_BROKER = os.environ.get("MQTT_BROKER", "d36cf3116e2a4d93bf531ebf8a1ffa38.s1.eu.hivemq.cloud")
+_hivemq_settings = load_hivemq_settings()
+_db_settings = load_database_settings()
+_worker_settings = load_worker_settings()
+
+MQTT_BROKER = _hivemq_settings.broker
 # Port native MQTT (8883) terbukti tidak bisa dijangkau dari beberapa jaringan saat
 # didiagnosis. Pakai port WebSocket (8884) — jalur yang sama dan sudah terbukti selalu
 # berhasil dipakai dashboard (Shield.html) sepanjang pengembangan proyek ini.
-MQTT_PORT = int(os.environ.get("MQTT_PORT", "8884"))
-MQTT_USER = os.environ.get("MQTT_USER", "webshield")
-MQTT_PASS = os.environ.get("MQTT_PASS", "webShield123")
+MQTT_PORT = _hivemq_settings.port
+MQTT_USER = _hivemq_settings.user
+MQTT_PASS = _hivemq_settings.password
 MQTT_TOPICS = ["Suhu/Trafo/2", "Suhu/Trafo/3", "Suhu/Trafo/4"]
 
-DATABASE_URL = os.environ.get("DATABASE_URL")
-if not DATABASE_URL:
-    log.error("DATABASE_URL belum diset. Contoh: postgresql://shield:password@localhost:5432/shield")
-    sys.exit(1)
+DATABASE_URL = _db_settings.url
 
 # Throttle sama seperti dashboard lama: maksimal 1 baris tersimpan per trafo per menit,
 # supaya volume data tidak meledak kalau device publish tiap detik.
-WRITE_INTERVAL_SECONDS = int(os.environ.get("WRITE_INTERVAL_SECONDS", "60"))
+WRITE_INTERVAL_SECONDS = _worker_settings.write_interval_seconds
 _last_write_at: dict[str, float] = {}
 
 _pool = ConnectionPool(conninfo=DATABASE_URL, min_size=1, max_size=5, open=True)
