@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-"""server/backfill_lntai.py — SHIELD Tahap 1, T4.
+"""server/backfill_lntai.py — SHIELD Tahap 1 (T4) + Stage 2 Part A (v3).
 
-Hitung ulang LNTAI v2 untuk rentang waktu historis SATU trafo, dari data
+Hitung ulang LNTAI untuk rentang waktu historis SATU trafo, dari data
 trafo_temperature + trafo_load yang sudah ada di database -- dipakai sekali
-setelah lntai_worker.py (T4) pertama kali di-deploy, supaya histori lama
-(sebelum worker berjalan) juga punya hasil LNTAI server-side, bukan hanya
-data baru ke depan.
+setelah lntai_worker.py pertama kali di-deploy (atau setelah LNTAI v3
+ditambahkan), supaya histori lama juga punya hasil LNTAI server-side, bukan
+hanya data baru ke depan.
 
 TIDAK menyentuh worker_state (checkpoint milik lntai_worker.py) -- backfill
 dan worker berjalan independen; idempotent lewat PK (trafo_id, ts,
@@ -18,11 +18,25 @@ hasil yang sudah ada.
 Pemakaian:
     python3 backfill_lntai.py --trafo 2 --from 2026-09-01 --to 2026-09-30
     python3 backfill_lntai.py --trafo 2 --from 2026-09-01 --to 2026-09-30 --dry-run
+    python3 backfill_lntai.py --trafo 2 --from 2026-09-01 --to 2026-09-30 --model-version lntai-v3 --dry-run
+
+--model-version (default lntai-v2): model yang DITULIS ke lntai_results.
+v2 SELALU dihitung terlebih dahulu (v3 butuh v2_result sebagai input,
+lihat lntai_calculator.lntai_v3_step()), tapi kalau --model-version
+lntai-v3 dipilih, HANYA baris v3 yang di-INSERT -- baris v2 untuk rentang
+yang sama TIDAK disentuh sama sekali oleh pemanggilan ini (jalankan
+backfill terpisah dengan --model-version lntai-v2, default, kalau baris
+v2 historis itu juga belum ada).
 
 --dry-run: jalankan seluruh logika (pairing, data_quality, ambient_at(),
-lntai_step()) dan cetak ringkasan (jumlah baris, jumlah DATA_INVALID, dll.)
-TANPA menulis apa pun ke lntai_results -- aman dipakai untuk mengecek hasil
-sebelum benar-benar menulis ke database.
+lntai_step()/lntai_v3_step()) dan cetak ringkasan (jumlah baris, jumlah
+DATA_INVALID, dll.) TANPA menulis apa pun ke lntai_results -- aman dipakai
+untuk mengecek hasil sebelum benar-benar menulis ke database. CATATAN:
+--dry-run TIDAK default aktif (harus diketik eksplisit), SAMA untuk
+--model-version lntai-v2 maupun lntai-v3 -- flag ini sengaja tidak dibuat
+berperilaku beda per model supaya tidak membingungkan; skrip mencetak
+peringatan tambahan kalau --model-version lntai-v3 dipakai TANPA --dry-run,
+menyarankan dry-run lebih dulu karena baseline v3 belum terkalibrasi.
 """
 
 from __future__ import annotations
@@ -87,7 +101,8 @@ def _find_paired_load_row(cur, trafo: str, ts: datetime, tolerance_minutes: floa
     return cur.fetchone()
 
 
-def backfill(cur, trafo: str, ts_from: datetime, ts_to: datetime, dry_run: bool) -> dict:
+def backfill(cur, trafo: str, ts_from: datetime, ts_to: datetime, dry_run: bool,
+             model_version: str = _MODEL_VERSION) -> dict:
     calculator = LNTAICalculator()
     rows = _fetch_temperature_range(cur, trafo, ts_from, ts_to)
 
@@ -120,8 +135,20 @@ def backfill(cur, trafo: str, ts_from: datetime, ts_to: datetime, dry_run: bool)
             }
             stats["data_invalid"] += 1
 
-        if not dry_run:
-            insert_result(cur, trafo, ts, _MODEL_VERSION, result, quality_flags, paired)
+        if model_version == calculator.v3_model_version:
+            # v2 `result` di atas HANYA dipakai sebagai input v3 di sini --
+            # TIDAK pernah di-INSERT ketika --model-version lntai-v3 dipilih
+            # (lihat docstring modul).
+            v3_result = calculator.update_v3(trafo, result, ts.timestamp())
+            if not dry_run:
+                insert_result(
+                    cur, trafo, ts, calculator.v3_model_version, v3_result, quality_flags, paired,
+                    baseline_id=v3_result.get("baseline_id"), calibrated=v3_result.get("calibrated"),
+                    lntai_rolling_median_30min=v3_result.get("lntai_rolling_median_30min"),
+                )
+        else:
+            if not dry_run:
+                insert_result(cur, trafo, ts, model_version, result, quality_flags, paired)
 
     return stats
 
@@ -139,7 +166,18 @@ def main() -> None:
     parser.add_argument("--from", dest="from_", required=True, help="ISO8601, mis. 2026-09-01")
     parser.add_argument("--to", required=True, help="ISO8601, mis. 2026-09-30")
     parser.add_argument("--dry-run", action="store_true", help="Jangan menulis ke lntai_results, hanya cetak ringkasan")
+    parser.add_argument(
+        "--model-version", default=_MODEL_VERSION, choices=[_MODEL_VERSION, "lntai-v3"],
+        help="Model yang DITULIS (default: lntai-v2). lntai-v3 TIDAK menulis ulang baris v2.",
+    )
     args = parser.parse_args()
+
+    if args.model_version == "lntai-v3" and not args.dry_run:
+        log.warning(
+            "--model-version lntai-v3 TANPA --dry-run: baseline v3 BELUM terkalibrasi "
+            "(lihat lntai_v3_config.json baseline.calibrated=false). Disarankan jalankan "
+            "dulu dengan --dry-run untuk meninjau hasilnya sebelum menulis ke database."
+        )
 
     ts_from = _parse_date(args.from_)
     ts_to = _parse_date(args.to)
@@ -148,15 +186,15 @@ def main() -> None:
     pool = ConnectionPool(conninfo=db_settings.url, min_size=1, max_size=2, open=True)
 
     with pool.connection() as conn, conn.cursor(row_factory=dict_row) as cur:
-        stats = backfill(cur, args.trafo, ts_from, ts_to, args.dry_run)
+        stats = backfill(cur, args.trafo, ts_from, ts_to, args.dry_run, model_version=args.model_version)
         if args.dry_run:
             conn.rollback()
         else:
             conn.commit()
 
     log.info("=" * 60)
-    log.info("Backfill trafo-%s %s..%s (%s)", args.trafo, ts_from.isoformat(), ts_to.isoformat(),
-              "DRY-RUN, tidak ditulis" if args.dry_run else "DITULIS ke lntai_results")
+    log.info("Backfill trafo-%s %s..%s model_version=%s (%s)", args.trafo, ts_from.isoformat(), ts_to.isoformat(),
+              args.model_version, "DRY-RUN, tidak ditulis" if args.dry_run else "DITULIS ke lntai_results")
     log.info("Total baris suhu: %d", stats["total"])
     log.info("Dihitung (LNTAI valid): %d", stats["computed"])
     log.info("DATA_INVALID (diblokir quality/pairing): %d", stats["data_invalid"])

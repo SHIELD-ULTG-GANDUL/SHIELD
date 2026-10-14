@@ -32,6 +32,14 @@ Alur per batch, per trafo:
      diproses (bukan yang berhasil dihitung -- baris DATA_INVALID tetap maju
      checkpoint supaya worker tidak terus mencoba memproses baris yang sama).
 
+Stage 2, Part A — LNTAI v3 ditulis BERDAMPINGAN dengan v2 di atas (baris
+terpisah, model_version='lntai-v3', PK sama (trafo_id, ts, model_version)
+pada tabel yang sama), dari v2_result yang SUDAH dihitung untuk sampel yang
+sama (lihat lntai_calculator.lntai_v3_step()) -- TIDAK menjalankan filter
+I^2 kedua kalinya, hanya mengubah basis normalisasi arus + baseline. v2
+TIDAK diubah/dihapus sama sekali (lihat lntai_config.json vs
+lntai_v3_config.json, dua file konfigurasi terpisah).
+
 Dijalankan sebagai service (lihat shield-lntai.service, README.md):
     python3 lntai_worker.py
 """
@@ -130,7 +138,12 @@ def find_paired_load_row(cur, trafo: str, ts: datetime, tolerance_minutes: float
 
 
 def insert_result(cur, trafo: str, ts: datetime, model_version: str, result: dict[str, Any],
-                   quality_flags: int, paired: bool) -> None:
+                   quality_flags: int, paired: bool,
+                   baseline_id: Optional[str] = None, calibrated: Optional[bool] = None,
+                   lntai_rolling_median_30min: Optional[float] = None) -> None:
+    """Tulis satu baris lntai_results. `baseline_id`/`calibrated`/
+    `lntai_rolling_median_30min` (Stage 2 Part A, migrasi 008) default None
+    -- dibiarkan NULL untuk baris v2 (T4), diisi eksplisit oleh caller v3."""
     import json as _json
 
     cur.execute(
@@ -139,12 +152,14 @@ def insert_result(cur, trafo: str, ts: datetime, model_version: str, result: dic
             trafo_id, ts, model_version, lntai, level, s_temp, s_delta_t, s_res,
             hottest_phase, t_contact, t_ambient, ambient_source, delta_t_real,
             delta_t_pred, residual, z, i_eff_norm, delta_phase, dab_max,
-            per_phase, quality_flags, paired, error
+            per_phase, quality_flags, paired, error,
+            baseline_id, calibrated, lntai_rolling_median_30min
         ) VALUES (
             %s, %s, %s, %s, %s, %s, %s, %s,
             %s, %s, %s, %s, %s,
             %s, %s, %s, %s, %s, %s,
-            %s, %s, %s, %s
+            %s, %s, %s, %s,
+            %s, %s, %s
         )
         ON CONFLICT (trafo_id, ts, model_version) DO NOTHING
         """,
@@ -157,6 +172,7 @@ def insert_result(cur, trafo: str, ts: datetime, model_version: str, result: dic
             result.get("i_eff_norm"), result.get("delta_phase"), result.get("dAB_max"),
             _json.dumps(result.get("per_phase")) if result.get("per_phase") is not None else None,
             quality_flags, paired, result.get("error"),
+            baseline_id, calibrated, lntai_rolling_median_30min,
         ),
     )
 
@@ -238,6 +254,20 @@ def process_trafo_batch(cur, calculator: LNTAICalculator, trafo: str) -> int:
             }
 
         insert_result(cur, trafo, ts, _MODEL_VERSION, result, quality_flags, paired)
+
+        # Stage 2 Part A: LNTAI v3 ditulis BERDAMPINGAN dengan v2 di atas,
+        # dari v2_result yang SAMA (reuse i_eff, tidak menjalankan filter
+        # I^2 lagi) -- quality_flags/paired SAMA supaya kedua model_version
+        # konsisten untuk baris trafo_id+ts yang sama (lihat lntai_v3_step()
+        # untuk kenapa input DATA_INVALID/tidak-terpasang otomatis membuat
+        # v3 juga DATA_INVALID, tanpa logika gating terpisah di sini).
+        v3_result = calculator.update_v3(trafo, result, ts.timestamp())
+        insert_result(
+            cur, trafo, ts, calculator.v3_model_version, v3_result, quality_flags, paired,
+            baseline_id=v3_result.get("baseline_id"), calibrated=v3_result.get("calibrated"),
+            lntai_rolling_median_30min=v3_result.get("lntai_rolling_median_30min"),
+        )
+
         last_ts = ts
 
     if last_ts is not None:
@@ -263,7 +293,7 @@ def main() -> None:
     calculator = LNTAICalculator()
 
     log.info("=" * 60)
-    log.info("LNTAI Worker (T4) -- model_version=%s", _MODEL_VERSION)
+    log.info("LNTAI Worker -- model_versions=%s,%s", _MODEL_VERSION, calculator.v3_model_version)
     log.info("Interval: %ss", worker_settings.lntai_interval_seconds)
     log.info("=" * 60)
 

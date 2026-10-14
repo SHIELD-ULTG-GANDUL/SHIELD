@@ -136,7 +136,9 @@ class TestProcessTrafoBatch:
         calc = LNTAICalculator()
         n = w.process_trafo_batch(cur, calc, "2")
         assert n == 2
-        assert len(cur.inserted) == 2
+        # 2 baris suhu x (v2 + v3) = 4 INSERT (Stage 2 Part A: v3 ditulis
+        # berdampingan dengan v2 untuk setiap sampel, lihat lntai_worker.py).
+        assert len(cur.inserted) == 4
         assert cur.worker_state[("lntai_worker", "2")] == TS2
 
     def test_respects_checkpoint_on_second_run(self):
@@ -151,15 +153,23 @@ class TestProcessTrafoBatch:
         calc = LNTAICalculator()
         n = w.process_trafo_batch(cur, calc, "2")
         assert n == 2
-        assert len(cur.inserted) == 2
-        # level is at index 4 in the INSERT params tuple (see insert_result())
+        assert len(cur.inserted) == 4
+        # level is at index 4 in the INSERT params tuple (see insert_result()).
+        # v3 juga DATA_INVALID untuk input yang sama (lihat lntai_v3_step()),
+        # jadi SEMUA baris (v2 dan v3) harus DATA_INVALID di sini.
         assert all(row[4] == "DATA_INVALID" for row in cur.inserted)
 
     def test_valid_pairing_produces_non_invalid_level(self):
         cur = _FakeCursor(self._temp_rows(), LOAD_ROW_OK)
         calc = LNTAICalculator()
         w.process_trafo_batch(cur, calc, "2")
-        assert all(row[4] in ("NORMAL", "WARNING", "CRITICAL") for row in cur.inserted)
+        v2_rows = [row for row in cur.inserted if row[2] == "lntai-v2"]
+        v3_rows = [row for row in cur.inserted if row[2] == "lntai-v3"]
+        assert len(v2_rows) == 2 and len(v3_rows) == 2
+        assert all(row[4] in ("NORMAL", "WARNING", "CRITICAL") for row in v2_rows)
+        # v3 pakai label level BERBEDA (Normal/Caution/Alert/Critical), bukan
+        # NORMAL/WARNING/CRITICAL milik v2 -- lihat lntai_v3_config.json.
+        assert all(row[4] in ("Normal", "Caution", "Alert", "Critical") for row in v3_rows)
 
     def test_empty_history_processes_nothing(self):
         cur = _FakeCursor([], LOAD_ROW_OK)
@@ -167,3 +177,44 @@ class TestProcessTrafoBatch:
         n = w.process_trafo_batch(cur, calc, "2")
         assert n == 0
         assert cur.inserted == []
+
+
+class TestProcessTrafoBatchV3Wiring:
+    """Stage 2 Part A: LNTAI v3 ditulis berdampingan dengan v2, dari
+    v2_result yang sama, tanpa mengubah perilaku v2 sama sekali."""
+
+    def _temp_rows(self):
+        return [
+            {"timestamp": TS1, "r_atas": 55, "r_bawah": 54, "s_atas": 56, "s_bawah": 53,
+             "t_atas": 57, "t_bawah": 52, "quality_flags": 0},
+        ]
+
+    def test_v3_row_has_baseline_columns_filled(self):
+        cur = _FakeCursor(self._temp_rows(), LOAD_ROW_OK)
+        calc = LNTAICalculator()
+        w.process_trafo_batch(cur, calc, "2")
+        v3_row = next(row for row in cur.inserted if row[2] == "lntai-v3")
+        # baseline_id, calibrated, lntai_rolling_median_30min adalah 3
+        # kolom TERAKHIR di INSERT (lihat insert_result() / migrasi 008).
+        baseline_id, calibrated, rolling_median = v3_row[-3:]
+        assert baseline_id == "legacy-v1-physics-uncalibrated"
+        assert calibrated is False
+        assert rolling_median is not None
+
+    def test_v2_row_has_baseline_columns_null(self):
+        cur = _FakeCursor(self._temp_rows(), LOAD_ROW_OK)
+        calc = LNTAICalculator()
+        w.process_trafo_batch(cur, calc, "2")
+        v2_row = next(row for row in cur.inserted if row[2] == "lntai-v2")
+        baseline_id, calibrated, rolling_median = v2_row[-3:]
+        assert baseline_id is None and calibrated is None and rolling_median is None
+
+    def test_v2_and_v3_rows_share_same_quality_flags_and_paired(self):
+        cur = _FakeCursor(self._temp_rows(), None)  # tidak terpasang -> PAIRING_GAP
+        calc = LNTAICalculator()
+        w.process_trafo_batch(cur, calc, "2")
+        v2_row = next(row for row in cur.inserted if row[2] == "lntai-v2")
+        v3_row = next(row for row in cur.inserted if row[2] == "lntai-v3")
+        # quality_flags di index 20, paired di index 21 (lihat insert_result()).
+        assert v2_row[20] == v3_row[20]
+        assert v2_row[21] == v3_row[21] is False

@@ -121,3 +121,29 @@ LNTAI_V2_AMBIENT_DEFAULT: Final[float] = LNTAI_CONFIG["ambient"]["default"]
 LNTAI_V2_AMBIENT_MAX_AGE_MINUTES: Final[float] = LNTAI_CONFIG["ambient"]["max_age_minutes"]
 
 LNTAI_V2_SMOOTHING_WINDOW: Final[int] = LNTAI_CONFIG["smoothing_window"]
+
+
+# ════════════════════════════════════════════════════════════════════════
+# LNTAI v3 (SHIELD Stage 2, Part A) — physics-informed residual z-score,
+# PER PHASE, dimuat dari lntai_v3_config.json (file TERPISAH dari
+# lntai_config.json di atas -- v2 tetap dihitung & ditulis apa adanya,
+# tidak diubah oleh penambahan v3; lihat lntai_calculator.lntai_v3_step()).
+# ════════════════════════════════════════════════════════════════════════
+_LNTAI_V3_CONFIG_PATH: Final[Path] = Path(__file__).resolve().parent / "lntai_v3_config.json"
+
+with open(_LNTAI_V3_CONFIG_PATH, "r", encoding="utf-8") as _f:
+    LNTAI_V3_CONFIG: Final[dict[str, Any]] = json.load(_f)
+
+LNTAI_V3_MODEL_VERSION: Final[str] = LNTAI_V3_CONFIG["model_version"]
+
+LNTAI_V3_BASELINE_ID: Final[str] = LNTAI_V3_CONFIG["baseline"]["baseline_id"]
+LNTAI_V3_CALIBRATED: Final[bool] = LNTAI_V3_CONFIG["baseline"]["calibrated"]
+LNTAI_V3_A: Final[float] = LNTAI_V3_CONFIG["baseline"]["A"]
+LNTAI_V3_B: Final[float] = LNTAI_V3_CONFIG["baseline"]["B"]
+LNTAI_V3_SIGMA: Final[float] = LNTAI_V3_CONFIG["baseline"]["sigma"]
+LNTAI_V3_MU: Final[float] = LNTAI_V3_CONFIG["baseline"]["mu"]
+LNTAI_V3_I_REF: Final[float] = LNTAI_V3_CONFIG["baseline"]["i_ref"]
+LNTAI_V3_AMBIENT_C: Final[float] = LNTAI_V3_CONFIG["baseline"]["ambient_c"]
+
+LNTAI_V3_ROLLING_MEDIAN_MINUTES: Final[float] = LNTAI_V3_CONFIG["rolling_median_minutes"]
+LNTAI_V3_THRESHOLDS: Final[dict[str, float]] = LNTAI_V3_CONFIG["thresholds"]

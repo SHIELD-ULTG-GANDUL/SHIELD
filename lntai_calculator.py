@@ -35,6 +35,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from math import exp, isfinite, sqrt
+from statistics import median
 from typing import Any, Optional
 
 import config
@@ -245,6 +246,115 @@ def _invalid_result(timestamp: str, model_version: str, error: str) -> dict[str,
 
 
 # ════════════════════════════════════════════════════════════════════════
+# LNTAI v3 (SHIELD Stage 2, Part A) — residual z-score PER FASA, memakai
+# ULANG i_eff (hasil filter lag termal) yang SUDAH dihitung lntai_step()
+# untuk v2 -- TIDAK menjalankan filter I^2 sendiri, hanya mengubah basis
+# normalisasi arus (1780A -> 1000A) dan memakai baseline LEGACY v1
+# (A/B/sigma/mu/i_ref/ambient dari lntai_v3_config.json, SEMUA belum
+# dikalibrasi -- lihat baseline.calibrated=false di file itu).
+#
+# LNTAI_v3 = max_p z_p, z_p = (residual_p - mu) / sigma,
+#   residual_p = (T_p - ambient_c) - (A * (I_eff_p/i_ref)^2 + B)
+# "level" (Normal/Caution/Alert/Critical) berasal dari MEDIAN BERGULIR
+# 30 menit atas LNTAI_v3 instan, BUKAN nilai instan itu sendiri -- supaya
+# tidak gonta-ganti level hanya karena satu sampel noise. Kolom "lntai"
+# tetap menyimpan nilai INSTAN; median tersimpan terpisah
+# (lntai_rolling_median_30min, lihat migrations/008).
+# ════════════════════════════════════════════════════════════════════════
+
+def _v3_invalid_result(timestamp: Optional[str], model_version: str, error: str) -> dict[str, Any]:
+    return {
+        "lntai": None, "lntai_rolling_median_30min": None, "level": "DATA_INVALID",
+        "hottest_phase": None, "per_phase": None,
+        "baseline_id": None, "calibrated": None,
+        "timestamp": timestamp, "model_version": model_version, "error": error,
+    }
+
+
+def lntai_v3_step(
+    state: dict[str, Any],
+    v2_result: dict[str, Any],
+    ts_epoch: float,
+    *,
+    a: float,
+    b: float,
+    sigma: float,
+    mu: float,
+    i_ref: float,
+    i_rated_v2: float,
+    ambient_c: float,
+    rolling_median_minutes: float,
+    thresholds: dict[str, float],
+    baseline_id: str,
+    calibrated: bool,
+    model_version: str,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Satu langkah LNTAI v3, murni -- mengambil `v2_result` (hasil
+    lntai_step() yang SAMA, SUDAH dihitung untuk sampel ini) sebagai input,
+    bukan sample mentah. `state`: {"rolling_buffer": [(ts_epoch, instant), ...]}
+    hanya untuk level (median 30 menit); TIDAK ada state filter I^2 di sini
+    (dipakai ulang dari v2_result["per_phase"][p]["i_eff_norm"])."""
+    rolling_buffer: list[tuple[float, float]] = list(state.get("rolling_buffer", []))
+
+    if v2_result.get("level") == "DATA_INVALID" or not v2_result.get("per_phase"):
+        new_state = {"rolling_buffer": rolling_buffer}
+        reason = v2_result.get("error") or "Input v2 tidak valid (DATA_INVALID) -- v3 tidak bisa dihitung dari situ"
+        return new_state, _v3_invalid_result(v2_result.get("timestamp"), model_version, reason)
+
+    per_phase_v3: dict[str, dict[str, float]] = {}
+    for p in PHASES:
+        v2p = v2_result["per_phase"][p]
+        t_p = v2p["T"]
+        # i_eff_norm (v2) dinormalisasi terhadap i_rated_v2 (1780A) -- kalikan
+        # balik untuk dapat arus efektif riil (Ampere), lalu normalisasi ulang
+        # terhadap i_ref basis legacy (1000A) milik baseline v3.
+        i_eff_amps = v2p["i_eff_norm"] * i_rated_v2
+        i_eff_norm_legacy = (i_eff_amps / i_ref) if i_ref else 0.0
+
+        delta_t_pred = a * (i_eff_norm_legacy ** 2) + b
+        delta_t_real = t_p - ambient_c
+        residual_c = delta_t_real - delta_t_pred
+        z = (residual_c - mu) / sigma if sigma else 0.0
+
+        per_phase_v3[p] = {
+            "T": t_p, "delta_T_real": delta_t_real, "delta_T_pred": delta_t_pred,
+            "residual_c": residual_c, "z": z,
+        }
+
+    hottest_phase_v3 = max(PHASES, key=lambda p: per_phase_v3[p]["z"])
+    instant_lntai = per_phase_v3[hottest_phase_v3]["z"]
+
+    rolling_buffer.append((ts_epoch, instant_lntai))
+    cutoff = ts_epoch - rolling_median_minutes * 60.0
+    rolling_buffer = [(t, v) for (t, v) in rolling_buffer if t >= cutoff]
+    median_lntai = median(v for (_, v) in rolling_buffer)
+
+    if median_lntai >= thresholds["critical"]:
+        level = "Critical"
+    elif median_lntai >= thresholds["alert"]:
+        level = "Alert"
+    elif median_lntai >= thresholds["caution"]:
+        level = "Caution"
+    else:
+        level = "Normal"
+
+    new_state = {"rolling_buffer": rolling_buffer}
+    result = {
+        "lntai": instant_lntai,
+        "lntai_rolling_median_30min": median_lntai,
+        "level": level,
+        "hottest_phase": hottest_phase_v3,
+        "per_phase": per_phase_v3,
+        "baseline_id": baseline_id,
+        "calibrated": calibrated,
+        "timestamp": v2_result["timestamp"],
+        "model_version": model_version,
+        "error": None,
+    }
+    return new_state, result
+
+
+# ════════════════════════════════════════════════════════════════════════
 # Kelas stateful — pembungkus lntai_step() untuk pemakaian realtime (state
 # bertahan per trafo/fasa) dan histori (fold dengan state lokal).
 # ════════════════════════════════════════════════════════════════════════
@@ -252,7 +362,7 @@ def _invalid_result(timestamp: str, model_version: str, error: str) -> dict[str,
 class LNTAICalculator:
     """Kalkulator LNTAI v2 (Load Normalized Thermal Anomaly Index)."""
 
-    def __init__(self, cfg: Optional[dict[str, Any]] = None) -> None:
+    def __init__(self, cfg: Optional[dict[str, Any]] = None, cfg_v3: Optional[dict[str, Any]] = None) -> None:
         c = cfg or config.LNTAI_CONFIG
         self.a = float(c["baseline"]["A"])
         self.b = float(c["baseline"]["B"])
@@ -272,6 +382,22 @@ class LNTAICalculator:
         self.model_version = str(c.get("model_version", "lntai-v2"))
         self._state: dict[str, dict[str, dict[str, Any]]] = {}
 
+        # ── LNTAI v3 (Stage 2 Part A) — config TERPISAH, state TERPISAH
+        # (self._state_v3), TIDAK memengaruhi field v2 di atas sama sekali.
+        c3 = cfg_v3 or config.LNTAI_V3_CONFIG
+        self.v3_a = float(c3["baseline"]["A"])
+        self.v3_b = float(c3["baseline"]["B"])
+        self.v3_sigma = float(c3["baseline"]["sigma"])
+        self.v3_mu = float(c3["baseline"]["mu"])
+        self.v3_i_ref = float(c3["baseline"]["i_ref"])
+        self.v3_ambient_c = float(c3["baseline"]["ambient_c"])
+        self.v3_baseline_id = str(c3["baseline"]["baseline_id"])
+        self.v3_calibrated = bool(c3["baseline"]["calibrated"])
+        self.v3_rolling_median_minutes = float(c3["rolling_median_minutes"])
+        self.v3_thresholds = dict(c3["thresholds"])
+        self.v3_model_version = str(c3.get("model_version", "lntai-v3"))
+        self._state_v3: dict[str, dict[str, Any]] = {}
+
     def _kwargs(self) -> dict[str, Any]:
         return dict(
             a=self.a, b=self.b, sigma=self.sigma, i_rated=self.i_rated,
@@ -283,12 +409,24 @@ class LNTAICalculator:
             model_version=self.model_version,
         )
 
+    def _v3_kwargs(self) -> dict[str, Any]:
+        return dict(
+            a=self.v3_a, b=self.v3_b, sigma=self.v3_sigma, mu=self.v3_mu,
+            i_ref=self.v3_i_ref, i_rated_v2=self.i_rated, ambient_c=self.v3_ambient_c,
+            rolling_median_minutes=self.v3_rolling_median_minutes, thresholds=self.v3_thresholds,
+            baseline_id=self.v3_baseline_id, calibrated=self.v3_calibrated,
+            model_version=self.v3_model_version,
+        )
+
     def reset(self, trafo: Optional[str] = None) -> None:
-        """Buang state filter lag termal (mis. saat trafo berganti sumber data)."""
+        """Buang state filter lag termal v2 DAN buffer median bergulir v3
+        (mis. saat trafo berganti sumber data)."""
         if trafo is None:
             self._state.clear()
+            self._state_v3.clear()
         else:
             self._state.pop(str(trafo), None)
+            self._state_v3.pop(str(trafo), None)
 
     def update(self, trafo: str, sample: dict[str, Any]) -> dict[str, Any]:
         """Satu sampel realtime untuk `trafo` — state filter lag termal bertahan
@@ -297,6 +435,16 @@ class LNTAICalculator:
         phase_state = self._state.get(trafo_key, {})
         new_state, result = lntai_step(phase_state, sample, **self._kwargs())
         self._state[trafo_key] = new_state
+        return result
+
+    def update_v3(self, trafo: str, v2_result: dict[str, Any], ts_epoch: float) -> dict[str, Any]:
+        """LNTAI v3 realtime untuk `trafo`, dari `v2_result` (output `update()`
+        UNTUK SAMPEL YANG SAMA, dipanggil sebelum ini). Buffer median bergulir
+        30 menit bertahan antar panggilan (self._state_v3[trafo])."""
+        trafo_key = str(trafo)
+        v3_state = self._state_v3.get(trafo_key, {})
+        new_state, result = lntai_v3_step(v3_state, v2_result, ts_epoch, **self._v3_kwargs())
+        self._state_v3[trafo_key] = new_state
         return result
 
     def calculate_series(self, rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -308,6 +456,18 @@ class LNTAICalculator:
         results: list[dict[str, Any]] = []
         for row in rows:
             local_state, result = lntai_step(local_state, row, **self._kwargs())
+            results.append(result)
+        return results
+
+    def calculate_series_v3(self, v2_results_with_ts: list[tuple[dict[str, Any], float]]) -> list[dict[str, Any]]:
+        """Hitung LNTAI v3 untuk histori, dari pasangan (v2_result, ts_epoch)
+        SUDAH terurut kronologis lama->baru (lihat calculate_series() untuk
+        menghasilkan v2_result-nya). State LOKAL (buffer median), tidak
+        menyentuh self._state_v3."""
+        local_state: dict[str, Any] = {}
+        results: list[dict[str, Any]] = []
+        for v2_result, ts_epoch in v2_results_with_ts:
+            local_state, result = lntai_v3_step(local_state, v2_result, ts_epoch, **self._v3_kwargs())
             results.append(result)
         return results
 

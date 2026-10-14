@@ -1,0 +1,21 @@
+{
+  "model_version": "lntai-v3",
+  "baseline": {
+    "_note": "Legacy v1 physics baseline (basis I_ref=1000A) -- IDENTICAL to the legacy top-level A/B/SIGMA/I_RATED/T_AMBIENT constants in config.py (LNTAI v1, pre-Tahap-1 codebase). Origin of these numbers is undocumented (inherited as-is, not derived in this project) and NOT re-fit from real trafo 2/3/4 history. calibrated=false until a later part re-fits A/B/sigma/mu per phase from real data and this file is updated manually.",
+    "baseline_id": "legacy-v1-physics-uncalibrated",
+    "A": 8.2059,
+    "B": 26.86,
+    "sigma": 4.6761,
+    "mu": 0.0,
+    "i_ref": 1000.0,
+    "ambient_c": 30.0,
+    "calibrated": false
+  },
+  "rolling_median_minutes": 30,
+  "_thresholds_note": "TODO(calibration): defaults given in the Stage 2 Part A task brief, not yet validated against real fault/incident data. Normal < caution <= Caution < alert <= Alert < critical <= Critical. 'thresholds' below is consumed as a plain name->value dict (see config.py) -- do not add other keys inside it, matching the convention fixed in server/data_quality_config.json.",
+  "thresholds": {
+    "caution": 1.5,
+    "alert": 3.0,
+    "critical": 5.0
+  }
+}
