@@ -221,6 +221,80 @@ def ambient_logs(
     return {"count": len(rows), "rows": rows}
 
 
+# =====================================================
+# LNTAI LOGS (T4) — hasil dihitung server-side oleh lntai_worker.py
+# =====================================================
+
+@app.get("/api/lntai-logs")
+def lntai_logs(
+    trafo: int = Query(..., ge=2, le=4, description="Nomor trafo: 2, 3, atau 4"),
+    limit: int = Query(300, ge=1, le=20000),
+    from_: Optional[datetime] = Query(default=None, alias="from"),
+    to_: Optional[datetime] = Query(default=None, alias="to"),
+    x_api_key: Optional[str] = Header(default=None, alias="X-API-Key"),
+):
+    """Histori LNTAI v2 dihitung server (T4) untuk satu trafo. Frontend
+    memakai ini sebagai sumber UTAMA panel LNTAI; kalkulasi di browser
+    (_lntaiStep di index.html) jadi fallback saat endpoint ini tidak
+    terjangkau -- lihat badge "source" di panel LNTAI."""
+    _check_api_key(x_api_key)
+
+    with _pool.connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+        cur.execute(
+            """
+            SELECT ts, model_version, lntai, level, s_temp, s_delta_t, s_res,
+                   hottest_phase, t_contact, t_ambient, ambient_source,
+                   delta_t_real, delta_t_pred, residual, z, i_eff_norm,
+                   delta_phase, dab_max, per_phase, quality_flags, paired, error
+            FROM lntai_results
+            WHERE trafo_id = %s
+              AND (%s::timestamptz IS NULL OR ts >= %s)
+              AND (%s::timestamptz IS NULL OR ts <= %s)
+            ORDER BY ts DESC
+            LIMIT %s
+            """,
+            (str(trafo), from_, from_, to_, to_, limit),
+        )
+        rows = cur.fetchall()
+
+    for row in rows:
+        row["timestamp"] = row.pop("ts").isoformat()
+
+    return {"trafo": trafo, "count": len(rows), "rows": rows}
+
+
+@app.get("/api/lntai-latest")
+def lntai_latest(
+    trafo: int = Query(..., ge=2, le=4, description="Nomor trafo: 2, 3, atau 4"),
+    x_api_key: Optional[str] = Header(default=None, alias="X-API-Key"),
+):
+    """Hasil LNTAI v2 TERBARU untuk satu trafo -- dipakai tick realtime
+    panel LNTAI (polling ringan, tidak perlu mengambil histori penuh)."""
+    _check_api_key(x_api_key)
+
+    with _pool.connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+        cur.execute(
+            """
+            SELECT ts, model_version, lntai, level, s_temp, s_delta_t, s_res,
+                   hottest_phase, t_contact, t_ambient, ambient_source,
+                   delta_t_real, delta_t_pred, residual, z, i_eff_norm,
+                   delta_phase, dab_max, per_phase, quality_flags, paired, error
+            FROM lntai_results
+            WHERE trafo_id = %s
+            ORDER BY ts DESC
+            LIMIT 1
+            """,
+            (str(trafo),),
+        )
+        row = cur.fetchone()
+
+    if row is None:
+        return {"trafo": trafo, "row": None}
+
+    row["timestamp"] = row.pop("ts").isoformat()
+    return {"trafo": trafo, "row": row}
+
+
 @app.get("/api/beban-logs/bounds")
 def beban_logs_bounds(
     trafo: int = Query(..., ge=2, le=4, description="Nomor trafo: 2, 3, atau 4"),

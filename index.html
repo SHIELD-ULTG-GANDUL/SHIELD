@@ -5939,7 +5939,87 @@
             if (buf.length > LNTAI_HISTORY_MAX) buf.shift();
         }
 
+        // T4 (SHIELD Tahap 1, Oktober 2026): server (lntai_worker.py) kini
+        // menghitung LNTAI v2 dari pairing suhu+beban yang sudah lolos
+        // data_quality (T5) dan ambient_logs riil (T3) -- lebih lengkap
+        // daripada kalkulasi di browser (yang hanya punya ambient
+        // real-time HARI INI, tidak punya histori ambient sebelum tab
+        // dibuka). Panel LNTAI karena itu PRIORITAS memakai hasil server;
+        // kalkulasi lokal (_lntaiStep di atas) jadi FALLBACK murni saat
+        // endpoint /api/lntai-latest tidak terjangkau atau belum ada baris
+        // untuk trafo ini (mis. lntai_worker.py belum pernah dijalankan /
+        // di-backfill). Lihat badge "source" di panel LNTAI untuk tahu
+        // mana yang sedang aktif dipakai.
+        const _serverLNTAILatestCache = { '2': null, '3': null, '4': null };
+        // TODO(verifikasi): 10 menit adalah pagar keamanan sisi-klien
+        // (bukan nilai dari spesifikasi) supaya panel tidak diam-diam
+        // menampilkan hasil server yang sudah sangat basi kalau worker di
+        // server berhenti tanpa browser tahu -- aman diubah di sini saja.
+        const SERVER_LNTAI_MAX_AGE_MINUTES = 10;
+        const SERVER_LNTAI_POLL_MS = 30 * 1000;
+
+        const LNTAI_LEVEL_META = {
+            NORMAL:   { icon: '🟢', cls: 'bg-emerald-100 text-emerald-700', rec: 'Normal condition. Continue routine monitoring.' },
+            WARNING:  { icon: '🟡', cls: 'bg-amber-100 text-amber-700', rec: 'Monitor the component score trend and sensor validity, schedule an inspection.' },
+            CRITICAL: { icon: '🔴', cls: 'bg-red-100 text-red-700 animate-pulse', rec: 'Take immediate action, inspect the finger contacts, and evaluate the load.' }
+        };
+
+        function _mapServerLNTAIRowToResult(row) {
+            const perPhase = row.per_phase || {};
+            const currents = LNTAI_PHASES.map(p => Number((perPhase[p] || {}).I)).filter(Number.isFinite);
+            const iAvg = currents.length ? currents.reduce((a, b) => a + b, 0) / currents.length : null;
+            const hp = row.hottest_phase ? perPhase[row.hottest_phase] : null;
+            const meta = LNTAI_LEVEL_META[row.level] || LNTAI_LEVEL_META.NORMAL;
+            return {
+                lntai: row.lntai, level: row.level, S_Temp: row.s_temp, S_DeltaT: row.s_delta_t, S_RES: row.s_res,
+                hottest_phase: row.hottest_phase, t_contact: row.t_contact, t_ambient: row.t_ambient,
+                ambient_source: row.ambient_source, delta_T_real: row.delta_t_real, delta_T_pred: row.delta_t_pred,
+                residual: row.residual, z: row.z, i_eff_norm: row.i_eff_norm, delta_phase: row.delta_phase,
+                dAB_max: row.dab_max, per_phase: perPhase, timestamp: row.timestamp, model_version: row.model_version,
+                // Alias deprecated, lihat catatan di <LNTAI-CORE> — dipertahankan supaya
+                // Executive Summary & Analisa/Rekomendasi tetap jalan tanpa perubahan.
+                S_TLR: row.s_res, hottestPhase: row.hottest_phase, i_avg: iAvg,
+                loading_pct: (hp && iAvg !== null) ? (hp.I / LNTAI_CFG.baseline.iRated) * 100 : null,
+                i_rated: LNTAI_CFG.baseline.iRated,
+                ...meta,
+                stale: false, source: 'server (lntai_worker)',
+            };
+        }
+
+        async function _refreshServerLNTAILatest(trafo) {
+            if (!window.timescaleReady) return;
+            try {
+                const headers = TIMESCALE_API_KEY ? { 'X-API-Key': TIMESCALE_API_KEY } : {};
+                const res = await fetch(`${TIMESCALE_API_BASE_URL}/lntai-latest?trafo=${trafo}`, { headers, cache: 'no-store' });
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const json = await res.json();
+                _serverLNTAILatestCache[trafo] = { row: json.row, fetchedAt: Date.now() };
+            } catch (err) {
+                console.warn('[SHIELD LNTAI] Gagal mengambil /api/lntai-latest untuk trafo', trafo, ':', err.message);
+            }
+        }
+
+        function _getFreshServerLNTAIResult(trafo) {
+            const entry = _serverLNTAILatestCache[trafo];
+            if (!entry || !entry.row) return null;
+            const row = entry.row;
+            if (row.lntai === null || row.lntai === undefined || row.level === 'DATA_INVALID') return null;
+            const ageMinutes = (Date.now() - (Date.parse(row.timestamp) || 0)) / 60000;
+            if (!Number.isFinite(ageMinutes) || ageMinutes > SERVER_LNTAI_MAX_AGE_MINUTES) return null;
+            return _mapServerLNTAIRowToResult(row);
+        }
+
+        ['2', '3', '4'].forEach(t => _refreshServerLNTAILatest(t));
+        setInterval(() => ['2', '3', '4'].forEach(t => _refreshServerLNTAILatest(t)), SERVER_LNTAI_POLL_MS);
+
         function _currentLNTAIResult() {
+            const serverResult = _getFreshServerLNTAIResult(selectedTrafo);
+            if (serverResult) {
+                _pushLNTAIHistory(selectedTrafo, serverResult, Date.parse(serverResult.timestamp) || Date.now());
+                _lastValidLNTAIResult[selectedTrafo] = serverResult;
+                return serverResult;
+            }
+
             const td = temperatureData[selectedTrafo] || {};
             const bd = latestBebanData[selectedTrafo] || {};
 
@@ -5979,7 +6059,7 @@
                 return lastValid ? { ...lastValid, stale: true } : null;
             }
 
-            const finalResult = { ...result, stale: false, source: 'realtime snapshot' };
+            const finalResult = { ...result, stale: false, source: 'browser fallback (realtime snapshot)' };
             _lastValidLNTAIResult[selectedTrafo] = finalResult;
             _pushLNTAIHistory(selectedTrafo, finalResult, Date.parse(finalResult.timestamp) || Date.now());
             return finalResult;

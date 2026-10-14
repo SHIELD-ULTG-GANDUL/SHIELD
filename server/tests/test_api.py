@@ -262,3 +262,50 @@ class TestAmbientLogsGet:
         result = api.ambient_logs(limit=10, from_=None, to_=None, x_api_key=None)
         assert result["count"] == 0
         assert result["rows"] == []
+
+
+# ── /api/lntai-logs, /api/lntai-latest (T4) ──────────────────────────────
+
+class TestLntaiLogs:
+    def test_rows_renamed_ts_to_timestamp(self, fake_rows):
+        now = datetime.now(timezone.utc)
+        fake_rows([{
+            "ts": now, "model_version": "lntai-v2", "lntai": 12.5, "level": "NORMAL",
+            "s_temp": 5.0, "s_delta_t": 3.0, "s_res": 4.5, "hottest_phase": "R",
+            "t_contact": 55.0, "t_ambient": 29.0, "ambient_source": "ambient_logs",
+            "delta_t_real": 26.0, "delta_t_pred": 25.0, "residual": 1.0, "z": 0.5,
+            "i_eff_norm": 0.3, "delta_phase": 2.0, "dab_max": 1.0, "per_phase": {},
+            "quality_flags": 0, "paired": True, "error": None,
+        }])
+        result = api.lntai_logs(trafo=2, limit=10, from_=None, to_=None, x_api_key=None)
+        assert result["count"] == 1
+        row = result["rows"][0]
+        assert row["timestamp"] == now.isoformat()
+        assert "ts" not in row
+        assert row["lntai"] == 12.5
+
+    def test_empty_result(self, fake_rows):
+        fake_rows([])
+        result = api.lntai_logs(trafo=2, limit=10, from_=None, to_=None, x_api_key=None)
+        assert result["count"] == 0
+
+
+class TestLntaiLatest:
+    def test_returns_none_row_when_no_data(self, fake_rows):
+        fake_rows([])
+        result = api.lntai_latest(trafo=2, x_api_key=None)
+        assert result["row"] is None
+
+    def test_returns_latest_row(self, fake_rows):
+        now = datetime.now(timezone.utc)
+        fake_rows([{
+            "ts": now, "model_version": "lntai-v2", "lntai": 20.0, "level": "WARNING",
+            "s_temp": 8.0, "s_delta_t": 4.0, "s_res": 8.0, "hottest_phase": "S",
+            "t_contact": 60.0, "t_ambient": 30.0, "ambient_source": "default",
+            "delta_t_real": 30.0, "delta_t_pred": 28.0, "residual": 2.0, "z": 1.0,
+            "i_eff_norm": 0.4, "delta_phase": 3.0, "dab_max": 2.0, "per_phase": {},
+            "quality_flags": 0, "paired": True, "error": None,
+        }])
+        result = api.lntai_latest(trafo=2, x_api_key=None)
+        assert result["row"]["level"] == "WARNING"
+        assert result["row"]["timestamp"] == now.isoformat()

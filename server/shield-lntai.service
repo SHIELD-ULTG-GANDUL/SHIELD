@@ -1,0 +1,16 @@
+[Unit]
+Description=SHIELD LNTAI v2 worker (T4) — hitung LNTAI server-side dari trafo_temperature + trafo_load
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=shield
+WorkingDirectory=/opt/shield/server
+EnvironmentFile=/opt/shield/server/.env
+ExecStart=/opt/shield/server/venv/bin/python3 lntai_worker.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
