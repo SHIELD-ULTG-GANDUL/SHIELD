@@ -1,0 +1,18 @@
+{
+  "magnitudes_c": [2, 5, 10, 15, 20],
+  "_magnitudes_note": "TODO(calibration): besaran kenaikan suhu buatan (°C) PADA BEBAN PUNCAK periode held-out -- default beberapa besaran dari task brief, belum divalidasi dari kejadian gangguan riil.",
+
+  "fault_types": ["step", "ramp"],
+
+  "ramp_duration_days": 14,
+  "_ramp_duration_note": "TODO(calibration): durasi ramp linear dari 0 ke magnitude penuh -- default rekayasa (2 minggu), belum divalidasi.",
+
+  "fault_start_fraction": 0.3333333333333333,
+  "_fault_start_fraction_note": "Fault disuntik mulai 1/3 ke dalam periode held-out (bukan di awal) -- menyisakan data SEBELUM fault untuk false-alarm rate 'bersih' dan data SESUDAH fault yang cukup panjang untuk mengukur delay, termasuk ramp_duration_days penuh.",
+
+  "z_score_rolling_median_minutes": 30,
+  "_z_score_rolling_median_note": "SAMA PERSIS dengan rolling_median_minutes di lntai_v3_config.json (Part A) -- satu sumber yang sama, bukan nilai duplikat.",
+
+  "nominal_sample_interval_seconds": 300,
+  "_nominal_sample_interval_note": "SAMA PERSIS dengan data_quality_config.json nominal_sample_interval_seconds -- dipakai menghitung jumlah sampel dalam jendela median 30 menit saat seri held-out tidak di-resample jam-an (beda dari ml/forecast_dataset.py yang per-jam -- evaluasi fault injection ini memakai sampel MENTAH, bukan rata-rata per jam, supaya delay deteksi dalam hitungan jam tetap presisi)."
+}
