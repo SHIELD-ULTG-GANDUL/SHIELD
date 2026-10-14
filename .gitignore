@@ -1,6 +1,19 @@
 # Server backend — jangan commit kredensial/environment lokal
 server/.env
+.env
 server/venv/
+venv/
 server/__pycache__/
-server/.migration_markers/
+__pycache__/
 *.pyc
+server/.migration_markers/
+server/.csv_export_markers/
+server/beban_csv_export/
+
+# OS / editor
+.DS_Store
+.vscode/
+
+# Folder output ekspor data (CSV/XLSX yang diunduh lewat dashboard atau skrip)
+*_export/
+*.csv_export/

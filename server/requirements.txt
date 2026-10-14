@@ -2,3 +2,22 @@ paho-mqtt==1.6.1
 psycopg[binary,pool]==3.2.10
 fastapi==0.115.0
 uvicorn[standard]==0.30.6
+
+# T1 — konfigurasi opsional lewat file .env (settings.py tetap jalan tanpa ini
+# selama env var sudah di-export manual, lihat server/settings.py)
+python-dotenv==1.0.1
+
+# T3 — client HTTP untuk ambient_worker.py (Open-Meteo) dan/atau endpoint
+# relay ambient, menggantikan curl manual di langkah audit Fase 0
+httpx==0.27.2
+
+# T8 — test suite server/tests/
+pytest==8.3.3
+
+# CATATAN (Tahap 1, Oktober 2026): versi di atas dipin saat server memakai
+# Python 3.14.4 (lihat audit Fase 0, Q4) — semuanya pure-Python/wheel umum,
+# seharusnya kompatibel, tapi belum sempat diverifikasi `pip install` di
+# environment dengan akses internet (sandbox pengembangan ini tidak
+# punya akses keluar). TODO(verifikasi): jalankan
+# `pip install -r requirements.txt` di server/staging sebelum deploy, dan
+# laporkan kalau ada konflik versi.
