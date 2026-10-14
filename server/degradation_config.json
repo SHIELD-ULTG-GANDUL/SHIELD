@@ -1,0 +1,23 @@
+{
+  "min_valid_weeks": 8,
+  "_min_valid_weeks_note": "TODO(calibration): minimum titik mingguan r_relative_weekly berstatus 'ok' (Part D) sebelum proyeksi dianggap bermakna. Default dari task brief, belum divalidasi.",
+
+  "resistance_test_weight": 5.0,
+  "_resistance_test_weight_note": "TODO(calibration): bobot relatif SATU titik resistance_test (pengukuran micro-ohmmeter LANGSUNG, Part E) dibanding SATU titik r_relative_weekly (estimasi TIDAK LANGSUNG dari residual termal, Part D) dalam regresi (weighted least squares). Default rekayasa, belum divalidasi dari data riil.",
+
+  "prior": {
+    "beta_0": [100.0, 0.0],
+    "beta_var_0": [2500.0, 25.0],
+    "sigma2_fallback": 100.0,
+    "_note": "TODO(calibration): prior LEMAH (weakly informative) -- intercept diasumsikan ~100% (R/R_ref awal sehat) dengan simpangan baku prior besar (50 persentase-poin), slope diasumsikan 0 (tanpa tren) dengan simpangan baku prior besar (5 persentase-poin/minggu). sigma2_fallback HANYA dipakai kalau data < 3 titik (tidak cukup untuk estimasi variansi residual OLS sendiri)."
+  },
+
+  "mc_samples": 5000,
+  "_mc_samples_note": "Jumlah sampel Monte Carlo (lewat posterior (intercept,slope)) untuk kuantil tanggal crossing P10/P50/P90 -- bukan parameter kalibrasi, murni presisi numerik.",
+
+  "crossing_threshold_pct": null,
+  "_crossing_threshold_pct_note": "null berarti PAKAI ULANG resistance.RESISTANCE_CONFIG['guidance']['fair_max_pct'] (120%, kriteria KEMA/Mensah 2011, Part D) -- SATU sumber yang sama, bukan nilai terpisah yang bisa berbeda tanpa sadar.",
+
+  "horizon_weeks": 260,
+  "_horizon_weeks_note": "TODO(calibration): proyeksi >~5 tahun (260 minggu) ke depan dianggap TIDAK bermakna (ekstrapolasi linear dari data yang jauh lebih pendek) -- dilaporkan sebagai 'No crossing projected within horizon', bukan tanggal yang dikarang jauh di masa depan."
+}

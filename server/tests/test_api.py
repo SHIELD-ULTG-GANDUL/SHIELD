@@ -1162,3 +1162,78 @@ class TestExplainLatest:
             assert "Consistent rise since" in result["cusum_message"]
         finally:
             artifact_path.unlink(missing_ok=True)
+
+
+# ── /api/degradation/projection (Stage 2, Part H, beta) ──────────────────
+
+class _FakeDegradationCursor:
+    def __init__(self, weekly_rows, resistance_rows):
+        self._weekly_rows = weekly_rows
+        self._resistance_rows = resistance_rows
+        self._last = []
+
+    def execute(self, sql, params=None):
+        if "FROM r_relative_weekly" in sql:
+            self._last = self._weekly_rows
+        elif "FROM maintenance_events" in sql:
+            self._last = self._resistance_rows
+
+    def fetchall(self):
+        return self._last
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
+class _FakeDegradationConn:
+    def __init__(self, weekly_rows, resistance_rows):
+        self._weekly_rows = weekly_rows
+        self._resistance_rows = resistance_rows
+
+    def cursor(self, row_factory=None):
+        return _FakeDegradationCursor(self._weekly_rows, self._resistance_rows)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
+class _FakeDegradationCtx:
+    def __init__(self, weekly_rows, resistance_rows):
+        self._weekly_rows = weekly_rows
+        self._resistance_rows = resistance_rows
+
+    def __enter__(self):
+        return _FakeDegradationConn(self._weekly_rows, self._resistance_rows)
+
+    def __exit__(self, *exc):
+        return False
+
+
+class _FakeDegradationPool:
+    def __init__(self, weekly_rows=None, resistance_rows=None):
+        self._weekly_rows = weekly_rows or []
+        self._resistance_rows = resistance_rows or []
+
+    def connection(self):
+        return _FakeDegradationCtx(self._weekly_rows, self._resistance_rows)
+
+
+class TestDegradationProjection:
+    def test_insufficient_data_no_resistance_tests(self, monkeypatch):
+        weekly_rows = [{"week_start": date(2026, 1, 1), "r_ratio_median_pct": 100.0}] * 10
+        monkeypatch.setattr(api, "_pool", _FakeDegradationPool(weekly_rows=weekly_rows, resistance_rows=[]))
+        result = api.degradation_projection(trafo=2, phase="R", x_api_key=None)
+        assert result["status"] == "insufficient_data"
+        assert "resistance_test" in result["reason"]
+
+    def test_insufficient_data_too_few_weeks(self, monkeypatch):
+        monkeypatch.setattr(api, "_pool", _FakeDegradationPool(weekly_rows=[], resistance_rows=[]))
+        result = api.degradation_projection(trafo=2, phase="R", x_api_key=None)
+        assert result["status"] == "insufficient_data"
+        assert result["n_valid_weeks"] == 0

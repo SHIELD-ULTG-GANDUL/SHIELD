@@ -34,6 +34,7 @@ import config
 import ambient
 import aging
 import resistance
+import degradation as dg
 import forecast as fc
 import explain as xp
 import data_quality as dq
@@ -1012,3 +1013,28 @@ def explain_latest(
         "baseline_model_id": baseline_row["id"], "baseline_model_type": model_type,
         **explanation,
     }
+
+
+# =====================================================
+# DEGRADATION PROJECTION (Stage 2, Part H, beta)
+# =====================================================
+
+@app.get("/api/degradation/projection")
+def degradation_projection(
+    trafo: int = Query(..., ge=2, le=4, description="Nomor trafo: 2, 3, atau 4"),
+    phase: Literal["R", "S", "T"] = Query(..., description="Fasa: R, S, atau T"),
+    x_api_key: Optional[str] = Header(default=None, alias="X-API-Key"),
+):
+    """Proyeksi Bayesian (beta) tanggal P10/P50/P90 saat R/R_ref mingguan
+    (Part D) diproyeksikan melewati ambang 'fair/poor' (120%, kriteria
+    KEMA/Mensah 2011 -- sama dipakai Part D). status='insufficient_data'
+    kalau belum ada >= min_valid_weeks titik mingguan ATAU belum ada SATU
+    PUN event resistance_test (Part E) untuk kalibrasi -- lihat
+    server/degradation.py docstring modul untuk penjelasan kenapa
+    KEDUANYA wajib (bukan salah satu saja)."""
+    _check_api_key(x_api_key)
+
+    with _pool.connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+        result = dg.build_projection(cur, str(trafo), phase)
+
+    return {"trafo": trafo, "phase": phase, **result}

@@ -27,6 +27,17 @@ pytest==8.3.3
 # physics_quadratic dan physics_rc TIDAK butuh baris ini sama sekali.
 scikit-learn==1.5.2
 
+# SHIELD Stage 2 Part H — proyeksi degradasi (server/degradation.py) --
+# regresi Bayesian NUMPY SAJA, sesuai task brief ("numpy only"). numpy
+# TIDAK tersedia di sandbox pengembangan ini juga (sama seperti
+# scikit-learn/lightgbm di atas) -- formula diverifikasi manual dengan
+# reimplementasi pure-Python sekali pakai (tidak dikirim ke repo), bukan
+# dijalankan via numpy langsung. degradation.py melempar RuntimeError yang
+# jelas kalau numpy belum terpasang (pola sama dengan
+# _try_import_gbm_backend() Part B) -- is_sufficient_data() dan modul lain
+# TIDAK butuh numpy sama sekali.
+numpy==2.1.3
+
 # CATATAN (Tahap 1, Oktober 2026): versi di atas dipin saat server memakai
 # Python 3.14.4 (lihat audit Fase 0, Q4) — semuanya pure-Python/wheel umum,
 # seharusnya kompatibel, tapi belum sempat diverifikasi `pip install` di
