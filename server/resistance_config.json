@@ -1,0 +1,19 @@
+{
+  "min_load_fraction": 0.6,
+  "_min_load_fraction_note": "TODO(calibration): default from the Part D task brief. Fraction of typical peak current (reused from lntai_config.json baseline.I_RATED=1780A as the 'typical peak' reference, not re-derived statistically) below which a sample is excluded as low-load -- the R/R_ref formula's denominator (A_ref*(I_eff/I_ref)^2) shrinks toward zero at low current, making the ratio noisy/unreliable rather than just imprecise.",
+
+  "steady_load": {
+    "tau_minutes": 20,
+    "max_abs_di_dt_a_per_min": 50.0,
+    "_note": "TODO(calibration): tau_minutes reused from lntai_config.json thermal_lag.tau_minutes (20) for consistency with the rest of Stage 2, not re-derived. max_abs_di_dt_a_per_min (~2.8%/min of I_RATED=1780A) is an engineering guess at what counts as 'steady load' over that window -- not validated against real ramp-rate data. A sample where dI/dt cannot be determined (no comparison point within tau+tolerance) is treated as NOT steady (excluded), not assumed steady."
+  },
+
+  "min_valid_samples_per_week": 20,
+  "_min_valid_samples_note": "TODO(verifikasi): minimum valid samples (passed low-load + steady-load filters) in one calendar week for the median/IQR to be considered statistically meaningful. Below this, the week's row is written with status='insufficient_data' and no ratio values.",
+
+  "guidance": {
+    "good_max_pct": 105,
+    "fair_max_pct": 120,
+    "_citation": "KEMA criteria as quoted in Mensah, E., MSc thesis, TU Delft, 2011: R/R_ref < 105% good, 105-120% fair, > 120% poor (percentage of reference contact resistance). Returned as metadata in GET /api/resistance/relative, not re-derived or altered here."
+  }
+}

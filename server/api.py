@@ -25,6 +25,7 @@ from pydantic import BaseModel, Field
 
 import ambient
 import aging
+import resistance
 import data_quality as dq
 from settings import load_ambient_location_settings, load_api_settings, load_database_settings
 
@@ -761,3 +762,57 @@ def maintenance_events_create(
             flagged_model_ids = [r["id"] for r in cur.fetchall()]
 
     return {"id": new_id, "resets_baseline": body.resets_baseline, "flagged_model_ids": flagged_model_ids}
+
+
+# =====================================================
+# RESISTANCE (Stage 2, Part D, beta) — relative contact-resistance drift
+# =====================================================
+
+@app.get("/api/resistance/relative")
+def resistance_relative(
+    trafo: int = Query(..., ge=2, le=4, description="Nomor trafo: 2, 3, atau 4"),
+    from_: Optional[datetime] = Query(default=None, alias="from"),
+    to_: Optional[datetime] = Query(default=None, alias="to"),
+    x_api_key: Optional[str] = Header(default=None, alias="X-API-Key"),
+):
+    """Weekly relative contact-resistance drift (beta) per phase, from
+    server/resistance_job.py. Rows with status != 'ok' carry no ratio
+    values (see `reason`) -- no frozen reference, reference needs
+    re-calibration, or insufficient valid (steady, adequately-loaded)
+    samples that week. `guidance` is static metadata (KEMA criteria),
+    not computed per row -- see resistance.GUIDANCE_CITATION."""
+    _check_api_key(x_api_key)
+
+    from_date = from_.date() if from_ else None
+    to_date = to_.date() if to_ else None
+
+    with _pool.connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+        cur.execute(
+            """
+            SELECT phase, week_start, r_ratio_median_pct, r_ratio_q1_pct, r_ratio_q3_pct,
+                   r_ratio_iqr_pct, phase_relative_ratio_pct, n_samples_valid, n_samples_total,
+                   reference_model_id, a_ref, status, reason
+            FROM r_relative_weekly
+            WHERE trafo = %s
+              AND (%s::date IS NULL OR week_start >= %s)
+              AND (%s::date IS NULL OR week_start <= %s)
+            ORDER BY phase, week_start ASC
+            """,
+            (str(trafo), from_date, from_date, to_date, to_date),
+        )
+        rows = cur.fetchall()
+
+    for row in rows:
+        row["week_start"] = row["week_start"].isoformat()
+        row["guidance_label"] = resistance.guidance_label(row["r_ratio_median_pct"])
+
+    return {
+        "trafo": trafo,
+        "count": len(rows),
+        "rows": rows,
+        "guidance": {
+            "good_max_pct": resistance.RESISTANCE_CONFIG["guidance"]["good_max_pct"],
+            "fair_max_pct": resistance.RESISTANCE_CONFIG["guidance"]["fair_max_pct"],
+            "citation": resistance.GUIDANCE_CITATION,
+        },
+    }

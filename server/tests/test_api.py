@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import os
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -852,4 +852,80 @@ class TestMaintenanceEventsList:
     def test_empty_list(self, monkeypatch):
         monkeypatch.setattr(api, "_pool", _FakeMaintenanceEventsPool(_FakeMaintenanceEventsCursor()))
         result = api.maintenance_events_list(trafo=None, x_api_key=None)
+        assert result["count"] == 0
+
+
+# ── /api/resistance/relative (Stage 2, Part D, beta) ─────────────────────
+
+class _FakeResistanceCursor:
+    def __init__(self, rows):
+        self._rows = rows
+
+    def execute(self, sql, params=None):
+        pass
+
+    def fetchall(self):
+        return self._rows
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
+class _FakeResistanceConn:
+    def __init__(self, rows):
+        self._rows = rows
+
+    def cursor(self, row_factory=None):
+        return _FakeResistanceCursor(self._rows)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
+class _FakeResistancePool:
+    def __init__(self, rows=None):
+        self._rows = rows or []
+
+    def connection(self):
+        return _FakeResistanceConn(self._rows)
+
+
+class TestResistanceRelative:
+    def test_returns_rows_with_guidance_label_and_citation(self, monkeypatch):
+        rows = [{
+            "phase": "R", "week_start": date(2026, 9, 7), "r_ratio_median_pct": 110.0,
+            "r_ratio_q1_pct": 105.0, "r_ratio_q3_pct": 115.0, "r_ratio_iqr_pct": 10.0,
+            "phase_relative_ratio_pct": 105.0, "n_samples_valid": 500, "n_samples_total": 520,
+            "reference_model_id": 1, "a_ref": 25.0, "status": "ok", "reason": None,
+        }]
+        monkeypatch.setattr(api, "_pool", _FakeResistancePool(rows))
+        result = api.resistance_relative(trafo=2, from_=None, to_=None, x_api_key=None)
+        assert result["count"] == 1
+        assert result["rows"][0]["guidance_label"] == "fair"
+        assert result["rows"][0]["week_start"] == "2026-09-07"
+        assert "KEMA" in result["guidance"]["citation"]
+        assert result["guidance"]["good_max_pct"] == 105
+        assert result["guidance"]["fair_max_pct"] == 120
+
+    def test_status_not_ok_row_has_no_guidance_label(self, monkeypatch):
+        rows = [{
+            "phase": "S", "week_start": date(2026, 9, 7), "r_ratio_median_pct": None,
+            "r_ratio_q1_pct": None, "r_ratio_q3_pct": None, "r_ratio_iqr_pct": None,
+            "phase_relative_ratio_pct": None, "n_samples_valid": 5, "n_samples_total": 50,
+            "reference_model_id": 1, "a_ref": None, "status": "insufficient_data",
+            "reason": "Only 5 valid samples this week (minimum 20 required, ...).",
+        }]
+        monkeypatch.setattr(api, "_pool", _FakeResistancePool(rows))
+        result = api.resistance_relative(trafo=2, from_=None, to_=None, x_api_key=None)
+        assert result["rows"][0]["guidance_label"] is None
+
+    def test_empty_result(self, monkeypatch):
+        monkeypatch.setattr(api, "_pool", _FakeResistancePool([]))
+        result = api.resistance_relative(trafo=2, from_=None, to_=None, x_api_key=None)
         assert result["count"] == 0
