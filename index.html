@@ -1147,7 +1147,12 @@
                         <div class="bg-red-100 p-2 rounded-lg"><i data-lucide="thermometer-sun" class="w-5 h-5 text-red-600"></i></div>
                         <div>
                           <h5 class="text-xs font-extrabold text-red-700 uppercase tracking-widest">LNTAI — Load Normalized Thermal Anomaly Index</h5>
-                          <p class="text-[10px] text-slate-400">Composite score from contact temperature rise, inter-phase difference, and temperature-vs-load ratio — scale 0–40.</p>
+                          <p class="text-[10px] text-slate-400">Composite score from contact temperature rise, inter-phase difference, and residual-vs-baseline anomaly — scale 0–40.</p>
+                          <div class="flex flex-wrap items-center gap-1.5 mt-1.5">
+                            <span id="lntai-badge-model-version" class="text-[8px] font-extrabold px-1.5 py-0.5 rounded bg-slate-100 text-slate-500">model: -</span>
+                            <span id="lntai-badge-ambient-source" class="text-[8px] font-extrabold px-1.5 py-0.5 rounded bg-slate-100 text-slate-500">ambient: -</span>
+                            <span id="lntai-badge-baseline-calibrated" class="hidden text-[8px] font-extrabold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">⚠ Baseline belum terkalibrasi (lihat lntai_config.json)</span>
+                          </div>
                         </div>
                       </div>
                       <button onclick="renderLNTAIPanel(true)" class="flex items-center gap-1.5 bg-white border border-red-200 text-red-700 text-[11px] font-bold px-3 py-1.5 rounded-lg hover:bg-red-50 transition-all">
@@ -1188,8 +1193,14 @@
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
                           <div class="bg-slate-50 rounded-xl p-3 border border-slate-200">
                             <div class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest">LNTAI Formula</div>
-                            <div class="font-mono text-[10px] text-slate-600 mt-1 leading-relaxed">LNTAI = 0.40·S_Temp + 0.30·S_ΔT + 0.30·S_TLR (result scale 0–40)</div>
+                            <div class="font-mono text-[10px] text-slate-600 mt-1 leading-relaxed">LNTAI = 0.40·S_Temp + 0.30·S_ΔT + 0.30·S_RES (result scale 0–40)</div>
                           </div>
+                          <!-- TODO(verifikasi): relevansi PLN SKDIR 0520 & CIGRE TB 167 terhadap LNTAI
+                               (indeks komposit internal, bukan nilai dari standar tsb) belum dipastikan.
+                               IEC 62271-1/60216 relevan untuk batas suhu/penuaan isolasi material kontak
+                               secara umum, tapi LNTAI sendiri adalah model heuristik internal -- jangan
+                               diperlakukan sebagai "sesuai standar X". Dibiarkan di UI sesuai keputusan
+                               migrasi v2 (lihat laporan migrasi), tag ini untuk pengembang berikutnya. -->
                           <div class="bg-slate-50 rounded-xl p-3 border border-slate-200">
                             <div class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest">Reference Standards</div>
                             <div class="text-[10px] text-slate-600 mt-1 leading-relaxed">IEC 62271-1:2017 · IEC 60216 · PLN SKDIR 0520 · CIGRE TB 167</div>
@@ -1318,7 +1329,7 @@
                   <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
                     <div class="glass-card p-5">
                       <h5 class="text-xs font-extrabold text-slate-700 uppercase tracking-widest mb-3">LNTAI Component Score Chart</h5>
-                      <p class="text-[10px] text-slate-400 mb-3">Contribution of S_Temp, S_ΔT, and S_TLR (each on a 0–40 scale) to the weighted LNTAI score over time.</p>
+                      <p class="text-[10px] text-slate-400 mb-3">Contribution of S_Temp, S_ΔT, and S_RES (each on a 0–40 scale) to the weighted LNTAI score over time.</p>
                       <div class="relative h-[300px]">
                         <canvas id="lntai-temp-model-chart"></canvas>
                         <div id="lntai-temp-model-empty" class="hidden absolute inset-0 flex items-center justify-center bg-white/80 rounded-xl text-xs font-bold text-slate-400">No model data yet.</div>
@@ -1359,7 +1370,7 @@
                               <th class="px-3 py-2">Time</th>
                               <th class="px-3 py-2 text-right">T Contact</th>
                               <th class="px-3 py-2 text-right">I Avg</th>
-                              <th class="px-3 py-2 text-right">S_Temp / S_ΔT / S_TLR</th>
+                              <th class="px-3 py-2 text-right">S_Temp / S_ΔT / S_RES</th>
                               <th class="px-3 py-2 text-right">LNTAI</th>
                               <th class="px-3 py-2">Level</th>
                             </tr>
@@ -1374,14 +1385,14 @@
 
                   <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
                     <div class="glass-card p-5">
-                      <h5 class="text-xs font-extrabold text-slate-700 uppercase tracking-widest mb-4">LNTAI Algorithm Workflow</h5>
+                      <h5 class="text-xs font-extrabold text-slate-700 uppercase tracking-widest mb-4">LNTAI Algorithm Workflow (v2)</h5>
                       <div class="grid grid-cols-1 md:grid-cols-4 gap-2">
-                        <div class="bg-slate-50 rounded-xl p-3 border border-slate-200"><div class="text-[9px] font-extrabold text-red-600 uppercase">1. Data Acquisition</div><div class="text-[10px] text-slate-600 mt-1">Contact temperature at 6 points/phase (MQTT), load current I_R/I_S/I_T (power meter), real-time ambient temperature (Open-Meteo API).</div></div>
-                        <div class="bg-slate-50 rounded-xl p-3 border border-slate-200"><div class="text-[9px] font-extrabold text-red-600 uppercase">2. Preprocessing &amp; Validation</div><div class="text-[10px] text-slate-600 mt-1">Check completeness &amp; value range. If invalid, the reading is discarded — the previous LNTAI value is retained. A 3-sample rolling median filters out single-reading sensor noise/spikes before scoring.</div></div>
-                        <div class="bg-slate-50 rounded-xl p-3 border border-slate-200"><div class="text-[9px] font-extrabold text-red-600 uppercase">3. Parameter Aggregation</div><div class="text-[10px] text-slate-600 mt-1">Average temperature per phase T_R/T_S/T_T, average current I_avg, Loading% = I_avg/I_nominal x100%.</div></div>
-                        <div class="bg-slate-50 rounded-xl p-3 border border-slate-200"><div class="text-[9px] font-extrabold text-red-600 uppercase">4. Component Scores (0–40)</div><div class="text-[10px] text-slate-600 mt-1">S_Temp and S_ΔT use an exponential Montsinger/Arrhenius curve (risk doubles every 10K) instead of a linear scale, so the score accelerates near the limit. S_TLR = temperature rise per unit load².</div></div>
-                        <div class="bg-slate-50 rounded-xl p-3 border border-slate-200"><div class="text-[9px] font-extrabold text-red-600 uppercase">5. Weighted LNTAI Score</div><div class="text-[10px] text-slate-600 mt-1">LNTAI = 0.40·S_Temp + 0.30·S_ΔT + 0.30·S_TLR. Result range: 0–40.</div></div>
-                        <div class="bg-slate-50 rounded-xl p-3 border border-slate-200"><div class="text-[9px] font-extrabold text-red-600 uppercase">6. Classification</div><div class="text-[10px] text-slate-600 mt-1">0–15 Normal · 15–30 Warning · 30–40 Critical.</div></div>
+                        <div class="bg-slate-50 rounded-xl p-3 border border-slate-200"><div class="text-[9px] font-extrabold text-red-600 uppercase">1. Data Acquisition</div><div class="text-[10px] text-slate-600 mt-1">Contact temperature at 6 points/phase (MQTT), load current I_R/I_S/I_T (power meter), real-time ambient temperature (Open-Meteo API, used only if fresher than <span id="lntai-wf-ambient-max-age">30</span> min — otherwise a fixed default is used, never a fabricated estimate).</div></div>
+                        <div class="bg-slate-50 rounded-xl p-3 border border-slate-200"><div class="text-[9px] font-extrabold text-red-600 uppercase">2. Preprocessing &amp; Validation</div><div class="text-[10px] text-slate-600 mt-1">Check completeness &amp; value range. If invalid, the reading is discarded — the previous LNTAI value is retained (marked stale). A 3-sample rolling median is applied per sensor before scoring.</div></div>
+                        <div class="bg-slate-50 rounded-xl p-3 border border-slate-200"><div class="text-[9px] font-extrabold text-red-600 uppercase">3. Per-Phase Aggregation &amp; Thermal Lag</div><div class="text-[10px] text-slate-600 mt-1">Per phase: T_p = max(Atas,Bawah) (hotspot, not average), paired with its OWN phase current (not the 3-phase average). Current is passed through a first-order lag filter (τ=<span id="lntai-wf-tau">20</span> min) to get effective current i_eff — damps instantaneous spikes so a sudden load jump alone can't trigger a false alarm.</div></div>
+                        <div class="bg-slate-50 rounded-xl p-3 border border-slate-200"><div class="text-[9px] font-extrabold text-red-600 uppercase">4. Component Scores (0–40)</div><div class="text-[10px] text-slate-600 mt-1">S_Temp &amp; S_ΔT use an exponential heuristic curve (inspired by the Montsinger rule-of-thumb for insulation aging; not validated for finger contacts) so the score accelerates near the reference limit. S_RES scores the standardized residual (z-score) between actual ΔT and the i_eff-based baseline prediction — replaces the old load²-ratio score, which saturated regardless of actual anomaly at low load.</div></div>
+                        <div class="bg-slate-50 rounded-xl p-3 border border-slate-200"><div class="text-[9px] font-extrabold text-red-600 uppercase">5. Weighted LNTAI Score</div><div class="text-[10px] text-slate-600 mt-1">LNTAI = 0.40·S_Temp + 0.30·S_ΔT + 0.30·S_RES. Result range: 0–40.</div></div>
+                        <div class="bg-slate-50 rounded-xl p-3 border border-slate-200"><div class="text-[9px] font-extrabold text-red-600 uppercase">6. Classification</div><div class="text-[10px] text-slate-600 mt-1">0–<span id="lntai-wf-warning">18</span> Normal · <span id="lntai-wf-warning-2">18</span>–<span id="lntai-wf-critical">30</span> Warning · <span id="lntai-wf-critical-2">30</span>–40 Critical (single source: lntai_config.json).</div></div>
                         <div class="bg-slate-50 rounded-xl p-3 border border-slate-200"><div class="text-[9px] font-extrabold text-red-600 uppercase">7. Logging &amp; Dashboard Update</div><div class="text-[10px] text-slate-600 mt-1">Store the data &amp; LNTAI score, refresh KPIs and trend charts in real time.</div></div>
                       </div>
                     </div>
@@ -1389,10 +1400,10 @@
                       <h5 class="text-xs font-extrabold text-slate-700 uppercase tracking-widest mb-4">Engineering Interpretation</h5>
                       <div class="space-y-3 text-[10px] text-slate-600 leading-relaxed">
                         <p><b>LNTAI is a weighted composite score</b>, not a single temperature variable. Three components are each scored 0–40, then combined with weights 0.40/0.30/0.30 so the final result always falls within 0–40.</p>
-                        <p><b>S_Temp</b> scores the hottest contact's temperature rise above ambient against the reference terminal rise limit (IEC 62271-1), and <b>S_ΔT</b> scores the temperature difference between phases R/S/T (contact imbalance) — both on an <b>exponential curve that doubles every 10K</b> (Montsinger/Arrhenius rule-of-thumb), so the score climbs sharply as the reading approaches the limit rather than growing at a flat linear rate. <b>S_TLR</b> scores the temperature rise relative to the square of the load — an indicator of unusual heating relative to the current flowing.</p>
-                        <p><b>Invalid or incomplete data</b> (sensor dropout, out-of-range values) is not used to compute a new score — the dashboard keeps showing the last valid LNTAI value until the next reading is complete. A 3-sample rolling median additionally smooths out single-reading sensor noise before it reaches the score.</p>
+                        <p><b>S_Temp</b> scores the hottest contact's temperature rise above ambient against an internal reference value (compare separately against IEC 62271-1 contact-material temperature-rise limits if needed), and <b>S_ΔT</b> scores the temperature difference between phases R/S/T (contact imbalance) — both on an <b>exponential curve that doubles every 10K</b>, a heuristic inspired by the Montsinger rule-of-thumb for insulation aging and <b>not independently validated for finger-contact degradation</b>, so the score climbs sharply as the reading approaches the limit rather than growing at a flat linear rate. <b>S_RES</b> scores the standardized residual (z-score) between the actual temperature rise and the rise predicted from the lag-filtered effective current against the baseline model (A·i_eff² + B) — an indication worth confirming with inspection or a contact-resistance test, not a standalone diagnosis.</p>
+                        <p><b>Invalid or incomplete data</b> (sensor dropout, out-of-range values) is not used to compute a new score — the dashboard keeps showing the last valid LNTAI value (marked stale) until the next reading is complete. A 3-sample rolling median additionally smooths out single-reading sensor noise before it reaches the score.</p>
                         <div class="bg-red-50 border border-red-100 rounded-xl p-3 font-mono text-[10px] text-red-700">
-                          LNTAI = 0.40·S_Temp + 0.30·S_ΔT + 0.30·S_TLR &nbsp;→&nbsp; result range 0–40
+                          LNTAI = 0.40·S_Temp + 0.30·S_ΔT + 0.30·S_RES &nbsp;→&nbsp; result range 0–40
                         </div>
                       </div>
                     </div>
@@ -1403,20 +1414,21 @@
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                       <div class="bg-emerald-50 border border-emerald-100 rounded-xl p-3">
                         <div class="text-[9px] font-extrabold text-emerald-700 uppercase tracking-widest">Normal</div>
-                        <div class="font-mono font-black text-lg text-slate-700">0 - 10</div>
+                        <div class="font-mono font-black text-lg text-slate-700">0 - <span id="lntai-cls-warning">18</span></div>
                         <div class="text-[10px] text-slate-500 mt-1">Routine monitoring</div>
                       </div>
                       <div class="bg-amber-50 border border-amber-100 rounded-xl p-3">
                         <div class="text-[9px] font-extrabold text-amber-700 uppercase tracking-widest">Warning</div>
-                        <div class="font-mono font-black text-lg text-slate-700">10 - 25</div>
+                        <div class="font-mono font-black text-lg text-slate-700"><span id="lntai-cls-warning-2">18</span> - <span id="lntai-cls-critical">30</span></div>
                         <div class="text-[10px] text-slate-500 mt-1">Monitor trend, schedule inspection</div>
                       </div>
                       <div class="bg-red-50 border border-red-100 rounded-xl p-3">
                         <div class="text-[9px] font-extrabold text-red-700 uppercase tracking-widest">Critical</div>
-                        <div class="font-mono font-black text-lg text-slate-700">25 - 40</div>
+                        <div class="font-mono font-black text-lg text-slate-700"><span id="lntai-cls-critical-2">30</span> - 40</div>
                         <div class="text-[10px] text-slate-500 mt-1">Immediate action required</div>
                       </div>
                     </div>
+                    <p class="text-[9px] text-slate-400 mt-3">Ambang di atas, di langkah 6 workflow, dan di kode (LNTAI_CFG.thresholds) berasal dari satu sumber yang sama: lntai_config.json — diisi otomatis oleh <code>_renderLNTAIStaticConfigText()</code> saat panel dimuat.</p>
                   </div>
 
                   <div class="glass-card p-5">
@@ -5585,7 +5597,7 @@
         let mlCharts = {};
 
         // Konfigurasi LNTAI mengikuti flowchart: skor komponen 0-40, digabung berbobot
-        // (0.40 S_Temp + 0.30 S_ΔT + 0.30 S_TLR) sehingga hasil akhir selalu 0-40.
+        // (0.40 S_Temp + 0.30 S_ΔT + 0.30 S_RES) sehingga hasil akhir selalu 0-40.
         // SINKRON dengan lntai_config.json di root repo — tests/test_lntai_js.mjs
         // memverifikasi kedua sumber ini sama persis. JANGAN ubah salah satu file
         // tanpa mengubah yang lain. A/B/sigma sudah dikonversi ke basis I_RATED=1780A
@@ -6019,7 +6031,7 @@
             const parts = [
                 { name: 'S_Temp', value: current.S_Temp, weighted: current.S_Temp * 0.40, weight: '40%' },
                 { name: 'S_ΔT', value: current.S_DeltaT, weighted: current.S_DeltaT * 0.30, weight: '30%' },
-                { name: 'S_TLR', value: current.S_TLR, weighted: current.S_TLR * 0.30, weight: '30%' }
+                { name: 'S_RES', value: current.S_RES, weighted: current.S_RES * 0.30, weight: '30%' }
             ];
             const dom = parts.reduce((a, b) => b.weighted > a.weighted ? b : a, parts[0]);
             const domShare = current.lntai > 0 ? (dom.weighted / current.lntai) * 100 : 0;
@@ -6027,14 +6039,14 @@
                 ? 'i.e. the absolute contact temperature rise vs. ambient is the main driver — check for genuine contact resistance increase or a cooling deficiency.'
                 : dom.name === 'S_ΔT'
                     ? `i.e. phase ${current.hottestPhase} running hotter than the others is the main driver — a classic sign of a localized issue on one phase rather than a system-wide effect.`
-                    : 'i.e. the heating is disproportionate to the load current squared — the strongest single indicator of rising contact resistance rather than a normal loading effect.';
+                    : 'i.e. the heating deviates from what the baseline model predicts for the current effective load — an indication worth confirming with inspection or a contact-resistance test, not a standalone diagnosis.';
 
             const items = [
                 { title: `${current.icon} Status ${current.level}`, body: `${current.rec} Current LNTAI is ${current.lntai.toFixed(2)} on a 0–40 scale (Warning ≥ ${LNTAI_CFG.thresholds.warning}, Critical ≥ ${LNTAI_CFG.thresholds.critical}).` },
-                { title: 'Score components', body: `S_Temp ${current.S_Temp.toFixed(1)} · S_ΔT ${current.S_DeltaT.toFixed(1)} · S_TLR ${current.S_TLR.toFixed(1)} (each on a 0–40 scale, weighted 0.40/0.30/0.30 into the final score).` },
+                { title: 'Score components', body: `S_Temp ${current.S_Temp.toFixed(1)} · S_ΔT ${current.S_DeltaT.toFixed(1)} · S_RES ${current.S_RES.toFixed(1)} (each on a 0–40 scale, weighted 0.40/0.30/0.30 into the final score).` },
                 { title: 'Dominant driver', body: `${dom.name} contributes ${domShare.toFixed(0)}% of the total score (weight ${dom.weight}) — ${domMeaning}` },
                 { title: 'Hottest phase', body: `Phase ${current.hottestPhase} averages ${current.t_contact.toFixed(1)} °C (${current.delta_T_real.toFixed(1)} °C above ambient), inter-phase difference ${current.delta_phase.toFixed(1)} °C against a ${LNTAI_CFG.refPhaseDelta} °C reference.` },
-                { title: 'Load context', body: `Average current ${current.i_avg.toFixed(1)} A, Loading ${current.loading_pct.toFixed(1)}% of I_nominal ${current.i_rated} A — used to normalize the expected heating for S_TLR.` },
+                { title: 'Load context', body: `Average current ${current.i_avg.toFixed(1)} A, Loading ${current.loading_pct.toFixed(1)}% of I_nominal ${current.i_rated} A (instantaneous) — i_eff (lag-filtered) ${(current.i_eff_norm * 100).toFixed(1)}% is what the S_RES baseline actually uses.` },
                 { title: 'Recent trend', body: `Average LNTAI over the last ${recent.length} points is ${avgRecent.toFixed(2)}. ${trend > 0.3 ? 'Trending up, needs closer monitoring.' : trend < -0.3 ? 'Trending down, thermal condition improving.' : 'Relatively stable trend.'}` },
                 { title: 'Period peak', body: `Maximum LNTAI in the displayed data is ${maxRow.lntai.toFixed(2)} (${maxRow.level}).` }
             ];
@@ -6052,16 +6064,16 @@
                 return;
             }
             const levelText = current.level === 'NORMAL'
-                ? 'The score is in the normal zone (0–15). All three components — temperature rise, phase difference, and load ratio — remain within acceptable limits.'
+                ? `The score is in the normal zone (0–${LNTAI_CFG.thresholds.warning}). All three components — temperature rise, phase difference, and residual-vs-baseline — remain within acceptable limits.`
                 : current.level === 'WARNING'
-                    ? 'The score is in the warning zone (15–30). One or more components is already significant; monitor the trend and schedule an inspection.'
-                    : 'Critical score (30–40). A combination of temperature rise, phase imbalance, and/or load ratio shows a strong indication of thermal anomaly.';
+                    ? `The score is in the warning zone (${LNTAI_CFG.thresholds.warning}–${LNTAI_CFG.thresholds.critical}). One or more components is already significant; monitor the trend and schedule an inspection.`
+                    : `Critical score (${LNTAI_CFG.thresholds.critical}–40). A combination of temperature rise, phase imbalance, and/or residual-vs-baseline anomaly shows a strong indication of thermal anomaly.`;
             const dominant = [
                 { name: 'S_Temp (temperature rise)', value: current.S_Temp },
                 { name: 'S_ΔT (inter-phase difference)', value: current.S_DeltaT },
-                { name: 'S_TLR (temperature/load² ratio)', value: current.S_TLR }
+                { name: 'S_RES (residual vs baseline)', value: current.S_RES }
             ].reduce((a, b) => b.value > a.value ? b : a);
-            const residualText = `The current dominant component is ${dominant.name} with a score of ${dominant.value.toFixed(1)} on a 0–40 scale. Breakdown: S_Temp ${current.S_Temp.toFixed(1)}, S_ΔT ${current.S_DeltaT.toFixed(1)}, S_TLR ${current.S_TLR.toFixed(1)}.`;
+            const residualText = `The current dominant component is ${dominant.name} with a score of ${dominant.value.toFixed(1)} on a 0–40 scale. Breakdown: S_Temp ${current.S_Temp.toFixed(1)}, S_ΔT ${current.S_DeltaT.toFixed(1)}, S_RES ${current.S_RES.toFixed(1)}.`;
             const inputText = `Phase ${current.hottestPhase} is used as the reference since it has the highest average temperature at ${current.t_contact.toFixed(1)} °C. Average current ${current.i_avg.toFixed(1)} A equals ${current.loading_pct.toFixed(1)}% of I_nominal.`;
             const recent = rows.slice(-12);
             const recentAvg = recent.length ? recent.reduce((s, r) => s + r.lntai, 0) / recent.length : current.lntai;
@@ -6092,7 +6104,7 @@
                     datasets: [
                         { label: 'S_Temp', data: rows.map(r => Number(r.S_Temp.toFixed(1))), borderColor: '#dc2626', backgroundColor: 'rgba(220,38,38,0.08)', borderWidth: 2.5, pointRadius: rows.length > 1 ? 2 : 5, tension: 0.25, fill: true },
                         { label: 'S_ΔT', data: rows.map(r => Number(r.S_DeltaT.toFixed(1))), borderColor: '#f59e0b', borderWidth: 2, pointRadius: 0, tension: 0.25 },
-                        { label: 'S_TLR', data: rows.map(r => Number(r.S_TLR.toFixed(1))), borderColor: '#0d9488', borderWidth: 2, pointRadius: 0, tension: 0.25 },
+                        { label: 'S_RES', data: rows.map(r => Number(r.S_RES.toFixed(1))), borderColor: '#0d9488', borderWidth: 2, pointRadius: 0, tension: 0.25 },
                         { label: 'LNTAI', data: rows.map(r => Number(r.lntai.toFixed(1))), borderColor: '#7c3aed', borderWidth: 2.2, borderDash: [5,4], pointRadius: 0, tension: 0.2 }
                     ]
                 },
@@ -6131,7 +6143,7 @@
                         ['S_Temp', `${current.S_Temp.toFixed(1)} / 40`, `Temperature-rise score vs an internal ${LNTAI_CFG.refTempRise}K reference curve (compare separately to IEC 62271-1 contact-material rise limits).`],
                         ['S_ΔT', `${current.S_DeltaT.toFixed(1)} / 40`, `Inter-phase difference score vs the ${LNTAI_CFG.refPhaseDelta}K reference.`],
                         ['S_RES', `${current.S_RES.toFixed(1)} / 40`, `Residual-anomaly score: z mapped from ${LNTAI_CFG.residualScore.zFloor}σ (score 0) to ${LNTAI_CFG.residualScore.zFull}σ (score 40).`],
-                        ['LNTAI', `${current.lntai.toFixed(2)} / 40`, `0.40·S_Temp + 0.30·S_ΔT + 0.30·S_TLR, giving level ${current.level}.`]
+                        ['LNTAI', `${current.lntai.toFixed(2)} / 40`, `0.40·S_Temp + 0.30·S_ΔT + 0.30·S_RES, giving level ${current.level}.`]
                     ];
                     calcBody.innerHTML = calcRows.map(([p,v,m]) => `
                         <tr class="hover:bg-slate-50">
@@ -6151,7 +6163,7 @@
                           <td class="px-3 py-2 font-mono text-slate-500">${new Date(r.time || Date.now()).toLocaleString('id-ID', { dateStyle:'short', timeStyle:'medium' })}</td>
                           <td class="px-3 py-2 text-right font-mono font-bold text-slate-700">${r.t_contact.toFixed(1)} °C</td>
                           <td class="px-3 py-2 text-right font-mono text-violet-700">${r.i_avg.toFixed(1)} A</td>
-                          <td class="px-3 py-2 text-right font-mono text-slate-600">${r.S_Temp.toFixed(0)} / ${r.S_DeltaT.toFixed(0)} / ${r.S_TLR.toFixed(0)}</td>
+                          <td class="px-3 py-2 text-right font-mono text-slate-600">${r.S_Temp.toFixed(0)} / ${r.S_DeltaT.toFixed(0)} / ${r.S_RES.toFixed(0)}</td>
                           <td class="px-3 py-2 text-right font-mono font-black text-slate-700">${r.lntai.toFixed(2)}</td>
                           <td class="px-3 py-2"><span class="text-[9px] font-extrabold px-2 py-0.5 rounded-full ${r.cls}">${r.icon} ${r.level}</span></td>
                         </tr>
@@ -6182,11 +6194,11 @@
             // ── Identify the dominant weighted component (0.40 / 0.30 / 0.30) ──
             const contributions = [
                 { key: 'S_Temp', label: 'contact temperature rise (S_Temp)', value: current.S_Temp * 0.40, raw: current.S_Temp, weight: '40%',
-                  refText: `terminal temperature rise vs. the ${LNTAI_CFG.refTempRise} K reference (IEC 62271-1)` },
+                  refText: `terminal temperature rise vs. an internal ${LNTAI_CFG.refTempRise} K reference (compare separately against IEC 62271-1 contact-material limits)` },
                 { key: 'S_DeltaT', label: 'inter-phase temperature difference (S_ΔT)', value: current.S_DeltaT * 0.30, raw: current.S_DeltaT, weight: '30%',
                   refText: `inter-phase ΔT vs. the ${LNTAI_CFG.refPhaseDelta} K reference` },
-                { key: 'S_TLR', label: 'temperature-vs-load² ratio (S_TLR)', value: current.S_TLR * 0.30, raw: current.S_TLR, weight: '30%',
-                  refText: `heating plausibility vs. the actual load, referenced against ${LNTAI_CFG.refTLR} K per unit²` }
+                { key: 'S_RES', label: 'residual vs. baseline model (S_RES)', value: current.S_RES * 0.30, raw: current.S_RES, weight: '30%',
+                  refText: `standardized residual (z=${current.z.toFixed(2)}) between actual ΔT and the i_eff-based baseline prediction` }
             ];
             const dominant = contributions.reduce((a, b) => b.value > a.value ? b : a, contributions[0]);
             const dominantShare = current.lntai > 0 ? (dominant.value / current.lntai) * 100 : 0;
@@ -6194,11 +6206,11 @@
             // ── Physical interpretation of the dominant driver ──
             let driverText;
             if (dominant.key === 'S_Temp') {
-                driverText = `The score is currently led by <b>${dominant.label}</b> (${dominant.weight} weight, ${dominant.raw.toFixed(1)}/40 — ${dominantShare.toFixed(0)}% of the total score). This means the absolute contact temperature rise above ambient is the primary driver: <b>${current.delta_T_real.toFixed(1)} K</b> against a ${LNTAI_CFG.refTempRise} K reference derived from IEC 62271-1 terminal-rise limits. A high S_Temp independent of the other two components typically points to genuine finger-contact resistance increase or a cooling deficiency, rather than a transient load spike.`;
+                driverText = `The score is currently led by <b>${dominant.label}</b> (${dominant.weight} weight, ${dominant.raw.toFixed(1)}/40 — ${dominantShare.toFixed(0)}% of the total score). This means the absolute contact temperature rise above ambient is the primary driver: <b>${current.delta_T_real.toFixed(1)} K</b> against an internal ${LNTAI_CFG.refTempRise} K reference curve. A high S_Temp independent of the other two components is worth checking against a genuine finger-contact resistance increase or a cooling deficiency — confirm with inspection or a contact-resistance test before concluding either way, rather than a transient load spike.`;
             } else if (dominant.key === 'S_DeltaT') {
-                driverText = `The score is currently led by <b>${dominant.label}</b> (${dominant.weight} weight, ${dominant.raw.toFixed(1)}/40 — ${dominantShare.toFixed(0)}% of the total score). Phase <b>${current.hottestPhase}</b> is running noticeably hotter than its counterparts, referenced against a ${LNTAI_CFG.refPhaseDelta} K inter-phase threshold. A dominant S_ΔT with the other two components comparatively low is a classic signature of a localized problem on one phase — e.g. degraded finger contacts, uneven contact pressure, or a loose connection — rather than a system-wide thermal or loading issue.`;
+                driverText = `The score is currently led by <b>${dominant.label}</b> (${dominant.weight} weight, ${dominant.raw.toFixed(1)}/40 — ${dominantShare.toFixed(0)}% of the total score). Phase <b>${current.hottestPhase}</b> is running noticeably hotter than its counterparts, referenced against a ${LNTAI_CFG.refPhaseDelta} K inter-phase threshold. A dominant S_ΔT with the other two components comparatively low is a pattern consistent with a localized problem on one phase — e.g. degraded finger contacts, uneven contact pressure, or a loose connection — worth confirming with inspection rather than assuming a system-wide thermal or loading issue.`;
             } else {
-                driverText = `The score is currently led by <b>${dominant.label}</b> (${dominant.weight} weight, ${dominant.raw.toFixed(1)}/40 — ${dominantShare.toFixed(0)}% of the total score). This component captures whether the observed heating is proportionate to the square of the load current — the physically expected behaviour for I²R Joule heating. A high S_TLR relative to S_Temp/S_ΔT means the contact is heating up <i>more than the load alone would explain</i>, which is the strongest single indicator of rising contact resistance (finger-contact wear) rather than a normal loading effect.`;
+                driverText = `The score is currently led by <b>${dominant.label}</b> (${dominant.weight} weight, ${dominant.raw.toFixed(1)}/40 — ${dominantShare.toFixed(0)}% of the total score). This component captures whether the observed heating deviates (z=${current.z.toFixed(2)}σ) from what the baseline model predicts for the current lag-filtered effective load — the physically expected behaviour under the model is z≈0. A high S_RES relative to S_Temp/S_ΔT means the contact is heating up <i>more than the load alone would explain</i> under this model, an indication worth confirming with inspection or a contact-resistance test rather than treated as a standalone diagnosis.`;
             }
 
             const trendMagnitude = Math.abs(trendPerPoint) < 0.05 ? 'negligible'
@@ -6215,7 +6227,7 @@
                     : `Recommendation: escalate for immediate inspection. Given ${dominant.label} is the dominant driver, prioritize a finger-contact inspection${dominant.key !== 'S_Temp' ? ` on phase ${current.hottestPhase}` : ''}, and consider a controlled load reduction until the thermal cause is confirmed and resolved.`;
 
             root.innerHTML = `
-                <p>The LNTAI model reads the latest condition as <b>${current.level}</b> with a score of <b>${current.lntai.toFixed(2)}</b> on a 0–40 scale (Warning ≥ ${LNTAI_CFG.thresholds.warning}, Critical ≥ ${LNTAI_CFG.thresholds.critical}). Component breakdown: S_Temp <b>${current.S_Temp.toFixed(1)}</b>/40, S_ΔT <b>${current.S_DeltaT.toFixed(1)}</b>/40, S_TLR <b>${current.S_TLR.toFixed(1)}</b>/40 — combined with weights 0.40 / 0.30 / 0.30 respectively (LNTAI = 0.40·S_Temp + 0.30·S_ΔT + 0.30·S_TLR).</p>
+                <p>The LNTAI model reads the latest condition as <b>${current.level}</b> with a score of <b>${current.lntai.toFixed(2)}</b> on a 0–40 scale (Warning ≥ ${LNTAI_CFG.thresholds.warning}, Critical ≥ ${LNTAI_CFG.thresholds.critical}). Component breakdown: S_Temp <b>${current.S_Temp.toFixed(1)}</b>/40, S_ΔT <b>${current.S_DeltaT.toFixed(1)}</b>/40, S_RES <b>${current.S_RES.toFixed(1)}</b>/40 — combined with weights 0.40 / 0.30 / 0.30 respectively (LNTAI = 0.40·S_Temp + 0.30·S_ΔT + 0.30·S_RES).</p>
                 <p>${driverText}</p>
                 <p>The hottest phase is <b>${current.hottestPhase}</b> at <b>${current.t_contact.toFixed(1)} °C</b> (a rise of <b>${current.delta_T_real.toFixed(1)} °C</b> above the ${LNTAI_CFG.ambient}°C ambient reference), while the average load current is <b>${current.i_avg.toFixed(1)} A</b> (${current.loading_pct.toFixed(1)}% of the ${LNTAI_CFG.iRated} A rated current). Data source: <b>${source}</b>.</p>
                 <p>Over the last ${recent.length} points, the trend is <b>${trendText}</b> (${trendMagnitude}, ≈${trendPerPoint >= 0 ? '+' : ''}${trendPerPoint.toFixed(2)} points/reading), with an average LNTAI of <b>${avg.toFixed(2)}</b>, ranging from <b>${minRow.lntai.toFixed(2)}</b> to a peak of <b>${maxRow.lntai.toFixed(2)}</b> (${maxRow.level}) within the displayed window. ${volatilityText}</p>
@@ -6256,7 +6268,7 @@
                             callbacks: {
                                 afterBody: (items) => {
                                     const r = rows[items[0].dataIndex];
-                                    return [`Level: ${r.level}`, `T_contact: ${r.t_contact.toFixed(1)} °C`, `I_avg: ${r.i_avg.toFixed(1)} A`, `S_Temp/S_ΔT/S_TLR: ${r.S_Temp.toFixed(0)}/${r.S_DeltaT.toFixed(0)}/${r.S_TLR.toFixed(0)}`];
+                                    return [`Level: ${r.level}`, `T_contact: ${r.t_contact.toFixed(1)} °C`, `I_avg: ${r.i_avg.toFixed(1)} A`, `S_Temp/S_ΔT/S_RES: ${r.S_Temp.toFixed(0)}/${r.S_DeltaT.toFixed(0)}/${r.S_RES.toFixed(0)}`];
                                 }
                             }
                         }
@@ -6524,9 +6536,31 @@
             });
         }
 
+        // Mengisi teks statis panel LNTAI (ambang, τ lag termal, umur maks ambient,
+        // badge model/ambient/kalibrasi) dari LNTAI_CFG — satu sumber kebenaran yang
+        // sama dipakai di workflow step 6 DAN tabel Classification Thresholds DAN
+        // kode, supaya tidak ada lagi tiga angka berbeda untuk ambang yang sama.
+        let _lntaiStaticTextRendered = false;
+        function _renderLNTAIStaticConfigText() {
+            if (_lntaiStaticTextRendered) return;
+            _lntaiStaticTextRendered = true;
+            const warn = LNTAI_CFG.thresholds.warning, crit = LNTAI_CFG.thresholds.critical;
+            ['lntai-wf-warning', 'lntai-wf-warning-2', 'lntai-cls-warning', 'lntai-cls-warning-2']
+                .forEach(id => _setLNTAIText(id, String(warn)));
+            ['lntai-wf-critical', 'lntai-wf-critical-2', 'lntai-cls-critical', 'lntai-cls-critical-2']
+                .forEach(id => _setLNTAIText(id, String(crit)));
+            _setLNTAIText('lntai-wf-tau', String(LNTAI_CFG.thermalLag.tauMinutes));
+            _setLNTAIText('lntai-wf-ambient-max-age', String(LNTAI_CFG.ambientCfg.maxAgeMinutes));
+
+            _setLNTAIText('lntai-badge-model-version', `model: ${LNTAI_CFG.modelVersion}`);
+            const calBadge = document.getElementById('lntai-badge-baseline-calibrated');
+            if (calBadge) calBadge.classList.toggle('hidden', LNTAI_CFG.baselineCalibrated !== false);
+        }
+
         function renderLNTAIPanel(force = false) {
             const pane = document.getElementById('itab-content-ml-lntai');
             if (!pane || (pane.classList.contains('hidden') && !force)) return;
+            _renderLNTAIStaticConfigText();
             const series = _buildLNTAISeries();
             const rows = series.rows;
             const current = _currentLNTAIResult() || rows[rows.length - 1] || null;
@@ -6544,6 +6578,7 @@
                 _setLNTAIText('lntai-kpi-points', '0');
                 _setLNTAIText('lntai-kpi-source', series.source);
                 _setLNTAIText('lntai-chart-status', waitReason);
+                _setLNTAIText('lntai-badge-ambient-source', `ambient: ${ambientWeatherState.apiOk ? ambientWeatherState.source : 'default (API unavailable)'}`);
                 _updateLNTAIInsight([], null);
                 _updateLNTAIKPIInsights([], null, series.source);
                 _renderLNTAIModelChart([]);
@@ -6559,7 +6594,7 @@
             const dominantComp = [
                 { name: 'S_Temp', value: current.S_Temp },
                 { name: 'S_ΔT', value: current.S_DeltaT },
-                { name: 'S_TLR', value: current.S_TLR }
+                { name: 'S_RES', value: current.S_RES }
             ].reduce((a, b) => b.value > a.value ? b : a);
             _setLNTAIText('lntai-kpi-value', current.lntai.toFixed(2));
             _setLNTAIText('lntai-kpi-residual', `${dominantComp.name} ${dominantComp.value.toFixed(1)}`);
@@ -6567,6 +6602,7 @@
             _setLNTAIText('lntai-kpi-phase', `Hottest phase: ${current.hottestPhase} · Δ phase ${current.delta_phase.toFixed(1)} °C`);
             _setLNTAIText('lntai-kpi-points', String(rows.length));
             _setLNTAIText('lntai-kpi-source', series.source);
+            _setLNTAIText('lntai-badge-ambient-source', `ambient: ${current.ambient_source}${current.stale ? ' (stale — last valid reading)' : ''}`);
             _setLNTAIText('lntai-chart-status', `${rows.length} titik · ${series.source}`);
             const badge = document.getElementById('lntai-kpi-badge');
             if (badge) {
