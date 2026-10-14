@@ -290,6 +290,82 @@ class TestLntaiLogs:
         assert result["count"] == 0
 
 
+class _FakeDataQualityCursor:
+    def __init__(self, temp_rows, load_rows):
+        self._temp_rows = temp_rows
+        self._load_rows = load_rows
+        self._last = []
+
+    def execute(self, sql, params=None):
+        self._last = self._temp_rows if "trafo_temperature" in sql else self._load_rows
+
+    def fetchall(self):
+        return self._last
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
+class _FakeDataQualityConn:
+    def __init__(self, temp_rows, load_rows):
+        self._temp_rows = temp_rows
+        self._load_rows = load_rows
+
+    def cursor(self, row_factory=None):
+        return _FakeDataQualityCursor(self._temp_rows, self._load_rows)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
+class _FakeDataQualityPool:
+    def __init__(self, temp_rows, load_rows):
+        self._temp_rows = temp_rows
+        self._load_rows = load_rows
+
+    def connection(self):
+        return _FakeDataQualityConn(self._temp_rows, self._load_rows)
+
+
+class TestDataQualitySummary:
+    def test_counts_flags_per_bit(self, monkeypatch):
+        import data_quality as dq
+
+        temp_rows = [
+            {"quality_flags": 0},
+            {"quality_flags": dq.flags_to_bitmask({"MISSING"})},
+            {"quality_flags": dq.flags_to_bitmask({"ZERO_READING", "OUT_OF_RANGE"})},
+        ]
+        load_rows = [{"quality_flags": 0}, {"quality_flags": None}]
+        monkeypatch.setattr(api, "_pool", _FakeDataQualityPool(temp_rows, load_rows))
+
+        result = api.data_quality_summary(trafo=2, window=1440, x_api_key=None)
+        assert result["temperature"]["total_rows"] == 3
+        assert result["temperature"]["flag_counts"]["MISSING"] == 1
+        assert result["temperature"]["flag_counts"]["ZERO_READING"] == 1
+        assert result["temperature"]["flag_counts"]["OUT_OF_RANGE"] == 1
+        assert result["load"]["total_rows"] == 2
+        assert result["load"]["flag_counts"]["MISSING"] == 0
+
+    def test_null_quality_flags_counts_as_clean(self, monkeypatch):
+        monkeypatch.setattr(api, "_pool", _FakeDataQualityPool([{"quality_flags": None}], []))
+        result = api.data_quality_summary(trafo=2, window=60, x_api_key=None)
+        assert result["temperature"]["total_rows"] == 1
+        assert all(v == 0 for v in result["temperature"]["flag_counts"].values())
+
+    def test_empty_window_returns_zero_counts(self, monkeypatch):
+        monkeypatch.setattr(api, "_pool", _FakeDataQualityPool([], []))
+        result = api.data_quality_summary(trafo=2, window=60, x_api_key=None)
+        assert result["temperature"]["total_rows"] == 0
+        assert result["load"]["total_rows"] == 0
+
+
 class TestLntaiLatest:
     def test_returns_none_row_when_no_data(self, fake_rows):
         fake_rows([])

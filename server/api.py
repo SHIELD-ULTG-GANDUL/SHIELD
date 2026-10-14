@@ -14,7 +14,7 @@ belakang reverse proxy nginx dengan HTTPS — lihat README.md.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from psycopg.rows import dict_row
@@ -24,6 +24,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 import ambient
+import data_quality as dq
 from settings import load_ambient_location_settings, load_api_settings, load_database_settings
 
 _db_settings = load_database_settings()
@@ -293,6 +294,52 @@ def lntai_latest(
 
     row["timestamp"] = row.pop("ts").isoformat()
     return {"trafo": trafo, "row": row}
+
+
+# =====================================================
+# DATA QUALITY SUMMARY (T5) — ringkasan bitmask quality_flags
+# =====================================================
+
+def _count_flags(rows: list[dict], key: str = "quality_flags") -> dict[str, int]:
+    counts = {name: 0 for name in dq.FLAG_BITS}
+    for row in rows:
+        for name in dq.bitmask_to_flags(row.get(key)):
+            counts[name] += 1
+    return counts
+
+
+@app.get("/api/data-quality/summary")
+def data_quality_summary(
+    trafo: int = Query(..., ge=2, le=4, description="Nomor trafo: 2, 3, atau 4"),
+    window: int = Query(1440, ge=1, le=43200, description="Jendela waktu dalam menit (default 1440 = 24 jam)"),
+    x_api_key: Optional[str] = Header(default=None, alias="X-API-Key"),
+):
+    """Ringkasan jumlah baris per flag data_quality (T5) dalam `window` menit
+    terakhir, untuk kartu "Kualitas Data" di dashboard. Dihitung dari kolom
+    quality_flags trafo_temperature/trafo_load -- TIDAK menghitung ulang
+    aturan data_quality.py di sini, hanya membaca bitmask yang sudah ditulis
+    mqtt_subscriber.py (T5) saat insert."""
+    _check_api_key(x_api_key)
+    since = datetime.now(timezone.utc) - timedelta(minutes=window)
+
+    with _pool.connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+        cur.execute(
+            'SELECT quality_flags FROM trafo_temperature WHERE trafo_id = %s AND "timestamp" >= %s',
+            (str(trafo), since),
+        )
+        temp_rows = cur.fetchall()
+        cur.execute(
+            'SELECT quality_flags FROM trafo_load WHERE trafo_id = %s AND "timestamp" >= %s',
+            (str(trafo), since),
+        )
+        load_rows = cur.fetchall()
+
+    return {
+        "trafo": trafo,
+        "window_minutes": window,
+        "temperature": {"total_rows": len(temp_rows), "flag_counts": _count_flags(temp_rows)},
+        "load": {"total_rows": len(load_rows), "flag_counts": _count_flags(load_rows)},
+    }
 
 
 @app.get("/api/beban-logs/bounds")

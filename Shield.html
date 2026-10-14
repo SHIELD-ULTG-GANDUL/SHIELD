@@ -1152,6 +1152,7 @@
                             <span id="lntai-badge-model-version" class="text-[8px] font-extrabold px-1.5 py-0.5 rounded bg-slate-100 text-slate-500">model: -</span>
                             <span id="lntai-badge-ambient-source" class="text-[8px] font-extrabold px-1.5 py-0.5 rounded bg-slate-100 text-slate-500">ambient: -</span>
                             <span id="lntai-badge-baseline-calibrated" class="hidden text-[8px] font-extrabold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">⚠ Baseline belum terkalibrasi (lihat lntai_config.json)</span>
+                            <span id="lntai-badge-data-quality" title="Ringkasan flag data_quality 24 jam terakhir (T5) — lihat server/data_quality_config.json" class="text-[8px] font-extrabold px-1.5 py-0.5 rounded bg-slate-100 text-slate-500">Kualitas data: -</span>
                           </div>
                         </div>
                       </div>
@@ -6012,6 +6013,34 @@
         ['2', '3', '4'].forEach(t => _refreshServerLNTAILatest(t));
         setInterval(() => ['2', '3', '4'].forEach(t => _refreshServerLNTAILatest(t)), SERVER_LNTAI_POLL_MS);
 
+        // T5 (kartu "Kualitas Data"): ringkasan flag data_quality 24 jam
+        // terakhir dari GET /api/data-quality/summary -- dipanggil dari
+        // renderLNTAIPanel() (lihat badge #lntai-badge-data-quality di HTML),
+        // async & tidak memblokir render panel (badge diupdate begitu respons
+        // datang, bukan ditunggu).
+        async function _refreshDataQualityBadge(trafo) {
+            const badge = document.getElementById('lntai-badge-data-quality');
+            if (!badge) return;
+            if (!window.timescaleReady) { badge.textContent = 'Kualitas data: tidak tersedia (server tidak terjangkau)'; return; }
+            try {
+                const headers = TIMESCALE_API_KEY ? { 'X-API-Key': TIMESCALE_API_KEY } : {};
+                const res = await fetch(`${TIMESCALE_API_BASE_URL}/data-quality/summary?trafo=${trafo}&window=1440`, { headers, cache: 'no-store' });
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const json = await res.json();
+                const counts = json.temperature?.flag_counts || {};
+                const problems = Object.entries(counts).filter(([, n]) => n > 0);
+                if (!problems.length) {
+                    badge.textContent = `Kualitas data (24j): bersih (${json.temperature.total_rows} baris)`;
+                } else {
+                    const summary = problems.map(([name, n]) => `${name}:${n}`).join(' · ');
+                    badge.textContent = `Kualitas data (24j): ${summary}`;
+                }
+            } catch (err) {
+                badge.textContent = 'Kualitas data: gagal memuat';
+                console.warn('[SHIELD DATA QUALITY] Gagal mengambil /api/data-quality/summary:', err.message);
+            }
+        }
+
         function _currentLNTAIResult() {
             const serverResult = _getFreshServerLNTAIResult(selectedTrafo);
             if (serverResult) {
@@ -6716,6 +6745,7 @@
             const pane = document.getElementById('itab-content-ml-lntai');
             if (!pane || (pane.classList.contains('hidden') && !force)) return;
             _renderLNTAIStaticConfigText();
+            _refreshDataQualityBadge(selectedTrafo);
             const series = _buildLNTAISeries();
             const rows = series.rows;
             const current = _currentLNTAIResult() || rows[rows.length - 1] || null;
