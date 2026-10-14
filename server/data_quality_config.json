@@ -1,0 +1,34 @@
+{
+  "_note": "Semua ambang di bawah ini DEFAULT dari spesifikasi Tahap 1, BELUM diverifikasi dari data real trafo 2/3/4 -- lihat TODO(verifikasi) di tiap field. Jangan ubah tanpa dasar data.",
+
+  "_flags_note": "Bitmask -- tiap flag harus pangkat 2 (bit terpisah) supaya bisa digabung dengan OR dan dicek dengan AND. JANGAN ubah nilai bit yang sudah dipakai data lama tanpa migrasi ulang. Objek 'flags' di bawah HANYA berisi pasangan nama->bit (dikonsumsi langsung sebagai dict), jangan tambahkan key lain (mis. '_note') di dalamnya.",
+  "flags": {
+    "MISSING": 1,
+    "ZERO_READING": 2,
+    "OUT_OF_RANGE": 4,
+    "STUCK": 8,
+    "SPIKE": 16,
+    "PAIRING_GAP": 32,
+    "TIME_GAP": 64
+  },
+
+  "temperature_range_c": {
+    "_note": "TODO(verifikasi): -10..200 dari spesifikasi Tahap 1, belum divalidasi ke spesifikasi sensor Acrel ATP007 yang sebenarnya.",
+    "min": -10,
+    "max": 200
+  },
+
+  "current_range": {
+    "_note": "TODO(verifikasi): kelipatan I_RATED dari spesifikasi Tahap 1 (< 0 atau > 3x). i_rated di sini HARUS sama dengan I_NOMINAL_TRAFO di index.html (1780A, lihat config.py/LNTAI_CFG).",
+    "i_rated": 1780,
+    "multiplier_of_rated": 3
+  },
+
+  "stuck_sample_count": 30,
+  "spike_delta_c": 15,
+
+  "pairing_tolerance_minutes": 5,
+
+  "nominal_sample_interval_seconds": 300,
+  "time_gap_multiplier": 3
+}

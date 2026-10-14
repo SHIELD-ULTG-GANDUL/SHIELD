@@ -28,9 +28,12 @@ T2 (Tahap 1, Oktober 2026) — perubahan dari versi sebelumnya:
   - Kredensial/host dibaca dari settings.py (lihat T1), tidak ada lagi
     hardcode di file ini.
 
-Kolom quality_flags (lihat migrations/001_add_quality_flags.sql) BELUM
-diisi oleh skrip ini -- itu pekerjaan T5 (data_quality.py), yang akan
-mengimpor dan memanggil modul itu dari sini.
+T5 (Tahap 1, Oktober 2026) — kolom quality_flags kini diisi dengan aturan
+PER-SAMPEL (MISSING, ZERO_READING, OUT_OF_RANGE) lewat data_quality.py.
+Aturan berbasis jendela (STUCK, SPIKE, PAIRING_GAP, TIME_GAP) butuh
+riwayat/pasangan beban-suhu yang tidak tersedia di sini (satu pesan MQTT
+pada satu waktu) -- itu dihitung belakangan oleh lntai_worker.py (T4) dan
+di-OR-kan ke quality_flags baris yang sama.
 """
 
 from __future__ import annotations
@@ -44,6 +47,7 @@ from typing import Any, Optional
 import paho.mqtt.client as mqtt
 from psycopg_pool import ConnectionPool
 
+import data_quality as dq
 from settings import load_database_settings, load_local_mqtt_settings
 
 logging.basicConfig(
@@ -131,19 +135,39 @@ def save_to_database(data: dict[str, Any]) -> bool:
         temp_max = max(valid_temps) if valid_temps else None
         temp_avg = (sum(valid_temps) / len(valid_temps)) if valid_temps else None
 
+        # T5: flag kualitas per-sampel (MISSING/ZERO_READING/OUT_OF_RANGE).
+        # Aturan berbasis jendela (STUCK/SPIKE/PAIRING_GAP/TIME_GAP) tidak
+        # bisa dihitung di sini -- lihat docstring modul.
+        load_flags = dq.combine_row_flags([
+            dq.classify_current_value(ia),
+            dq.classify_current_value(ib),
+            dq.classify_current_value(ic),
+        ])
+        load_quality_flags = dq.flags_to_bitmask(load_flags)
+
+        temp_flags = dq.combine_row_flags([
+            dq.classify_temperature_value(r_atas),
+            dq.classify_temperature_value(r_bawah),
+            dq.classify_temperature_value(s_atas),
+            dq.classify_temperature_value(s_bawah),
+            dq.classify_temperature_value(t_atas),
+            dq.classify_temperature_value(t_bawah),
+        ])
+        temp_quality_flags = dq.flags_to_bitmask(temp_flags)
+
         with _pool.connection() as conn, conn.cursor() as cur:
             cur.execute(
                 """
                 INSERT INTO trafo_load (
                     timestamp, trafo_id, ia, ib, ic, current_max,
                     kw_total, kva_total, kvar_total, pf_total, freq,
-                    van, vbn, vcn, vab, vbc, vca
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    van, vbn, vcn, vab, vbc, vca, quality_flags
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
                 """,
                 (timestamp, trafo_id, ia, ib, ic, current_max,
                  kw_total, kva_total, kvar_total, pf_total, freq,
-                 van, vbn, vcn, vab, vbc, vca),
+                 van, vbn, vcn, vab, vbc, vca, load_quality_flags),
             )
             load_id = cur.fetchone()[0]
 
@@ -152,12 +176,12 @@ def save_to_database(data: dict[str, Any]) -> bool:
                 INSERT INTO trafo_temperature (
                     timestamp, trafo_id,
                     r_atas, r_bawah, s_atas, s_bawah, t_atas, t_bawah,
-                    temp_max, temp_avg
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    temp_max, temp_avg, quality_flags
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
                 """,
                 (timestamp, trafo_id, r_atas, r_bawah, s_atas, s_bawah,
-                 t_atas, t_bawah, temp_max, temp_avg),
+                 t_atas, t_bawah, temp_max, temp_avg, temp_quality_flags),
             )
             temp_id = cur.fetchone()[0]
 

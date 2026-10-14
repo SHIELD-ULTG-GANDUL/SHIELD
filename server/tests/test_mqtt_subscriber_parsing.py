@@ -132,3 +132,49 @@ class TestSaveToDatabase:
         assert ok is True
         temp_params = fake_pool.sink["temp_params"]
         assert all(v is None for v in temp_params[2:10])
+
+
+# ── quality_flags (T5): dihitung per-sampel saat tulis, bitmask di kolom terakhir ──
+
+class TestQualityFlagsWiring:
+    def test_all_valid_normal_readings_have_zero_flags(self, fake_pool):
+        ok = sub.save_to_database({
+            "trafo_id": "2", "ia": 500, "ib": 510, "ic": 490,
+            "r_atas": 55, "r_bawah": 54, "s_atas": 56,
+            "s_bawah": 53, "t_atas": 57, "t_bawah": 52,
+        })
+        assert ok is True
+        assert fake_pool.sink["load_params"][-1] == 0
+        assert fake_pool.sink["temp_params"][-1] == 0
+
+    def test_missing_current_sets_missing_bit(self, fake_pool):
+        ok = sub.save_to_database({"trafo_id": "2", "ib": 510, "ic": 490})
+        assert ok is True
+        import data_quality as dq
+        assert fake_pool.sink["load_params"][-1] == dq.flags_to_bitmask({"MISSING"})
+
+    def test_zero_temperature_sets_zero_reading_bit_not_missing(self, fake_pool):
+        ok = sub.save_to_database({
+            "trafo_id": "2", "r_atas": 0, "r_bawah": 54, "s_atas": 56,
+            "s_bawah": 53, "t_atas": 57, "t_bawah": 52,
+        })
+        assert ok is True
+        import data_quality as dq
+        assert fake_pool.sink["temp_params"][-1] == dq.flags_to_bitmask({"ZERO_READING"})
+
+    def test_out_of_range_temperature_sets_bit(self, fake_pool):
+        ok = sub.save_to_database({
+            "trafo_id": "2", "r_atas": 999, "r_bawah": 54, "s_atas": 56,
+            "s_bawah": 53, "t_atas": 57, "t_bawah": 52,
+        })
+        assert ok is True
+        import data_quality as dq
+        assert fake_pool.sink["temp_params"][-1] == dq.flags_to_bitmask({"OUT_OF_RANGE"})
+
+    def test_all_missing_payload_sets_missing_on_both_rows(self, fake_pool):
+        ok = sub.save_to_database({"trafo_id": "2"})
+        assert ok is True
+        import data_quality as dq
+        expected = dq.flags_to_bitmask({"MISSING"})
+        assert fake_pool.sink["load_params"][-1] == expected
+        assert fake_pool.sink["temp_params"][-1] == expected
