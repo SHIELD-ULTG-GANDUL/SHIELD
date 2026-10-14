@@ -14,8 +14,15 @@ belakang reverse proxy nginx dengan HTTPS — lihat README.md.
 
 from __future__ import annotations
 
+import json
+import sys
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from typing import Any, Literal, Optional
+
+_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(_ROOT))
+sys.path.insert(0, str(_ROOT / "ml"))
 
 from psycopg.rows import dict_row
 from psycopg_pool import ConnectionPool
@@ -23,12 +30,19 @@ from fastapi import FastAPI, Header, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
+import config
 import ambient
 import aging
 import resistance
 import forecast as fc
+import explain as xp
 import data_quality as dq
 from settings import load_ambient_location_settings, load_api_settings, load_database_settings
+
+import explain_contrib  # noqa: E402 -- ml/explain_contrib.py (kontribusi per-fitur, Part G)
+from forecast_job import fetch_active_baseline_model  # noqa: E402
+from forecast_models import hour_sin_cos_weekday  # noqa: E402
+from models import load_model_from_artifact  # noqa: E402
 
 _db_settings = load_database_settings()
 _api_settings = load_api_settings()
@@ -877,3 +891,124 @@ def forecast_endpoint(
             }
 
     return result
+
+
+# =====================================================
+# EXPLAIN & ANOMALY PATTERN (Stage 2, Part G)
+# =====================================================
+
+@app.get("/api/explain/latest")
+def explain_latest(
+    trafo: int = Query(..., ge=2, le=4, description="Nomor trafo: 2, 3, atau 4"),
+    phase: Literal["R", "S", "T"] = Query(..., description="Fasa: R, S, atau T"),
+    x_api_key: Optional[str] = Header(default=None, alias="X-API-Key"),
+):
+    """Jelaskan prediksi model baseline AKTIF (Part B) untuk sampel
+    TERBARU (trafo, phase): suhu hotspot terukur, ΔT sehat yang
+    diprediksi, residual tak-terjelaskan, dan kontribusi per kategori
+    (lihat ml/explain_contrib.py -- metode berbeda per tipe model,
+    SELALU dilaporkan eksplisit, dijamin sum(kontribusi)==prediksi).
+    Juga menjalankan CUSUM (server/explain.py) atas histori residual fasa
+    ini untuk mendeteksi kenaikan yang konsisten ("consistent rise since
+    <date>").
+
+    CATATAN: i_eff_norm untuk fitur "Phase load (filtered)" DIAMBIL ULANG
+    dari i_eff_norm yang SUDAH DIHITUNG lntai_worker.py (v2, basis
+    1780A) -- bukan state filter lag termal terpisah dengan tau MILIK
+    model aktif sendiri (yang butuh state streaming yang tidak tersedia
+    di proses API ini) -- diskalakan ke basis i_ref model aktif. Sama
+    seperti simplifikasi yang sudah diambil di Part F untuk alasan yang
+    sama (lihat server/forecast_job.py)."""
+    _check_api_key(x_api_key)
+
+    with _pool.connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+        baseline_row = fetch_active_baseline_model(cur, str(trafo), phase)
+        if baseline_row is None:
+            return {"trafo": trafo, "phase": phase, "status": "no_active_model",
+                    "reason": "No active baseline model for this trafo/phase (see Part B ml/train_baseline.py + POST /api/ml/models/{id}/activate)."}
+
+        cur.execute(
+            """
+            SELECT ts, per_phase FROM lntai_results
+            WHERE trafo_id = %s AND model_version = 'lntai-v2' AND level != 'DATA_INVALID'
+            ORDER BY ts DESC LIMIT 1
+            """,
+            (str(trafo),),
+        )
+        latest = cur.fetchone()
+        if latest is None or not latest.get("per_phase") or phase not in latest["per_phase"]:
+            return {"trafo": trafo, "phase": phase, "status": "no_data",
+                    "reason": "No valid lntai_results (v2) sample available yet for this trafo/phase."}
+
+        phase_data = latest["per_phase"][phase]
+        measured_hotspot_c = phase_data["T"]
+        i_eff_norm_v2 = phase_data["i_eff_norm"]
+        ts = latest["ts"]
+
+        with open(_ROOT / baseline_row["artifact_path"], "r", encoding="utf-8") as f:
+            artifact = json.load(f)
+        model = load_model_from_artifact(baseline_row["model_type"], artifact)
+
+        i_eff_amps = i_eff_norm_v2 * config.LNTAI_V2_I_RATED
+        hour_sin, hour_cos, weekday = hour_sin_cos_weekday(ts.timestamp())
+
+        # load_roc_1h: sampel ~1 jam lalu, query sekali (bukan state
+        # streaming -- lihat catatan docstring fungsi ini).
+        cur.execute(
+            """
+            SELECT ia, ib, ic FROM trafo_load
+            WHERE trafo_id = %s AND "timestamp" BETWEEN %s AND %s
+            ORDER BY ABS(EXTRACT(EPOCH FROM ("timestamp" - %s))) LIMIT 1
+            """,
+            (str(trafo), ts - timedelta(minutes=70), ts - timedelta(minutes=50), ts - timedelta(hours=1)),
+        )
+        past_load_row = cur.fetchone()
+        past_current = {"R": "ia", "S": "ib", "T": "ic"}
+        past_current_val = past_load_row.get(past_current[phase]) if past_load_row else None
+        load_roc_1h = (i_eff_amps - past_current_val) if past_current_val is not None else 0.0
+
+        feature_row = {
+            "current_amps": i_eff_amps, "i2_eff_default_tau": i_eff_amps ** 2,
+            "load_roc_1h": load_roc_1h, "hour_sin": hour_sin, "hour_cos": hour_cos, "weekday": float(weekday),
+        }
+
+        model_type = baseline_row["model_type"]
+        i_eff_norm_override = None
+        if model_type == "physics_rc" and model.i_ref:
+            i_eff_norm_override = i_eff_amps / model.i_ref
+        elif model_type == "hybrid" and model.physics.i_ref:
+            i_eff_norm_override = i_eff_amps / model.physics.i_ref
+
+        contributions, method = explain_contrib.explain_model(model_type, model, feature_row, i_eff_norm_override)
+        predicted_healthy_c = sum(contributions.values())
+
+        lookback_days = xp.EXPLAIN_CONFIG["lookback_days"]
+        cur.execute(
+            """
+            SELECT ts, per_phase FROM lntai_results
+            WHERE trafo_id = %s AND model_version = 'lntai-v2' AND level != 'DATA_INVALID'
+              AND ts >= %s
+            ORDER BY ts ASC
+            """,
+            (str(trafo), ts - timedelta(days=lookback_days)),
+        )
+        history_rows = cur.fetchall()
+
+    residual_history: list[tuple[Any, float]] = []
+    for row in history_rows:
+        pp = row.get("per_phase") or {}
+        pd = pp.get(phase)
+        if pd is None or pd.get("dT") is None or pd.get("dT_pred") is None:
+            continue
+        residual_history.append((row["ts"], pd["dT"] - pd["dT_pred"]))
+
+    cusum_triggered, cusum_start = xp.compute_cusum_over_history(residual_history)
+    explanation = xp.build_explanation(
+        measured_hotspot_c, predicted_healthy_c, contributions, method, cusum_triggered, cusum_start,
+    )
+
+    return {
+        "trafo": trafo, "phase": phase, "status": "ok", "timestamp": ts.isoformat(),
+        "baseline_model_id": baseline_row["id"], "baseline_model_type": model_type,
+        **explanation,
+    }

@@ -1037,3 +1037,128 @@ class TestForecastEndpoint:
         # we just confirm the two valid horizons map to the expected counts.
         assert api._HORIZON_HOURS["24h"] == 24
         assert api._HORIZON_HOURS["7d"] == 168
+
+
+# ── /api/explain/latest (Stage 2, Part G) ─────────────────────────────────
+
+class _FakeExplainCursor:
+    def __init__(self, ml_models_row=None, latest_row=None, past_load_row=None, history_rows=None):
+        self._ml_models_row = ml_models_row
+        self._latest_row = latest_row
+        self._past_load_row = past_load_row
+        self._history_rows = history_rows or []
+        self._last = None
+
+    def execute(self, sql, params=None):
+        if "FROM ml_models" in sql:
+            self._last = ("row", self._ml_models_row)
+        elif "FROM lntai_results" in sql and "LIMIT 1" in sql:
+            self._last = ("row", self._latest_row)
+        elif "FROM trafo_load" in sql:
+            self._last = ("row", self._past_load_row)
+        elif "FROM lntai_results" in sql:
+            self._last = ("rows", self._history_rows)
+
+    def fetchone(self):
+        return self._last[1] if self._last and self._last[0] == "row" else None
+
+    def fetchall(self):
+        return self._last[1] if self._last and self._last[0] == "rows" else []
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
+class _FakeExplainConn:
+    def __init__(self, cursor):
+        self._cursor = cursor
+
+    def cursor(self, row_factory=None):
+        return self._cursor
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
+class _FakeExplainCtx:
+    def __init__(self, cursor):
+        self._cursor = cursor
+
+    def __enter__(self):
+        return _FakeExplainConn(self._cursor)
+
+    def __exit__(self, *exc):
+        return False
+
+
+class _FakeExplainPool:
+    def __init__(self, cursor):
+        self._cursor = cursor
+
+    def connection(self):
+        return _FakeExplainCtx(self._cursor)
+
+
+class TestExplainLatest:
+    def test_no_active_model_returns_status(self, monkeypatch):
+        cur = _FakeExplainCursor(ml_models_row=None)
+        monkeypatch.setattr(api, "_pool", _FakeExplainPool(cur))
+        result = api.explain_latest(trafo=2, phase="R", x_api_key=None)
+        assert result["status"] == "no_active_model"
+
+    def test_no_data_returns_status(self, monkeypatch):
+        cur = _FakeExplainCursor(
+            ml_models_row={"id": 5, "model_type": "physics_quadratic", "artifact_path": "x"},
+            latest_row=None,
+        )
+        monkeypatch.setattr(api, "_pool", _FakeExplainPool(cur))
+        result = api.explain_latest(trafo=2, phase="R", x_api_key=None)
+        assert result["status"] == "no_data"
+
+    def test_full_explanation_with_cusum_triggered(self, monkeypatch, tmp_artifact_dir=None):
+        import json as _json
+        import sys as _sys
+
+        _sys.path.insert(0, "../ml")
+        import models as mo
+
+        pq = mo.PhysicsQuadraticModel(i_ref=1000.0)
+        pq.a, pq.b = 25.0, 15.0
+        artifact_path = Path(__file__).resolve().parent.parent.parent / "ml" / "artifacts" / "test_api_explain_pytest.json"
+        artifact_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(artifact_path, "w", encoding="utf-8") as f:
+            _json.dump(pq.to_artifact(), f)
+
+        try:
+            now = datetime.now(timezone.utc)
+            per_phase_latest = {
+                "R": {"T": 80.0, "i_eff_norm": 0.5, "dT": 30.0, "dT_pred": 25.0},
+                "S": {"T": 70.0, "i_eff_norm": 0.4, "dT": 20.0, "dT_pred": 20.0},
+                "T": {"T": 72.0, "i_eff_norm": 0.45, "dT": 22.0, "dT_pred": 21.0},
+            }
+            history_rows = [
+                {"ts": now - timedelta(hours=60 - i), "per_phase": {"R": {"dT": 20.0 + 0.3 * i, "dT_pred": 20.0}}}
+                for i in range(60)
+            ]
+            cur = _FakeExplainCursor(
+                ml_models_row={"id": 5, "model_type": "physics_quadratic", "artifact_path": "ml/artifacts/test_api_explain_pytest.json"},
+                latest_row={"ts": now, "per_phase": per_phase_latest},
+                past_load_row={"ia": 450.0, "ib": 400.0, "ic": 400.0},
+                history_rows=history_rows,
+            )
+            monkeypatch.setattr(api, "_pool", _FakeExplainPool(cur))
+            result = api.explain_latest(trafo=2, phase="R", x_api_key=None)
+
+            assert result["status"] == "ok"
+            assert abs(sum(result["contributions_c"].values()) - result["predicted_healthy_c"]) < 1e-9
+            assert result["contribution_method"] == "exact_physics"
+            assert result["cusum_triggered"] is True
+            assert "Consistent rise since" in result["cusum_message"]
+        finally:
+            artifact_path.unlink(missing_ok=True)

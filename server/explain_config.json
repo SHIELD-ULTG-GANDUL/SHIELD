@@ -1,0 +1,10 @@
+{
+  "cusum": {
+    "mu0": 0.0,
+    "k_slack": 1.0,
+    "h": 5.0,
+    "_note": "TODO(calibration): CUSUM satu-sisi mendeteksi KENAIKAN residual (°C) yang konsisten (penurunan TIDAK memicu -- residual turun bukan sinyal degradasi). mu0=0 mengasumsikan residual seharusnya berpusat di 0 saat model baseline sehat (belum divalidasi dari data riil). k_slack (toleransi sebelum dianggap 'naik', umumnya setengah dari pergeseran yang ingin dideteksi) dan h (ambang keputusan, umumnya 4-5x simpangan baku residual) adalah nilai rekayasa DEFAULT dari task brief Part G, BUKAN hasil studi kalibrasi -- tinjau ulang begitu ada cukup data residual riil."
+  },
+  "lookback_days": 60,
+  "_lookback_days_note": "Rentang histori residual (lntai_results, model_version=lntai-v2) yang dipakai GET /api/explain/latest untuk melipat (fold) CUSUM setiap kali diminta -- TIDAK disimpan sebagai state persisten di tabel manapun, dihitung ulang dari histori setiap request (murah untuk 60 hari data per-jam/per-5-menit)."
+}
