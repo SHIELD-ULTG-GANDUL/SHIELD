@@ -583,3 +583,113 @@ class TestMlModelFreezeReference:
         with pytest.raises(HTTPException) as exc_info:
             api.ml_model_freeze_reference(999, x_api_key=None)
         assert exc_info.value.status_code == 404
+
+
+# ── /api/aging/latest, /api/aging/daily (Stage 2, Part C) ────────────────
+
+class _FakeAgingCursor:
+    def __init__(self, rows):
+        self._rows = rows
+
+    def execute(self, sql, params=None):
+        pass
+
+    def fetchall(self):
+        return self._rows
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
+class _FakeAgingConn:
+    def __init__(self, rows):
+        self._rows = rows
+
+    def cursor(self, row_factory=None):
+        return _FakeAgingCursor(self._rows)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
+class _FakeAgingPool:
+    def __init__(self, rows=None):
+        self._rows = rows or []
+
+    def connection(self):
+        return _FakeAgingConn(self._rows)
+
+
+class _ExplodingPool:
+    def connection(self):
+        raise AssertionError("should not touch DB when aging is not_configured")
+
+
+def _make_aging_row():
+    now = datetime.now(timezone.utc)
+    return {
+        "phase": "R", "date": now.date(), "f_mean": 1.3, "f_peak": 1.5,
+        "t_hot_mean_c": 60.0, "t_hot_peak_c": 65.0, "eq_days_cum": 12.5,
+        "calendar_days": 13.0, "reset_date": now, "reset_source": "fallback_config",
+        "n_samples": 288, "n_gaps_excluded": 0,
+    }
+
+
+def _set_aging_configured(configured: bool):
+    """aging.is_configured()'s default `cfg` param is bound at function-def
+    time to the ORIGINAL AGING_CONFIG dict object -- monkeypatch.setattr
+    swapping in a NEW dict would NOT be observed by that default arg.
+    Mutate the SAME dict object in place instead (like aging_job.py's own
+    tests do)."""
+    api.aging.AGING_CONFIG.clear()
+    if configured:
+        api.aging.AGING_CONFIG.update({"ea_ev": 0.5, "t_ref_c": 55.0, "max_gap_minutes_for_integration": 60})
+    else:
+        api.aging.AGING_CONFIG.update({"ea_ev": None, "t_ref_c": None})
+
+
+class TestAgingLatest:
+    def test_not_configured_returns_empty_without_touching_db(self, monkeypatch):
+        _set_aging_configured(False)
+        monkeypatch.setattr(api, "_pool", _ExplodingPool())
+        result = api.aging_latest(trafo=2, x_api_key=None)
+        assert result["status"] == "not_configured"
+        assert result["rows"] == []
+        assert "contact-finger" in result["scope"]
+
+    def test_configured_returns_rows_with_isoformat_dates(self, monkeypatch):
+        _set_aging_configured(True)
+        try:
+            row = _make_aging_row()
+            expected_date_iso = row["date"].isoformat()  # capture BEFORE the endpoint mutates row in place
+            monkeypatch.setattr(api, "_pool", _FakeAgingPool([row]))
+            result = api.aging_latest(trafo=2, x_api_key=None)
+            assert result["status"] == "ok"
+            assert result["rows"][0]["date"] == expected_date_iso
+        finally:
+            _set_aging_configured(False)  # restore shipped default (ea_ev/t_ref_c null) for other tests
+
+
+class TestAgingDaily:
+    def test_not_configured_returns_empty_without_touching_db(self, monkeypatch):
+        _set_aging_configured(False)
+        monkeypatch.setattr(api, "_pool", _ExplodingPool())
+        result = api.aging_daily_endpoint(trafo=2, from_=None, to_=None, x_api_key=None)
+        assert result["status"] == "not_configured"
+
+    def test_configured_returns_count_and_rows(self, monkeypatch):
+        _set_aging_configured(True)
+        try:
+            row = _make_aging_row()
+            monkeypatch.setattr(api, "_pool", _FakeAgingPool([row]))
+            result = api.aging_daily_endpoint(trafo=2, from_=None, to_=None, x_api_key=None)
+            assert result["status"] == "ok"
+            assert result["count"] == 1
+        finally:
+            _set_aging_configured(False)

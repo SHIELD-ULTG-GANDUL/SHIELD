@@ -24,6 +24,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 import ambient
+import aging
 import data_quality as dq
 from settings import load_ambient_location_settings, load_api_settings, load_database_settings
 
@@ -569,3 +570,79 @@ def ml_model_freeze_reference(
         cur.execute("UPDATE ml_models SET is_frozen_reference = TRUE WHERE id = %s", (model_id,))
 
     return {"id": model_id, "trafo": row["trafo"], "phase": row["phase"], "is_frozen_reference": True}
+
+
+# =====================================================
+# AGING (Stage 2, Part C) — faktor percepatan penuaan Arrhenius (relatif)
+# =====================================================
+
+@app.get("/api/aging/latest")
+def aging_latest(
+    trafo: int = Query(..., ge=2, le=4, description="Nomor trafo: 2, 3, atau 4"),
+    x_api_key: Optional[str] = Header(default=None, alias="X-API-Key"),
+):
+    """Baris aging_daily TERBARU untuk tiap fasa (R/S/T) trafo ini.
+    status='not_configured' (tanpa angka apa pun) kalau aging_config.json
+    belum punya ea_ev/t_ref_c -- lihat server/aging.py is_configured()."""
+    _check_api_key(x_api_key)
+
+    if not aging.is_configured():
+        return {"trafo": trafo, "status": "not_configured", "scope": aging.AGING_SCOPE_TEXT, "rows": []}
+
+    with _pool.connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+        cur.execute(
+            """
+            SELECT DISTINCT ON (phase) phase, date, f_mean, f_peak, t_hot_mean_c, t_hot_peak_c,
+                   eq_days_cum, calendar_days, reset_date, reset_source, n_samples, n_gaps_excluded
+            FROM aging_daily
+            WHERE trafo = %s
+            ORDER BY phase, date DESC
+            """,
+            (str(trafo),),
+        )
+        rows = cur.fetchall()
+
+    for row in rows:
+        row["date"] = row["date"].isoformat()
+        row["reset_date"] = row["reset_date"].isoformat()
+
+    return {"trafo": trafo, "status": "ok", "scope": aging.AGING_SCOPE_TEXT, "rows": rows}
+
+
+@app.get("/api/aging/daily")
+def aging_daily_endpoint(
+    trafo: int = Query(..., ge=2, le=4, description="Nomor trafo: 2, 3, atau 4"),
+    from_: Optional[datetime] = Query(default=None, alias="from"),
+    to_: Optional[datetime] = Query(default=None, alias="to"),
+    x_api_key: Optional[str] = Header(default=None, alias="X-API-Key"),
+):
+    """Histori harian (semua fasa) untuk satu trafo dalam rentang [from, to]
+    (tanggal, bukan timestamp -- dibandingkan sebagai DATE)."""
+    _check_api_key(x_api_key)
+
+    if not aging.is_configured():
+        return {"trafo": trafo, "status": "not_configured", "scope": aging.AGING_SCOPE_TEXT, "rows": []}
+
+    from_date = from_.date() if from_ else None
+    to_date = to_.date() if to_ else None
+
+    with _pool.connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+        cur.execute(
+            """
+            SELECT phase, date, f_mean, f_peak, t_hot_mean_c, t_hot_peak_c,
+                   eq_days_cum, calendar_days, reset_date, reset_source, n_samples, n_gaps_excluded
+            FROM aging_daily
+            WHERE trafo = %s
+              AND (%s::date IS NULL OR date >= %s)
+              AND (%s::date IS NULL OR date <= %s)
+            ORDER BY phase, date ASC
+            """,
+            (str(trafo), from_date, from_date, to_date, to_date),
+        )
+        rows = cur.fetchall()
+
+    for row in rows:
+        row["date"] = row["date"].isoformat()
+        row["reset_date"] = row["reset_date"].isoformat()
+
+    return {"trafo": trafo, "status": "ok", "scope": aging.AGING_SCOPE_TEXT, "count": len(rows), "rows": rows}

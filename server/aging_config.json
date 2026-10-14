@@ -1,0 +1,11 @@
+{
+  "ea_ev": null,
+  "t_ref_c": null,
+  "_calibration_note": "TODO(calibration): ea_ev (energi aktivasi Arrhenius, eV) dan t_ref_c (suhu referensi, °C) HARUS berasal dari IEC TR 60943 atau literatur material kontak (perak/tembaga paduan yang dipakai di kontak finger trafo 2/3/4 ini) -- JANGAN diisi dengan nilai tebakan. Selama ea_ev ATAU t_ref_c masih null, server/aging.py mengembalikan status 'not_configured' dan TIDAK menghitung F/EqAge sama sekali (lihat aging.is_configured()).",
+
+  "max_gap_minutes_for_integration": 60,
+  "_max_gap_note": "TODO(verifikasi): interval antar sampel yang lebih besar dari ini DIKECUALIKAN dari integral EqAge (bukan diintegralkan dengan F yang mungkin sudah basi selama durasi itu) -- default disamakan dengan thermal_lag.max_gap_minutes di lntai_config.json untuk konsistensi, belum diverifikasi khusus untuk integrasi penuaan.",
+
+  "fallback_reset_date": "2026-01-01T00:00:00+00:00",
+  "_fallback_reset_date_note": "Dipakai SEMENTARA sebagai titik reset EqAge selama Part E (log pemeliharaan/resistance-test dengan event resets_baseline=true) belum ada. server/aging_job.py SELALU memberi tahu lewat field 'reset_source'='fallback_config' kalau ini yang dipakai -- ganti tanggal ini (atau tunggu Part E) sebelum angka EqAge dianggap bermakna untuk keputusan apa pun."
+}
