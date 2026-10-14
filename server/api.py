@@ -15,7 +15,7 @@ belakang reverse proxy nginx dengan HTTPS — lihat README.md.
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+from typing import Literal, Optional
 
 from psycopg.rows import dict_row
 from psycopg_pool import ConnectionPool
@@ -646,3 +646,118 @@ def aging_daily_endpoint(
         row["reset_date"] = row["reset_date"].isoformat()
 
     return {"trafo": trafo, "status": "ok", "scope": aging.AGING_SCOPE_TEXT, "count": len(rows), "rows": rows}
+
+
+# =====================================================
+# MAINTENANCE EVENTS (Stage 2, Part E) — pemeliharaan & resistance-test
+# =====================================================
+
+EVENT_TYPES: tuple[str, ...] = (
+    "inspection", "cleaning", "tightening", "replacement", "resistance_test", "thermovision",
+)
+
+
+class MaintenanceEventIn(BaseModel):
+    trafo: str = Field(..., description="Not restricted to 2/3/4 — historical records may reference retired units")
+    phase: Optional[Literal["R", "S", "T"]] = Field(None, description="Null = applies to the whole transformer, all phases")
+    event_type: Literal[
+        "inspection", "cleaning", "tightening", "replacement", "resistance_test", "thermovision",
+    ]
+    event_ts: datetime
+    resistance_uohm: Optional[float] = Field(None, description="Contact resistance, microohms (µΩ) — required for resistance_test")
+    test_current_a: Optional[float] = Field(None, description="Test current, amperes")
+    notes: Optional[str] = None
+    resets_baseline: bool = False
+    created_by: Optional[str] = None
+
+
+@app.get("/api/maintenance-events")
+def maintenance_events_list(
+    trafo: Optional[str] = Query(default=None, description="Not restricted to 2/3/4"),
+    x_api_key: Optional[str] = Header(default=None, alias="X-API-Key"),
+):
+    _check_api_key(x_api_key)
+
+    with _pool.connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+        if trafo is None:
+            cur.execute(
+                "SELECT id, trafo, phase, event_type, event_ts, resistance_uohm, test_current_a, "
+                "notes, resets_baseline, created_by, created_at FROM maintenance_events "
+                "ORDER BY trafo, event_ts DESC"
+            )
+        else:
+            cur.execute(
+                "SELECT id, trafo, phase, event_type, event_ts, resistance_uohm, test_current_a, "
+                "notes, resets_baseline, created_by, created_at FROM maintenance_events "
+                "WHERE trafo = %s ORDER BY event_ts DESC",
+                (trafo,),
+            )
+        rows = cur.fetchall()
+
+    for row in rows:
+        row["event_ts"] = row["event_ts"].isoformat()
+        row["created_at"] = row["created_at"].isoformat()
+
+    return {"count": len(rows), "rows": rows}
+
+
+@app.post("/api/maintenance-events")
+def maintenance_events_create(
+    body: MaintenanceEventIn,
+    x_api_key: Optional[str] = Header(default=None, alias="X-API-Key"),
+):
+    """Create one maintenance/resistance-test log entry. When
+    resets_baseline=true: aging.py's cumulative EqAge for this (trafo,
+    phase) restarts from event_ts (lihat aging_job.get_reset_date(), yang
+    membaca tabel ini -- menggantikan fallback_reset_date di
+    aging_config.json, lihat Part E tugas #5), and any frozen-reference
+    baseline models (ml_models.is_frozen_reference=true) for this
+    (trafo, phase) are flagged as needing re-calibration."""
+    _check_api_key(x_api_key)
+
+    if body.event_type == "resistance_test" and body.resistance_uohm is None:
+        raise HTTPException(
+            status_code=400,
+            detail="resistance_uohm is required when event_type is 'resistance_test'",
+        )
+    if body.resistance_uohm is not None and body.resistance_uohm <= 0:
+        raise HTTPException(status_code=400, detail="resistance_uohm must be a positive number")
+    if body.test_current_a is not None and body.test_current_a <= 0:
+        raise HTTPException(status_code=400, detail="test_current_a must be a positive number")
+
+    with _pool.connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+        cur.execute(
+            """
+            INSERT INTO maintenance_events (
+                trafo, phase, event_type, event_ts, resistance_uohm, test_current_a,
+                notes, resets_baseline, created_by
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING id
+            """,
+            (
+                body.trafo, body.phase, body.event_type, body.event_ts, body.resistance_uohm,
+                body.test_current_a, body.notes, body.resets_baseline, body.created_by,
+            ),
+        )
+        new_id = cur.fetchone()["id"]
+
+        flagged_model_ids: list[int] = []
+        if body.resets_baseline:
+            note = f"Needs re-calibration after maintenance on {body.event_ts.date().isoformat()}."
+            if body.phase is None:
+                cur.execute(
+                    "UPDATE ml_models SET recalibration_note = %s "
+                    "WHERE trafo = %s AND is_frozen_reference = TRUE "
+                    "RETURNING id",
+                    (note, body.trafo),
+                )
+            else:
+                cur.execute(
+                    "UPDATE ml_models SET recalibration_note = %s "
+                    "WHERE trafo = %s AND phase = %s AND is_frozen_reference = TRUE "
+                    "RETURNING id",
+                    (note, body.trafo, body.phase),
+                )
+            flagged_model_ids = [r["id"] for r in cur.fetchall()]
+
+    return {"id": new_id, "resets_baseline": body.resets_baseline, "flagged_model_ids": flagged_model_ids}

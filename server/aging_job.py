@@ -8,16 +8,22 @@ F(t)/EqAge hari-hari yang belum ada baris di aging_daily, dari hari setelah
 baris terakhir (atau dari reset_date kalau belum ada baris sama sekali)
 sampai KEMARIN (hari ini belum lengkap datanya, selalu dilewati).
 
-Reset point = fallback_reset_date (aging_config.json) selama Part E (log
-pemeliharaan/resistance-test dengan event resets_baseline=true) belum ada
--- lihat get_reset_date(). Kalau reset_date BERUBAH (event reset baru, atau
-fallback_reset_date diubah manual) dibanding baris terakhir yang tersimpan,
-akumulasi eq_days_cum/calendar_days RESTART dari 0 pada hari reset itu,
-bukan melanjutkan angka lama (lihat process_trafo_phase()). CATATAN: ini
-TIDAK menghapus/menghitung ulang baris LAMA yang sudah tersimpan dari
-sebelum reset -- hanya baris BARU yang dihitung ulang dengan reset point
-terkini. Backfill ulang histori lama kalau diperlukan ada di luar scope
-job ini (lihat server/README.md kalau ingin menambahkannya nanti).
+Reset point (Stage 2, Part E) = event TERBARU di maintenance_events dengan
+resets_baseline=true untuk (trafo, phase) ini (phase NULL di baris event
+berarti "berlaku semua fasa trafo itu", ikut dicocokkan -- lihat
+get_reset_date()). Kalau TIDAK ADA event seperti itu untuk (trafo, phase)
+ini, fallback ke aging_config.json fallback_reset_date (reset_source=
+"fallback_config") -- ini perilaku SEBELUM Part E, dipertahankan sebagai
+jaring pengaman selama belum ada pemeliharaan tercatat untuk trafo itu.
+
+Kalau reset_date BERUBAH (event reset baru tercatat, atau fallback berubah
+selama belum ada event) dibanding baris terakhir yang tersimpan, akumulasi
+eq_days_cum/calendar_days RESTART dari 0 pada hari reset itu, bukan
+melanjutkan angka lama (lihat process_trafo_phase()). CATATAN: ini TIDAK
+menghapus/menghitung ulang baris LAMA yang sudah tersimpan dari sebelum
+reset -- hanya baris BARU yang dihitung ulang dengan reset point terkini.
+Backfill ulang histori lama kalau diperlukan ada di luar scope job ini
+(lihat server/README.md kalau ingin menambahkannya nanti).
 
 Kalau aging_config.json belum terkonfigurasi (ea_ev/t_ref_c null), job ini
 TIDAK menulis apa pun -- bukan error, hanya belum ada angka yang bisa
@@ -62,11 +68,24 @@ def config_hash(cfg: dict[str, Any] = aging.AGING_CONFIG) -> str:
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:16]
 
 
-def get_reset_date(cfg: dict[str, Any] = aging.AGING_CONFIG) -> tuple[datetime, str]:
-    """Part E (resets_baseline=true) belum ada -- SELALU fallback_config
-    untuk saat ini. Fungsi ini sengaja dipisah supaya Part E nanti tinggal
-    mengganti isinya (query tabel event pemeliharaan) tanpa mengubah
-    pemanggilnya."""
+def get_reset_date(cur, trafo: str, phase: str, cfg: dict[str, Any] = aging.AGING_CONFIG) -> tuple[datetime, str]:
+    """Event resets_baseline=true TERBARU di maintenance_events untuk
+    (trafo, phase) -- phase NULL pada baris event dianggap berlaku untuk
+    SEMUA fasa trafo itu, jadi ikut dicocokkan. Kalau tidak ada event
+    semacam itu, fallback ke aging_config.json fallback_reset_date."""
+    cur.execute(
+        """
+        SELECT event_ts FROM maintenance_events
+        WHERE trafo = %s AND resets_baseline = TRUE AND (phase IS NULL OR phase = %s)
+        ORDER BY event_ts DESC
+        LIMIT 1
+        """,
+        (trafo, phase),
+    )
+    row = cur.fetchone()
+    if row is not None:
+        return row["event_ts"], "maintenance_event"
+
     raw = cfg["fallback_reset_date"]
     dt = datetime.fromisoformat(raw)
     if dt.tzinfo is None:
@@ -186,17 +205,17 @@ def run_once(pool: ConnectionPool) -> int:
         return 0
 
     cfg_hash = config_hash()
-    reset_date, reset_source = get_reset_date()
     yesterday = datetime.now(timezone.utc).date() - timedelta(days=1)
 
     total = 0
     with pool.connection() as conn, conn.cursor(row_factory=dict_row) as cur:
         for trafo in TRAFO_IDS:
             for phase in PHASES:
+                reset_date, reset_source = get_reset_date(cur, trafo, phase)
                 n = process_trafo_phase(cur, trafo, phase, reset_date, reset_source, cfg_hash, yesterday)
                 total += n
                 if n:
-                    log.info("Trafo-%s fasa %s: %d hari ditulis", trafo, phase, n)
+                    log.info("Trafo-%s fasa %s: %d hari ditulis (reset_source=%s)", trafo, phase, n, reset_source)
     return total
 
 

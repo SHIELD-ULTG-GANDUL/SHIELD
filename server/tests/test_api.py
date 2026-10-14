@@ -646,12 +646,17 @@ def _set_aging_configured(configured: bool):
     time to the ORIGINAL AGING_CONFIG dict object -- monkeypatch.setattr
     swapping in a NEW dict would NOT be observed by that default arg.
     Mutate the SAME dict object in place instead (like aging_job.py's own
-    tests do)."""
-    api.aging.AGING_CONFIG.clear()
+    tests do). Only touches ea_ev/t_ref_c -- NEVER clears the whole dict,
+    which would also wipe fallback_reset_date etc. that other test files
+    (test_aging_job.py) rely on, since this dict is one shared object for
+    the whole process."""
     if configured:
-        api.aging.AGING_CONFIG.update({"ea_ev": 0.5, "t_ref_c": 55.0, "max_gap_minutes_for_integration": 60})
+        api.aging.AGING_CONFIG["ea_ev"] = 0.5
+        api.aging.AGING_CONFIG["t_ref_c"] = 55.0
+        api.aging.AGING_CONFIG["max_gap_minutes_for_integration"] = 60
     else:
-        api.aging.AGING_CONFIG.update({"ea_ev": None, "t_ref_c": None})
+        api.aging.AGING_CONFIG["ea_ev"] = None
+        api.aging.AGING_CONFIG["t_ref_c"] = None
 
 
 class TestAgingLatest:
@@ -693,3 +698,158 @@ class TestAgingDaily:
             assert result["count"] == 1
         finally:
             _set_aging_configured(False)
+
+
+# ── /api/maintenance-events (Stage 2, Part E) ────────────────────────────
+
+class _FakeMaintenanceEventsCursor:
+    def __init__(self, list_rows=None, flagged_model_ids=None):
+        self._list_rows = list_rows or []
+        self._flagged_model_ids = flagged_model_ids or []
+        self._last = None
+        self.inserted_params = None
+        self.update_calls = []
+
+    def execute(self, sql, params=None):
+        if "INSERT INTO maintenance_events" in sql:
+            self.inserted_params = params
+            self._last = ("row", {"id": 1})
+        elif "UPDATE ml_models" in sql and "RETURNING id" in sql:
+            self.update_calls.append(params)
+            self._last = ("rows", [{"id": i} for i in self._flagged_model_ids])
+        elif "SELECT id, trafo, phase, event_type" in sql:
+            self._last = ("rows", self._list_rows)
+
+    def fetchone(self):
+        return self._last[1] if self._last and self._last[0] == "row" else None
+
+    def fetchall(self):
+        return self._last[1] if self._last and self._last[0] == "rows" else []
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
+class _FakeMaintenanceEventsConn:
+    def __init__(self, cursor):
+        self._cursor = cursor
+
+    def cursor(self, row_factory=None):
+        return self._cursor
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
+class _FakeMaintenanceEventsCtx:
+    def __init__(self, cursor):
+        self._cursor = cursor
+
+    def __enter__(self):
+        return _FakeMaintenanceEventsConn(self._cursor)
+
+    def __exit__(self, *exc):
+        return False
+
+
+class _FakeMaintenanceEventsPool:
+    def __init__(self, cursor):
+        self._cursor = cursor
+
+    def connection(self):
+        return _FakeMaintenanceEventsCtx(self._cursor)
+
+
+class TestMaintenanceEventsCreate:
+    def test_resistance_test_without_resistance_uohm_rejected(self, monkeypatch):
+        from fastapi import HTTPException
+
+        monkeypatch.setattr(api, "_pool", _FakeMaintenanceEventsPool(_FakeMaintenanceEventsCursor()))
+        body = api.MaintenanceEventIn(
+            trafo="2", event_type="resistance_test", event_ts=datetime.now(timezone.utc),
+        )
+        with pytest.raises(HTTPException) as exc_info:
+            api.maintenance_events_create(body, x_api_key=None)
+        assert exc_info.value.status_code == 400
+        assert "resistance_uohm" in exc_info.value.detail
+
+    def test_negative_resistance_uohm_rejected(self, monkeypatch):
+        from fastapi import HTTPException
+
+        monkeypatch.setattr(api, "_pool", _FakeMaintenanceEventsPool(_FakeMaintenanceEventsCursor()))
+        body = api.MaintenanceEventIn(
+            trafo="2", event_type="inspection", event_ts=datetime.now(timezone.utc), resistance_uohm=-5.0,
+        )
+        with pytest.raises(HTTPException) as exc_info:
+            api.maintenance_events_create(body, x_api_key=None)
+        assert exc_info.value.status_code == 400
+
+    def test_valid_resistance_test_is_created(self, monkeypatch):
+        cur = _FakeMaintenanceEventsCursor()
+        monkeypatch.setattr(api, "_pool", _FakeMaintenanceEventsPool(cur))
+        body = api.MaintenanceEventIn(
+            trafo="2", phase="R", event_type="resistance_test",
+            event_ts=datetime.now(timezone.utc), resistance_uohm=120.0, test_current_a=100.0,
+        )
+        result = api.maintenance_events_create(body, x_api_key=None)
+        assert result["id"] == 1
+        assert result["flagged_model_ids"] == []
+
+    def test_resets_baseline_flags_frozen_reference_models(self, monkeypatch):
+        cur = _FakeMaintenanceEventsCursor(flagged_model_ids=[42])
+        monkeypatch.setattr(api, "_pool", _FakeMaintenanceEventsPool(cur))
+        body = api.MaintenanceEventIn(
+            trafo="2", phase="R", event_type="resistance_test",
+            event_ts=datetime.now(timezone.utc), resistance_uohm=120.0, resets_baseline=True,
+        )
+        result = api.maintenance_events_create(body, x_api_key=None)
+        assert result["flagged_model_ids"] == [42]
+        assert len(cur.update_calls) == 1
+
+    def test_resets_baseline_false_does_not_touch_ml_models(self, monkeypatch):
+        cur = _FakeMaintenanceEventsCursor(flagged_model_ids=[42])
+        monkeypatch.setattr(api, "_pool", _FakeMaintenanceEventsPool(cur))
+        body = api.MaintenanceEventIn(
+            trafo="2", event_type="inspection", event_ts=datetime.now(timezone.utc), resets_baseline=False,
+        )
+        result = api.maintenance_events_create(body, x_api_key=None)
+        assert result["flagged_model_ids"] == []
+        assert len(cur.update_calls) == 0
+
+    def test_invalid_event_type_rejected_by_pydantic_in_english(self):
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError) as exc_info:
+            api.MaintenanceEventIn(trafo="2", event_type="not_a_real_type", event_ts=datetime.now(timezone.utc))
+        assert "Input should be" in str(exc_info.value)
+
+    def test_invalid_phase_rejected_by_pydantic(self):
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError):
+            api.MaintenanceEventIn(trafo="2", phase="X", event_type="inspection", event_ts=datetime.now(timezone.utc))
+
+
+class TestMaintenanceEventsList:
+    def test_list_for_one_trafo(self, monkeypatch):
+        now = datetime.now(timezone.utc)
+        rows = [{
+            "id": 1, "trafo": "2", "phase": "R", "event_type": "resistance_test", "event_ts": now,
+            "resistance_uohm": 120.0, "test_current_a": 100.0, "notes": None,
+            "resets_baseline": True, "created_by": None, "created_at": now,
+        }]
+        monkeypatch.setattr(api, "_pool", _FakeMaintenanceEventsPool(_FakeMaintenanceEventsCursor(list_rows=rows)))
+        result = api.maintenance_events_list(trafo="2", x_api_key=None)
+        assert result["count"] == 1
+        assert result["rows"][0]["event_ts"] == now.isoformat()
+
+    def test_empty_list(self, monkeypatch):
+        monkeypatch.setattr(api, "_pool", _FakeMaintenanceEventsPool(_FakeMaintenanceEventsCursor()))
+        result = api.maintenance_events_list(trafo=None, x_api_key=None)
+        assert result["count"] == 0

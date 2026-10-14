@@ -51,6 +51,35 @@ class _FakeCursor:
         return self._last[1] if self._last and self._last[0] == "rows" else []
 
 
+class _FakeResetDateCursor:
+    def __init__(self, event_row):
+        self._event_row = event_row
+
+    def execute(self, sql, params=None):
+        pass
+
+    def fetchone(self):
+        return self._event_row
+
+
+class TestGetResetDate:
+    """Stage 2 Part E, tugas #5: fallback_reset_date diganti tabel
+    maintenance_events -- 'reset propagation to aging'."""
+
+    def test_uses_maintenance_event_when_present(self):
+        event_ts = datetime(2026, 5, 1, tzinfo=timezone.utc)
+        cur = _FakeResetDateCursor({"event_ts": event_ts})
+        reset_date, reset_source = aj.get_reset_date(cur, "2", "R")
+        assert reset_date == event_ts
+        assert reset_source == "maintenance_event"
+
+    def test_falls_back_to_config_when_no_event(self):
+        cur = _FakeResetDateCursor(None)
+        reset_date, reset_source = aj.get_reset_date(cur, "2", "R")
+        assert reset_source == "fallback_config"
+        assert reset_date == datetime.fromisoformat(aging.AGING_CONFIG["fallback_reset_date"])
+
+
 class TestConfigHash:
     def test_hash_is_stable_for_same_config(self):
         h1 = aj.config_hash({"ea_ev": 0.5, "t_ref_c": 55.0})
@@ -72,17 +101,20 @@ class TestConfigHash:
 
 class TestProcessTrafoPhase:
     def setup_method(self):
-        aging.AGING_CONFIG.clear()
-        aging.AGING_CONFIG.update({"ea_ev": 0.5, "t_ref_c": 55.0, "max_gap_minutes_for_integration": 60})
-
-    def teardown_method(self):
         # aging.AGING_CONFIG adalah objek dict TUNGGAL dibagi seluruh proses
         # (default arg fungsi di aging.py terikat ke objek yang SAMA, bukan
-        # dibaca ulang dari modul) -- restore ke status default yang dikirim
-        # (null/null) supaya test file LAIN (test_aging.py, test_api.py) yang
-        # mengasumsikan "belum terkonfigurasi" tidak gagal gara-gara urutan run.
+        # dibaca ulang dari modul) -- simpan ISI PENUHnya dulu (termasuk
+        # fallback_reset_date dkk. yang tidak relevan untuk test ini tapi
+        # dipakai test LAIN) supaya bisa dikembalikan utuh di teardown,
+        # bukan ditimpa dengan dict minimal yang menghapus key lain.
+        self._original_config = dict(aging.AGING_CONFIG)
+        aging.AGING_CONFIG["ea_ev"] = 0.5
+        aging.AGING_CONFIG["t_ref_c"] = 55.0
+        aging.AGING_CONFIG["max_gap_minutes_for_integration"] = 60
+
+    def teardown_method(self):
         aging.AGING_CONFIG.clear()
-        aging.AGING_CONFIG.update({"ea_ev": None, "t_ref_c": None})
+        aging.AGING_CONFIG.update(self._original_config)
 
     def test_writes_one_row_per_day_from_reset_to_yesterday(self):
         cur = _FakeCursor()
