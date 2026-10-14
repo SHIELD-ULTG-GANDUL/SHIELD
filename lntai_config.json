@@ -1,0 +1,39 @@
+{
+  "model_version": "lntai-v2",
+  "baseline_calibrated": false,
+  "baseline": {
+    "_note": "A_old/B/sigma are the original least-squares fit (basis I_RATED_old=1000A). A is that fit rescaled to the new current basis (I_RATED=1780A, I_NOMINAL_TRAFO) via A = A_old * (I_RATED/I_RATED_old)^2. B and sigma are additive/scale offsets independent of the current-normalization basis, so they are kept unchanged per the agreed design (not re-fit). TODO(kalibrasi): this is a basis conversion of the old fit, NOT a fresh calibration from real trafo 2/3/4 data — baseline_calibrated stays false until fit_baseline() is run on real history and the result is reviewed and written here manually.",
+    "A_old": 8.2059,
+    "I_RATED_old": 1000.0,
+    "I_RATED": 1780.0,
+    "A": 25.99957356,
+    "B": 26.86,
+    "sigma": 4.6761
+  },
+  "thermal_lag": {
+    "_note": "First-order lag filter on I^2 per phase: I2_eff[k] = phi*I2_eff[k-1] + (1-phi)*I_phase[k]^2, phi = exp(-dt/tau_minutes). tau_minutes is an engineering assumption, not fit from data.",
+    "tau_minutes": 20,
+    "max_gap_minutes": 60,
+    "_max_gap_note": "TODO(kalibrasi): not specified in the task brief; chosen as 3 * tau_minutes as a reasonable default so the lag filter resets after a data gap longer than ~3 time constants instead of carrying a stale estimate forward indefinitely. Safe to change here."
+  },
+  "pairing_tolerance_minutes": 5,
+  "residual_score": {
+    "_note": "S_RES = clamp((max_phase_z - z_floor) / (z_full - z_floor) * score_max, 0, score_max). z = (deltaT_real - deltaT_pred) / sigma per phase.",
+    "z_floor": 1.0,
+    "z_full": 5.0
+  },
+  "component_refs": {
+    "_note": "ref_temp_rise/ref_phase_delta are internal reference values for the exponential (Montsinger/Arrhenius-inspired heuristic) scoring curve, not a direct citation of an IEC limit. Compare separately against IEC 62271-1 contact-material temperature-rise tables if needed.",
+    "ref_temp_rise": 55,
+    "ref_phase_delta": 22,
+    "doubling_k": 10
+  },
+  "weights": { "temp": 0.40, "delta_t": 0.30, "res": 0.30 },
+  "thresholds": { "warning": 18, "critical": 30 },
+  "score_max": 40,
+  "ambient": {
+    "default": 30.0,
+    "max_age_minutes": 30
+  },
+  "smoothing_window": 3
+}
