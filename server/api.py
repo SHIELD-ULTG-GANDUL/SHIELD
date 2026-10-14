@@ -342,6 +342,76 @@ def data_quality_summary(
     }
 
 
+# =====================================================
+# MAINTENANCE WINDOWS (T6) — ditandai manual, dipakai archive_job.py
+# =====================================================
+
+class MaintenanceWindowIn(BaseModel):
+    trafo_id: Optional[str] = Field(None, description="NULL/tidak diisi = berlaku semua trafo")
+    start_time: datetime
+    end_time: datetime
+    reason: str
+    created_by: Optional[str] = None
+
+
+@app.get("/api/maintenance-windows")
+def maintenance_windows(
+    trafo: Optional[int] = Query(default=None, ge=2, le=4),
+    x_api_key: Optional[str] = Header(default=None, alias="X-API-Key"),
+):
+    """Daftar maintenance window (T6). Tanpa `trafo`, kembalikan semua
+    window (termasuk yang trafo_id=NULL, berlaku untuk semua trafo)."""
+    _check_api_key(x_api_key)
+
+    with _pool.connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+        if trafo is None:
+            cur.execute(
+                "SELECT id, trafo_id, start_time, end_time, reason, created_by, archived, created_at "
+                "FROM maintenance_windows ORDER BY start_time DESC"
+            )
+        else:
+            cur.execute(
+                "SELECT id, trafo_id, start_time, end_time, reason, created_by, archived, created_at "
+                "FROM maintenance_windows WHERE trafo_id IS NULL OR trafo_id = %s ORDER BY start_time DESC",
+                (str(trafo),),
+            )
+        rows = cur.fetchall()
+
+    for row in rows:
+        row["start_time"] = row["start_time"].isoformat()
+        row["end_time"] = row["end_time"].isoformat()
+        row["created_at"] = row["created_at"].isoformat()
+
+    return {"count": len(rows), "rows": rows}
+
+
+@app.post("/api/maintenance-windows")
+def create_maintenance_window(
+    body: MaintenanceWindowIn,
+    x_api_key: Optional[str] = Header(default=None, alias="X-API-Key"),
+):
+    """Tandai satu jendela waktu sebagai maintenance/kalibrasi/gangguan
+    (T6) -- menulis ke database dan mempengaruhi archive_job.py, jadi
+    tetap melalui _check_api_key seperti endpoint lain (ditolak kalau
+    API_KEY diset dan header X-API-Key tidak cocok)."""
+    _check_api_key(x_api_key)
+    if body.end_time <= body.start_time:
+        raise HTTPException(status_code=400, detail="end_time harus setelah start_time")
+
+    with _pool.connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+        cur.execute(
+            """
+            INSERT INTO maintenance_windows (trafo_id, start_time, end_time, reason, created_by)
+            VALUES (%s, %s, %s, %s, %s)
+            RETURNING id
+            """,
+            (body.trafo_id, body.start_time, body.end_time, body.reason, body.created_by),
+        )
+        row = cur.fetchone()
+
+    return {"id": row["id"]}
+
+
 @app.get("/api/beban-logs/bounds")
 def beban_logs_bounds(
     trafo: int = Query(..., ge=2, le=4, description="Nomor trafo: 2, 3, atau 4"),

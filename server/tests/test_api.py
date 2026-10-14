@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -364,6 +364,99 @@ class TestDataQualitySummary:
         result = api.data_quality_summary(trafo=2, window=60, x_api_key=None)
         assert result["temperature"]["total_rows"] == 0
         assert result["load"]["total_rows"] == 0
+
+
+class _FakeMaintenanceCursor:
+    def __init__(self, list_rows):
+        self._list_rows = list_rows
+        self._last = None
+
+    def execute(self, sql, params=None):
+        if "INSERT INTO maintenance_windows" in sql:
+            self._last = ("row", {"id": 1})
+        elif "SELECT id, trafo_id" in sql:
+            self._last = ("rows", self._list_rows)
+
+    def fetchone(self):
+        return self._last[1] if self._last and self._last[0] == "row" else None
+
+    def fetchall(self):
+        return self._last[1] if self._last and self._last[0] == "rows" else []
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
+class _FakeMaintenanceConn:
+    def __init__(self, list_rows):
+        self._list_rows = list_rows
+
+    def cursor(self, row_factory=None):
+        return _FakeMaintenanceCursor(self._list_rows)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
+class _FakeMaintenancePool:
+    def __init__(self, list_rows=None):
+        self._list_rows = list_rows or []
+
+    def connection(self):
+        return _FakeMaintenanceConn(self._list_rows)
+
+
+class TestCreateMaintenanceWindow:
+    def test_valid_window_is_created(self, monkeypatch):
+        monkeypatch.setattr(api, "_pool", _FakeMaintenancePool())
+        now = datetime.now(timezone.utc)
+        body = api.MaintenanceWindowIn(
+            trafo_id="2", start_time=now, end_time=now + timedelta(hours=1), reason="kalibrasi sensor"
+        )
+        result = api.create_maintenance_window(body, x_api_key=None)
+        assert result["id"] == 1
+
+    def test_end_before_start_rejected(self, monkeypatch):
+        monkeypatch.setattr(api, "_pool", _FakeMaintenancePool())
+        now = datetime.now(timezone.utc)
+        body = api.MaintenanceWindowIn(
+            trafo_id="2", start_time=now, end_time=now - timedelta(hours=1), reason="invalid"
+        )
+        with pytest.raises(Exception):
+            api.create_maintenance_window(body, x_api_key=None)
+
+    def test_trafo_id_none_allowed_for_all_trafo(self, monkeypatch):
+        monkeypatch.setattr(api, "_pool", _FakeMaintenancePool())
+        now = datetime.now(timezone.utc)
+        body = api.MaintenanceWindowIn(
+            trafo_id=None, start_time=now, end_time=now + timedelta(hours=1), reason="gangguan semua trafo"
+        )
+        result = api.create_maintenance_window(body, x_api_key=None)
+        assert result["id"] == 1
+
+
+class TestMaintenanceWindowsList:
+    def test_list_returns_rows_with_isoformat_timestamps(self, monkeypatch):
+        now = datetime.now(timezone.utc)
+        rows = [{
+            "id": 1, "trafo_id": "2", "start_time": now, "end_time": now,
+            "reason": "test", "created_by": None, "archived": False, "created_at": now,
+        }]
+        monkeypatch.setattr(api, "_pool", _FakeMaintenancePool(rows))
+        result = api.maintenance_windows(trafo=2, x_api_key=None)
+        assert result["count"] == 1
+        assert result["rows"][0]["start_time"] == now.isoformat()
+
+    def test_empty_list(self, monkeypatch):
+        monkeypatch.setattr(api, "_pool", _FakeMaintenancePool([]))
+        result = api.maintenance_windows(trafo=None, x_api_key=None)
+        assert result["count"] == 0
 
 
 class TestLntaiLatest:

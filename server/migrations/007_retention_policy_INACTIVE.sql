@@ -1,0 +1,35 @@
+-- 007_retention_policy_INACTIVE.sql
+--
+-- SHIELD Tahap 1, T6 (DIREVISI) — kebijakan retensi (hapus data mentah
+-- yang sudah lebih tua dari N hari) TIDAK diaktifkan di Tahap 1 ini.
+-- Aturan kerja: "Jangan pernah menghapus tabel/kolom/file/pipeline" dan
+-- "jangan mengarang nilai ambang" -- jumlah hari retensi adalah keputusan
+-- BISNIS (berapa lama data mentah harus disimpan sebelum boleh dibuang),
+-- bukan sesuatu yang bisa saya tentukan sendiri.
+--
+-- File ini sengaja HANYA berisi contoh/kerangka, SEMUA pernyataan DELETE
+-- di bawah DIKOMENTARI. Kalau Anda sudah memutuskan periode retensi:
+--   1. Pastikan server/archive_job.py sudah berjalan rutin dan semua
+--      maintenance_windows relevan sudah archived=true (lihat migrasi
+--      005/006) -- retensi menghapus baris ASLI, archive adalah SATU-
+--      SATUNYA salinan yang tersisa setelah itu.
+--   2. pg_dump seluruh tabel yang akan terkena retensi SEBELUM menjalankan
+--      apa pun di bawah ini.
+--   3. Buka file ini, GANTI 'INTERVAL ...' dengan periode yang Anda
+--      putuskan, HAPUS tanda komentar pada blok DELETE yang relevan saja.
+--   4. Jalankan manual: psql "$DATABASE_URL" -f server/migrations/007_retention_policy_INACTIVE.sql
+--
+-- TIDAK ADA rollback untuk DELETE (lihat langkah 2 di atas -- pg_dump
+-- SEBELUM menjalankan adalah rollback yang sebenarnya untuk operasi ini).
+
+-- BEGIN;
+--
+-- DELETE FROM trafo_temperature
+-- WHERE "timestamp" < now() - INTERVAL '365 days'  -- GANTI periode ini
+--   AND id NOT IN (SELECT id FROM trafo_temperature_archive);  -- jangan hapus yang belum sempat diarsipkan
+--
+-- DELETE FROM trafo_load
+-- WHERE "timestamp" < now() - INTERVAL '365 days'  -- GANTI periode ini
+--   AND id NOT IN (SELECT id FROM trafo_load_archive);
+--
+-- COMMIT;
