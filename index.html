@@ -1746,9 +1746,11 @@
 
                 <!-- ════════════════════════════════════════════════════════
                      Tab A0: REALTIME FORECASTING BEBAN & SUHU
-                     Metode: Holt-Winters Double Exponential Smoothing (DES)
-                     Ref: IEEE 1459 · IEC 61000-4-30 · Box-Jenkins (1976)
-                          Holt (1957) Oper.Res. · Brown (1959) · ISO 13528
+                     SHIELD Stage 2 Part F -- GET /api/forecast, server/forecast_job.py.
+                     Beban: seasonal_naive/gbm_calendar/poly_calendar (AKTIF per
+                     trafo+fasa, dipilih via MAPE backtest, ml/train_load_forecast.py).
+                     Suhu hotspot: baseline ΔT sehat AKTIF (Part B) pada beban
+                     yang diprediksi, bukan model time-series terpisah.
                      ════════════════════════════════════════════════════════ -->
                 <div id="itab-content-ml-a0" class="space-y-4">
 
@@ -1756,33 +1758,28 @@
                   <div class="glass-card p-5 border-l-4 border-cyan-400">
                     <div class="flex items-center gap-2 mb-3">
                       <span class="text-base">⚡</span>
-                      <h5 class="text-xs font-extrabold text-cyan-700 uppercase tracking-widest">Cara Kerja — Holt-Winters Double Exponential Smoothing (DES)</h5>
-                      <span class="text-[9px] font-extrabold bg-cyan-100 text-cyan-700 px-2 py-0.5 rounded ml-auto">IEC 61000-4-30 · Box-Jenkins</span>
+                      <h5 class="text-xs font-extrabold text-cyan-700 uppercase tracking-widest">Cara Kerja — Forecast Terkalibrasi (SHIELD Stage 2 Part F)</h5>
+                      <span class="text-[9px] font-extrabold bg-cyan-100 text-cyan-700 px-2 py-0.5 rounded ml-auto">Server-side, backtested</span>
                     </div>
-                    <p class="text-[10px] text-slate-600 mb-3 leading-relaxed">Algoritma peramalan deret waktu yang menggunakan dua komponen: <b>Level (L)</b> yang merepresentasikan nilai rata-rata saat ini, dan <b>Trend (T)</b> yang merepresentasikan arah perubahan. Dua parameter smoothing (α dan β) mengontrol seberapa cepat model beradaptasi terhadap data baru — nilai kecil memberi bobot lebih pada data historis, nilai besar lebih responsif terhadap perubahan terkini.</p>
-                    <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
-                      <div class="bg-cyan-50 rounded-xl p-3 border border-cyan-100 flex flex-col items-center text-center"><div class="text-lg mb-1">📥</div><div class="text-[9px] font-extrabold text-cyan-600 uppercase mb-1">Step 1</div><div class="text-[10px] font-bold text-slate-700">Kumpulkan Data</div><div class="text-[9px] text-slate-400 mt-1">Ambil N titik terbaru dari Firestore (suhu/beban) dan urutkan secara kronologis</div></div>
-                      <div class="bg-teal-50 rounded-xl p-3 border border-teal-100 flex flex-col items-center text-center"><div class="text-lg mb-1">🔄</div><div class="text-[9px] font-extrabold text-teal-600 uppercase mb-1">Step 2</div><div class="text-[10px] font-bold text-slate-700">Update Level α</div><div class="text-[9px] text-slate-400 mt-1">Lₜ = α·yₜ + (1−α)·(Lₜ₋₁ + Tₜ₋₁), α=0.30</div></div>
-                      <div class="bg-blue-50 rounded-xl p-3 border border-blue-100 flex flex-col items-center text-center"><div class="text-lg mb-1">📈</div><div class="text-[9px] font-extrabold text-blue-600 uppercase mb-1">Step 3</div><div class="text-[10px] font-bold text-slate-700">Update Trend β</div><div class="text-[9px] text-slate-400 mt-1">Tₜ = β·(Lₜ−Lₜ₋₁) + (1−β)·Tₜ₋₁, β=0.10</div></div>
-                      <div class="bg-indigo-50 rounded-xl p-3 border border-indigo-100 flex flex-col items-center text-center"><div class="text-lg mb-1">🔮</div><div class="text-[9px] font-extrabold text-indigo-600 uppercase mb-1">Step 4</div><div class="text-[10px] font-bold text-slate-700">Forecast h Langkah</div><div class="text-[9px] text-slate-400 mt-1">F̂(h) = Lₙ + h·Tₙ — proyeksi linear dari kondisi terakhir</div></div>
-                      <div class="bg-violet-50 rounded-xl p-3 border border-violet-100 flex flex-col items-center text-center"><div class="text-lg mb-1">📊</div><div class="text-[9px] font-extrabold text-violet-600 uppercase mb-1">Step 5</div><div class="text-[10px] font-bold text-slate-700">Hitung CI 95%</div><div class="text-[9px] text-slate-400 mt-1">CI = ±1.96·σ·√(Σ[1+(h−1)·β]²) — Brown (1959) variance propagation</div></div>
-                    </div>
-                    <div class="mt-3 bg-slate-50 rounded-xl p-3 font-mono text-[10px] grid grid-cols-1 md:grid-cols-2 gap-2">
-                      <div><div class="text-cyan-700 font-extrabold mb-1">Formula Inti:</div><div>Lₜ = α·yₜ + (1−α)·(Lₜ₋₁+Tₜ₋₁)</div><div>Tₜ = β·(Lₜ−Lₜ₋₁) + (1−β)·Tₜ₋₁</div><div class="text-slate-400 mt-1">F̂(t+h) = Lₙ + h·Tₙ — linear trend extrapolation</div></div>
-                      <div><div class="text-violet-700 font-extrabold mb-1">Ketidakpastian Forecast (Brown 1959):</div><div>Var(h) = σ²·Σᵢ₌₀ʰ⁻¹[1+(h−1−i)·β]²</div><div class="text-slate-400 mt-1">CI 95% = ±1.96·√Var(h) | σ = RMSE residual in-sample</div></div>
+                    <p class="text-[10px] text-slate-600 mb-3 leading-relaxed">Forecast beban (arus) per jam dihasilkan oleh <b>server/forecast_job.py</b> dari model yang sudah dilatih dan diuji (backtest) per trafo+fasa — dipilih otomatis dari perbandingan <b>Seasonal-Naive</b> (pola minggu lalu jam yang sama), <b>GBM</b> (gradient boosting atas fitur kalender), atau <b>Polynomial</b> (regresi polinomial atas fitur kalender), mana pun yang punya MAPE terkecil saat training (<code class="bg-slate-100 px-1 rounded">ml/train_load_forecast.py</code>). Suhu hotspot yang diprediksi (<code class="bg-slate-100 px-1 rounded">t_hot_pred_c</code>) dihitung dari model baseline ΔT sehat AKTIF (Part B) pada beban yang diprediksi tersebut, bukan model time-series suhu tersendiri. Rentang ketidakpastian P10–P90 berasal dari kalibrasi residual empiris saat backtest, bukan rumus varians analitik — dijamin P10≤P50≤P90.</p>
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-2">
+                      <div class="bg-cyan-50 rounded-xl p-3 border border-cyan-100 flex flex-col items-center text-center"><div class="text-lg mb-1">🗄️</div><div class="text-[9px] font-extrabold text-cyan-600 uppercase mb-1">1. Training</div><div class="text-[10px] font-bold text-slate-700">Bandingkan 3 Model</div><div class="text-[9px] text-slate-400 mt-1">Per trafo+fasa, split time-series: training vs 7 hari holdout backtest</div></div>
+                      <div class="bg-teal-50 rounded-xl p-3 border border-teal-100 flex flex-col items-center text-center"><div class="text-lg mb-1">✅</div><div class="text-[9px] font-extrabold text-teal-600 uppercase mb-1">2. Aktivasi</div><div class="text-[10px] font-bold text-slate-700">Pilih MAPE Terkecil</div><div class="text-[9px] text-slate-400 mt-1">Manual lewat POST /api/ml/models/{id}/activate setelah review tabel perbandingan</div></div>
+                      <div class="bg-indigo-50 rounded-xl p-3 border border-indigo-100 flex flex-col items-center text-center"><div class="text-lg mb-1">🔮</div><div class="text-[9px] font-extrabold text-indigo-600 uppercase mb-1">3. Forecast Per Jam</div><div class="text-[10px] font-bold text-slate-700">forecast_job.py (cron)</div><div class="text-[9px] text-slate-400 mt-1">168 jam (7 hari) ke depan dari model aktif, ditulis ke tabel `forecasts`</div></div>
+                      <div class="bg-violet-50 rounded-xl p-3 border border-violet-100 flex flex-col items-center text-center"><div class="text-lg mb-1">📊</div><div class="text-[9px] font-extrabold text-violet-600 uppercase mb-1">4. Sajikan</div><div class="text-[10px] font-bold text-slate-700">GET /api/forecast</div><div class="text-[9px] text-slate-400 mt-1">Tab ini hanya membaca hasil tersimpan — tidak menghitung ulang di browser</div></div>
                     </div>
                   </div>
 
                   <!-- Status bar -->
                   <div class="glass-card p-3 flex items-center justify-between flex-wrap gap-2">
                     <div class="flex items-center gap-4 text-[10px] font-bold text-slate-500">
-                      <span class="flex items-center gap-1.5"><i data-lucide="activity" class="w-3 h-3 text-cyan-500"></i>Metode: Holt-Winters DES (α=0.30 · β=0.10)</span>
+                      <span class="flex items-center gap-1.5"><i data-lucide="activity" class="w-3 h-3 text-cyan-500"></i>Metode: <span id="fc-method-badge" class="text-cyan-700">—</span></span>
                       <span class="text-slate-300">|</span>
                       <span>Sumber: <span id="fc-data-src" class="text-teal-600 font-extrabold">—</span></span>
                       <span class="text-slate-300">|</span>
-                      <span>N titik: <span id="fc-n-pts" class="text-indigo-600 font-extrabold">—</span></span>
+                      <span>N titik historis: <span id="fc-n-pts" class="text-indigo-600 font-extrabold">—</span></span>
                       <span class="text-slate-300">|</span>
-                      <span>Interval: <span id="fc-step-min" class="font-extrabold text-slate-600">—</span></span>
+                      <span>Interval forecast: <span id="fc-step-min" class="font-extrabold text-slate-600">—</span></span>
                     </div>
                     <span class="text-[9px] text-slate-400 font-bold">Diperbarui: <span id="fc-last-update-tab">—</span></span>
                   </div>
@@ -1792,30 +1789,30 @@
                     <div class="glass-card p-4 border-l-4 border-rose-500">
                       <div class="text-[9px] font-extrabold text-rose-600 uppercase tracking-widest mb-1">Suhu Forecast +1 jam</div>
                       <div id="fc-temp-1h" class="font-mono font-black text-2xl text-slate-700">-</div>
-                      <div class="text-[9px] text-slate-400 mt-0.5">±CI 95%: <span id="fc-temp-1h-ci" class="font-mono font-bold text-slate-500">—</span></div>
+                      <div class="text-[9px] text-slate-400 mt-0.5">Band P10–P90: <span id="fc-temp-1h-ci" class="font-mono font-bold text-slate-500">—</span></div>
                       <div id="fc-temp-trend-badge" class="mt-2 text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 inline-block">—</div>
-                      <p id="kpi-desc-temp-1h" class="text-[9px] text-slate-400 mt-2 pt-2 border-t border-slate-100 leading-relaxed">Prediksi suhu trafo 1 jam ke depan (Holt-Winters DES). Nilai >75°C memerlukan perhatian operasional.</p>
+                      <p id="kpi-desc-temp-1h" class="text-[9px] text-slate-400 mt-2 pt-2 border-t border-slate-100 leading-relaxed">Prediksi suhu hotspot 1 jam ke depan, dari model baseline ΔT sehat (Part B) pada beban yang diprediksi. Nilai >75°C memerlukan perhatian operasional.</p>
                     </div>
                     <div class="glass-card p-4 border-l-4 border-violet-500">
                       <div class="text-[9px] font-extrabold text-violet-600 uppercase tracking-widest mb-1">Beban Forecast +1 jam</div>
                       <div id="fc-load-1h" class="font-mono font-black text-2xl text-slate-700">-</div>
-                      <div class="text-[9px] text-slate-400 mt-0.5">±CI 95%: <span id="fc-load-1h-ci" class="font-mono font-bold text-slate-500">—</span></div>
+                      <div class="text-[9px] text-slate-400 mt-0.5">Band P10–P90: <span id="fc-load-1h-ci" class="font-mono font-bold text-slate-500">—</span></div>
                       <div id="fc-load-trend-badge" class="mt-2 text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 inline-block">—</div>
                       <p id="kpi-desc-load-1h" class="text-[9px] text-slate-400 mt-2 pt-2 border-t border-slate-100 leading-relaxed">Prediksi arus beban 1 jam ke depan. Berguna untuk antisipasi beban puncak dan pengelolaan kapasitas trafo.</p>
                     </div>
                     <div class="glass-card p-4 border-l-4 border-emerald-500">
-                      <div class="text-[9px] font-extrabold text-emerald-600 uppercase tracking-widest mb-1">Akurasi Suhu (100−MAPE)</div>
+                      <div class="text-[9px] font-extrabold text-emerald-600 uppercase tracking-widest mb-1">Akurasi Suhu (R² baseline)</div>
                       <div id="fc-acc-temp" class="font-mono font-black text-2xl text-emerald-700">-</div>
-                      <div class="text-[9px] text-slate-400 mt-0.5">RMSE: <span id="fc-rmse-temp" class="font-mono font-bold text-slate-500">—</span></div>
+                      <div class="text-[9px] text-slate-400 mt-0.5">MAE: <span id="fc-rmse-temp" class="font-mono font-bold text-slate-500">—</span></div>
                       <div id="fc-acc-temp-badge" class="mt-2 text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 inline-block">—</div>
-                      <p id="kpi-desc-acc-temp" class="text-[9px] text-slate-400 mt-2 pt-2 border-t border-slate-100 leading-relaxed">Keakuratan model prediksi suhu. ≥90% = sangat andal, 75–89% = cukup, &lt;75% = butuh lebih banyak data historis.</p>
+                      <p id="kpi-desc-acc-temp" class="text-[9px] text-slate-400 mt-2 pt-2 border-t border-slate-100 leading-relaxed">R² model baseline ΔT sehat AKTIF (Part B) pada data validasi. ≥0.90 = sangat andal, 0.75–0.89 = cukup, &lt;0.75 = butuh lebih banyak data historis.</p>
                     </div>
                     <div class="glass-card p-4 border-l-4 border-cyan-500">
-                      <div class="text-[9px] font-extrabold text-cyan-600 uppercase tracking-widest mb-1">Akurasi Beban (100−MAPE)</div>
+                      <div class="text-[9px] font-extrabold text-cyan-600 uppercase tracking-widest mb-1">Akurasi Beban (100−MAPE backtest)</div>
                       <div id="fc-acc-load" class="font-mono font-black text-2xl text-cyan-700">-</div>
-                      <div class="text-[9px] text-slate-400 mt-0.5">RMSE: <span id="fc-rmse-load" class="font-mono font-bold text-slate-500">—</span></div>
+                      <div class="text-[9px] text-slate-400 mt-0.5">N backtest: <span id="fc-rmse-load" class="font-mono font-bold text-slate-500">—</span></div>
                       <div id="fc-acc-load-badge" class="mt-2 text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 inline-block">—</div>
-                      <p id="kpi-desc-acc-load" class="text-[9px] text-slate-400 mt-2 pt-2 border-t border-slate-100 leading-relaxed">Keakuratan model prediksi arus beban. Semakin tinggi, semakin andal forecast untuk perencanaan operasi.</p>
+                      <p id="kpi-desc-acc-load" class="text-[9px] text-slate-400 mt-2 pt-2 border-t border-slate-100 leading-relaxed">Akurasi (100−MAPE) model forecasting beban AKTIF, dihitung dari holdout backtest 7 hari saat training (ml/train_load_forecast.py). Semakin tinggi, semakin andal forecast untuk perencanaan operasi.</p>
                     </div>
                   </div>
 
@@ -1823,9 +1820,9 @@
                   <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
                     <div class="glass-card p-5">
                       <div class="flex items-center justify-between mb-3">
-                        <h5 class="text-xs font-extrabold text-rose-700 uppercase tracking-widest">Forecast Suhu — Holt-Winters DES</h5>
+                        <h5 class="text-xs font-extrabold text-rose-700 uppercase tracking-widest">Forecast Suhu Hotspot</h5>
                         <div class="flex items-center gap-2">
-                          <span class="text-[9px] font-bold bg-rose-50 text-rose-600 px-2 py-0.5 rounded border border-rose-100">IEC 61000-4-30 · Box-Jenkins</span>
+                          <span id="fc-temp-method-badge" class="text-[9px] font-bold bg-rose-50 text-rose-600 px-2 py-0.5 rounded border border-rose-100">Baseline Part B</span>
                           <button onclick="openForecastFullview('temp')" class="fc-expand-btn" title="Tampilkan grafik penuh">
                             <i data-lucide="maximize-2" class="w-3 h-3"></i><span>Layar Penuh</span>
                           </button>
@@ -1854,9 +1851,9 @@
                     </div>
                     <div class="glass-card p-5">
                       <div class="flex items-center justify-between mb-3">
-                        <h5 class="text-xs font-extrabold text-violet-700 uppercase tracking-widest">Forecast Beban — Holt-Winters DES</h5>
+                        <h5 class="text-xs font-extrabold text-violet-700 uppercase tracking-widest">Forecast Beban</h5>
                         <div class="flex items-center gap-2">
-                          <span class="text-[9px] font-bold bg-violet-50 text-violet-600 px-2 py-0.5 rounded border border-violet-100">IEEE 1459 · Holt (1957)</span>
+                          <span id="fc-load-method-badge" class="text-[9px] font-bold bg-violet-50 text-violet-600 px-2 py-0.5 rounded border border-violet-100">Part F</span>
                           <button onclick="openForecastFullview('load')" class="fc-expand-btn" title="Tampilkan grafik penuh">
                             <i data-lucide="maximize-2" class="w-3 h-3"></i><span>Layar Penuh</span>
                           </button>
@@ -1891,16 +1888,16 @@
                     <!-- Horizon Forecast Table -->
                     <div class="glass-card p-5">
                       <div class="flex items-center gap-2 mb-3">
-                        <span class="text-[9px] font-extrabold bg-cyan-100 text-cyan-700 px-2 py-0.5 rounded">Holt-Winters DES · Holt (1957)</span>
+                        <span class="text-[9px] font-extrabold bg-cyan-100 text-cyan-700 px-2 py-0.5 rounded">GET /api/forecast · Part F</span>
                       </div>
                       <h5 class="text-xs font-extrabold text-slate-700 uppercase tracking-widest mb-3">Tabel Forecast Multi-Horizon</h5>
                       <table class="w-full text-[11px]">
                         <thead><tr class="bg-slate-50 font-extrabold text-slate-600 uppercase tracking-widest text-[9px]">
                           <th class="px-2 py-2 text-left">Horizon</th>
-                          <th class="px-2 py-2 text-right">+30 menit</th>
                           <th class="px-2 py-2 text-right">+1 jam</th>
                           <th class="px-2 py-2 text-right">+2 jam</th>
                           <th class="px-2 py-2 text-right">+4 jam</th>
+                          <th class="px-2 py-2 text-right">+24 jam</th>
                         </tr></thead>
                         <tbody>
                           <tr class="border-t border-slate-100">
@@ -1911,7 +1908,7 @@
                             <td id="fc-t-4h"  class="px-2 py-2 text-right font-mono font-bold text-slate-700">-</td>
                           </tr>
                           <tr class="border-t border-slate-100">
-                            <td class="px-2 py-2 font-extrabold text-violet-600">±CI 95%</td>
+                            <td class="px-2 py-2 font-extrabold text-violet-600">Band P10–P90</td>
                             <td id="fc-t-30m-ci" class="px-2 py-2 text-right font-mono text-[10px] text-slate-400">-</td>
                             <td id="fc-t-1h-ci"  class="px-2 py-2 text-right font-mono text-[10px] text-slate-400">-</td>
                             <td id="fc-t-2h-ci"  class="px-2 py-2 text-right font-mono text-[10px] text-slate-400">-</td>
@@ -1925,7 +1922,7 @@
                             <td id="fc-l-4h"  class="px-2 py-2 text-right font-mono font-bold text-slate-700">-</td>
                           </tr>
                           <tr class="border-t border-slate-100">
-                            <td class="px-2 py-2 font-extrabold text-cyan-500">±CI 95%</td>
+                            <td class="px-2 py-2 font-extrabold text-cyan-500">Band P10–P90</td>
                             <td id="fc-l-30m-ci" class="px-2 py-2 text-right font-mono text-[10px] text-slate-400">-</td>
                             <td id="fc-l-1h-ci"  class="px-2 py-2 text-right font-mono text-[10px] text-slate-400">-</td>
                             <td id="fc-l-2h-ci"  class="px-2 py-2 text-right font-mono text-[10px] text-slate-400">-</td>
@@ -1933,13 +1930,13 @@
                           </tr>
                         </tbody>
                       </table>
-                      <div class="mt-3 text-[9px] text-slate-400 font-bold">CI 95% = ±1.96·σ·√(1+(h−1)·β²) · Holt (1957) Oper.Res.</div>
+                      <div class="mt-3 text-[9px] text-slate-400 font-bold">Band P10–P90 = kalibrasi residual empiris saat backtest (ml/forecast_models.py) — bukan rumus varians analitik.</div>
                     </div>
 
                     <!-- Accuracy Metrics -->
                     <div class="glass-card p-5">
                       <div class="flex items-center gap-2 mb-3">
-                        <span class="text-[9px] font-extrabold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded">ISO 13528 · Brown (1959)</span>
+                        <span class="text-[9px] font-extrabold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded">Backtest holdout 7 hari (Part F)</span>
                       </div>
                       <h5 class="text-xs font-extrabold text-slate-700 uppercase tracking-widest mb-3">Metrik Akurasi Forecasting</h5>
 
@@ -2039,12 +2036,9 @@
                   <div class="glass-card p-4">
                     <div class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest mb-2">Referensi · Alg.0 Realtime Forecasting</div>
                     <div class="flex flex-wrap gap-1.5">
-                      <span class="text-[9px] font-bold bg-cyan-50 text-cyan-700 px-2 py-0.5 rounded border border-cyan-100">Holt (1957) Oper.Res. 5(6):522–527</span>
-                      <span class="text-[9px] font-bold bg-cyan-50 text-cyan-700 px-2 py-0.5 rounded border border-cyan-100">Brown (1959) Statistical Forecasting</span>
-                      <span class="text-[9px] font-bold bg-blue-50 text-blue-600 px-2 py-0.5 rounded border border-blue-100">Box-Jenkins (1976) Time Series</span>
-                      <span class="text-[9px] font-bold bg-blue-50 text-blue-600 px-2 py-0.5 rounded border border-blue-100">IEEE 1459:2010 Power Measurement</span>
-                      <span class="text-[9px] font-bold bg-slate-50 text-slate-600 px-2 py-0.5 rounded border border-slate-200">IEC 61000-4-30:2015 Monitoring</span>
-                      <span class="text-[9px] font-bold bg-slate-50 text-slate-600 px-2 py-0.5 rounded border border-slate-200">ISO 13528:2022 Statistical Methods</span>
+                      <span class="text-[9px] font-bold bg-cyan-50 text-cyan-700 px-2 py-0.5 rounded border border-cyan-100">SHIELD Stage 2 Part F — server/forecast_job.py</span>
+                      <span class="text-[9px] font-bold bg-blue-50 text-blue-600 px-2 py-0.5 rounded border border-blue-100">Model: Seasonal-Naive / GBM-kalender / Polinomial-kalender (dipilih per MAPE backtest)</span>
+                      <span class="text-[9px] font-bold bg-slate-50 text-slate-600 px-2 py-0.5 rounded border border-slate-200">Suhu hotspot: baseline ΔT sehat AKTIF (Part B), bukan model time-series terpisah</span>
                       <span class="text-[9px] font-bold bg-orange-50 text-orange-600 px-2 py-0.5 rounded border border-orange-100">IEC 62271-100:2024 R_contact</span>
                     </div>
                   </div>
@@ -7085,90 +7079,120 @@
         // ─── ALG.6: OLS (IEEE 90-2006) ───────────────────────────────
 
         // ═══════════════════════════════════════════════════════════════
-        // ALG.0: REALTIME FORECASTING — Holt-Winters Double Exp. Smoothing
-        // Ref: Holt (1957) Oper.Res. 5(6):522–527  ·  Brown (1959)
-        //      Box-Jenkins (1976) Time Series Analysis
-        //      IEEE 1459:2010  ·  IEC 61000-4-30:2015  ·  ISO 13528:2022
+        // ALG.0: REALTIME FORECASTING — SHIELD Stage 2 Part F
+        // GET /api/forecast (server/forecast_job.py) -- beban dari model
+        // seasonal_naive/gbm_calendar/poly_calendar AKTIF per trafo+fasa,
+        // suhu hotspot dari baseline ΔT sehat AKTIF (Part B).
         // ═══════════════════════════════════════════════════════════════
 
-        function computeHoltWinters(series, timestamps, alpha=0.30, beta=0.10) {
-            const n = series.length;
-            if (n < 4) return null;
+        // ── REAL FORECAST (SHIELD Stage 2 Part F) ───────────────────────
+        // Dulu tab ini memakai Holt-Winters DES yang dihitung di browser dari
+        // buffer data yang baru saja terlihat (tanpa backtest, tanpa validasi) --
+        // diganti total (2026-10-15) dengan fetch ke GET /api/forecast, yang
+        // membaca hasil server/forecast_job.py: forecast beban dari model
+        // seasonal_naive/gbm_calendar/poly_calendar AKTIF (dipilih berdasarkan
+        // MAPE backtest 7 hari saat training, ml/train_load_forecast.py), dan
+        // suhu hotspot dari model baseline ΔT sehat AKTIF (Part B) pada beban
+        // yang diprediksi. Lihat juga GET /api/ml/models untuk metrics model.
+        const _FC_FORECAST_TYPES = ['seasonal_naive', 'gbm_calendar', 'poly_calendar'];
+        const _FC_BASELINE_TYPES = ['physics_quadratic', 'physics_rc', 'ml_gbm', 'hybrid'];
 
-            // Determine average sampling interval (ms)
-            let avgStepMs = 60000; // default 1 min
-            if (timestamps && timestamps.length === n && n >= 2) {
-                const deltas = [];
-                for (let i = 1; i < Math.min(n, 30); i++) {
-                    const dt = timestamps[i] - timestamps[i-1];
-                    if (dt > 0 && dt < 86400000) deltas.push(dt); // ignore gaps > 24hr
+        function _fcElemMax(arrays) {
+            // arrays: list of (possibly empty) number[] of EQUAL intended length --
+            // elementwise max across whichever arrays actually have a value at i.
+            const len = Math.max(0, ...arrays.map(a => a ? a.length : 0));
+            const out = new Array(len).fill(null);
+            for (let i = 0; i < len; i++) {
+                let best = null;
+                for (const arr of arrays) {
+                    if (!arr || arr[i] == null) continue;
+                    if (best === null || arr[i] > best) best = arr[i];
                 }
-                if (deltas.length) avgStepMs = deltas.reduce((a,b)=>a+b)/deltas.length;
+                out[i] = best;
             }
+            return out;
+        }
 
-            // Forecast horizons: +30min, +1hr, +2hr, +4hr expressed as #steps
-            const horizonMs = [30*60000, 60*60000, 120*60000, 240*60000];
-            const hSteps = horizonMs.map(h => Math.max(1, Math.round(h / avgStepMs)));
+        function _fcBuildSeriesObject(points, valueKey, p10Key, p90Key) {
+            // `points`: array of real forecast rows for ONE phase (ordered by
+            // target_ts ascending). Returns null kalau tidak ada titik sama sekali.
+            if (!points || !points.length) return null;
+            const allFc = points.map(p => p[valueKey]);
+            const p10   = points.map(p => p[p10Key]);
+            const p90   = points.map(p => p[p90Key]);
+            const targetTs = points.map(p => new Date(p.target_ts).getTime());
+            return { allFc, p10, p90, targetTs, avgStepMs: 3600000 };
+        }
 
-            // ── Initialization (Holt 1957 §3: seed L₀ and T₀)
-            let L = series[0];
-            let T = (series[Math.min(3, n-1)] - series[0]) / Math.min(3, n-1);
-
-            const fitted = [L];
-            const Lvec = [L], Tvec = [T];
-
-            // ── Forward smoothing
-            for (let i = 1; i < n; i++) {
-                const L_new = alpha * series[i] + (1-alpha)*(L+T);
-                const T_new = beta  * (L_new - L) + (1-beta)*T;
-                L = L_new; T = T_new;
-                fitted.push(L + T); // 1-step ahead fitted value
-                Lvec.push(L); Tvec.push(T);
+        function _fcMergePhaseSeries(perPhase, valueKey, p10Key, p90Key) {
+            // Pilih fasa dengan nilai TERTINGGI pada titik +1 jam sebagai "fasa
+            // terburuk" representatif (konsisten dengan konvensi Math.max(R,S,T)
+            // yang sudah dipakai di tab lain) -- tapi kurva yang ditampilkan
+            // adalah max elementwise ANTAR fasa yang punya forecast aktif, bukan
+            // hanya satu fasa, supaya tetap mencerminkan kondisi terburuk di tiap jam.
+            const seriesByPhase = {};
+            let worstPhase = null, worstFirst = -Infinity;
+            for (const ph of ['R','S','T']) {
+                const s = _fcBuildSeriesObject(perPhase[ph] && perPhase[ph].points, valueKey, p10Key, p90Key);
+                if (!s) continue;
+                seriesByPhase[ph] = s;
+                const first = s.allFc[0];
+                if (first != null && first > worstFirst) { worstFirst = first; worstPhase = ph; }
             }
+            if (!worstPhase) return null;
+            const allArr = Object.values(seriesByPhase);
+            return {
+                allFc: _fcElemMax(allArr.map(s => s.allFc)),
+                p10:   _fcElemMax(allArr.map(s => s.p10)),
+                p90:   _fcElemMax(allArr.map(s => s.p90)),
+                targetTs: seriesByPhase[worstPhase].targetTs,
+                avgStepMs: 3600000,
+                worstPhase,
+            };
+        }
 
-            // ── h-step forecasts (Brown's extended form)
-            const maxH = Math.max(...hSteps);
-            const allFc = Array.from({length: maxH}, (_, h) => L + (h+1)*T);
-            const pointFc = hSteps.map(h => L + h*T);
+        async function _fcFetchForecastAndModels(trafo) {
+            const [fcData, modelsData] = await Promise.all([
+                _agingFetchJson(`/forecast?trafo=${trafo}&horizon=24h`),
+                _agingFetchJson(`/ml/models?trafo=${trafo}`),
+            ]);
+            return { fcData, modelsData };
+        }
 
-            // ── Residuals (skip first 3 warmup pts — ISO 13528 §6.2)
-            const warmup = Math.min(3, Math.floor(n*0.1));
-            const residuals = series.slice(warmup).map((v,i) => v - fitted[i+warmup]);
-            const sigma = Math.sqrt(residuals.reduce((s,r)=>s+r*r,0) / residuals.length);
+        function _fcActiveModelFor(modelsData, phase, types) {
+            if (!modelsData || !modelsData.rows) return null;
+            return modelsData.rows.find(r => r.phase === phase && r.is_active && types.includes(r.model_type)) || null;
+        }
 
-            // ── 95% CI for h-step forecast: σ_h = σ·√(Σ_{j=0}^{h-1} cⱼ²)
-            // where c₀=1, cⱼ = 1+(j)·β (Holt 1957 variance propagation)
-            const ci95 = hSteps.map((h, i) => {
-                const varFactor = Array.from({length:h}, (_,j)=>Math.pow(1+j*beta,2)).reduce((a,b)=>a+b,0);
-                const se = sigma * Math.sqrt(varFactor);
-                const f = pointFc[i];
-                return { f, upper: f+1.96*se, lower: f-1.96*se, se };
-            });
-
-            // ── Accuracy: train/test split at 80% (Box-Jenkins hold-out)
-            const split = Math.max(warmup+3, Math.floor(n*0.80));
-            const y_tst = series.slice(split);
-            const f_tst = fitted.slice(split);
-
-            let MAE=0, RMSE=0, MAPE=0, R2=0;
-            if (y_tst.length >= 2) {
-                const r_tst = y_tst.map((v,i) => v - f_tst[i]);
-                const yM    = y_tst.reduce((a,b)=>a+b)/y_tst.length;
-                MAE  = r_tst.reduce((s,r)=>s+Math.abs(r),0) / r_tst.length;
-                RMSE = Math.sqrt(r_tst.reduce((s,r)=>s+r*r,0) / r_tst.length);
-                MAPE = r_tst.reduce((s,r,i)=>s+Math.abs(r)/Math.max(Math.abs(y_tst[i]),0.1),0) / r_tst.length * 100;
-                const SS_res = r_tst.reduce((s,r)=>s+r*r,0);
-                const SS_tot = y_tst.reduce((s,v)=>s+(v-yM)**2,0);
-                R2   = SS_tot > 0 ? Math.max(0, 1-SS_res/SS_tot) : 0;
-            } else {
-                MAE  = residuals.reduce((s,r)=>s+Math.abs(r),0) / residuals.length;
-                RMSE = sigma;
-                MAPE = residuals.reduce((s,r,i)=>s+Math.abs(r)/Math.max(Math.abs(series[i+warmup]),0.1),0)/residuals.length*100;
+        function _fcBuildFcObject(mergedSeries, historicalSeries, metricsInfo, kind) {
+            // `kind`: 'load' (metrics = {mape, pinball_loss, n_backtest} dari
+            // ml_models forecasting) atau 'temp' (metrics = {mae, r2, n} dari
+            // ml_models baseline Part B). Bentuk objek DISAMAKAN dengan field
+            // yang dipakai downstream (chart/sim-modal/fullscreen) supaya kode
+            // itu tidak perlu diubah -- yang berubah hanya ISI nilainya, SEMUA
+            // dari data real (atau null/'—' kalau memang tidak tersedia, TIDAK
+            // ditebak).
+            if (!mergedSeries) return null;
+            const n = historicalSeries.length;
+            const fitted = historicalSeries.slice(); // tidak ada rekonstruksi in-sample tersimpan -- jujur: samakan dgn aktual
+            let MAE = null, RMSE = null, MAPE = null, R2 = null, accuracy = null, nBacktest = null;
+            if (metricsInfo) {
+                if (kind === 'load') {
+                    MAPE = metricsInfo.mape != null ? metricsInfo.mape : null;
+                    nBacktest = metricsInfo.n_backtest != null ? metricsInfo.n_backtest : null;
+                    accuracy = MAPE != null ? Math.max(0, Math.min(100, 100 - MAPE)) : null;
+                } else {
+                    MAE = metricsInfo.mae != null ? metricsInfo.mae : null;
+                    R2  = metricsInfo.r2  != null ? metricsInfo.r2  : null;
+                    accuracy = R2 != null ? Math.max(0, Math.min(100, R2 * 100)) : null;
+                }
             }
-            const accuracy = Math.max(0, Math.min(100, 100-MAPE));
-
-            return { L, T, fitted, Lvec, Tvec, allFc, pointFc, ci95, sigma,
-                     MAE, RMSE, MAPE, R2, accuracy, n, avgStepMs, hSteps, horizonMs };
+            return {
+                L: historicalSeries.length ? historicalSeries[historicalSeries.length-1] : 0, T: 0, // fallback saja (lihat _simMdStep)
+                fitted, allFc: mergedSeries.allFc, p10: mergedSeries.p10, p90: mergedSeries.p90,
+                sigma: null, MAE, RMSE, MAPE, R2, accuracy, n, nBacktest,
+                avgStepMs: mergedSeries.avgStepMs, worstPhase: mergedSeries.worstPhase,
+            };
         }
 
         // ── FORECAST TIME FILTER ──────────────────────────────────────
@@ -7241,12 +7265,13 @@
             ];
             const nullPad   = Array(n).fill(null);
             const nullPadH  = Array(fc.allFc.length).fill(null);
-            const varF      = h => Array.from({length:h+1},(_,j)=>Math.pow(1+j*0.10,2)).reduce((a,b)=>a+b,0);
             const c1 = isTemp ? '#ef4444' : '#7c3aed';
             const c2 = isTemp ? 'rgba(239,68,68,0.4)'  : 'rgba(124,58,237,0.4)';
             const c3 = isTemp ? '#dc2626' : '#6d28d9';
             const c4 = isTemp ? 'rgba(239,68,68,0.18)' : 'rgba(124,58,237,0.18)';
             const c5 = isTemp ? 'rgba(239,68,68,0.06)' : 'rgba(124,58,237,0.06)';
+            // P10/P90 real dari kalibrasi residual empiris saat backtest (bukan
+            // rumus varians Holt/Brown) -- lihat ml/forecast_models.py.
             const datasets = [
                 { label:isTemp?'Historis Suhu':'Historis Beban', data:[...series.slice(-n),...nullPadH],
                   borderColor:c1, borderWidth:2, fill:false, pointRadius:0, tension:0.3, spanGaps:false },
@@ -7254,11 +7279,11 @@
                   borderColor:c2, borderWidth:1.5, borderDash:[3,3], fill:false, pointRadius:0, tension:0.3, spanGaps:false },
                 { label:'Forecast', data:[...nullPad,...fc.allFc],
                   borderColor:c3, borderWidth:2.5, borderDash:[7,3], fill:false, pointRadius:0, tension:0.2, spanGaps:false },
-                { label:'CI 95% Upper',
-                  data:[...nullPad,...fc.allFc.map((f,h)=>f+1.96*fc.sigma*Math.sqrt(varF(h)))],
+                { label:'P90 (upper)',
+                  data:[...nullPad,...fc.p90],
                   borderColor:c4, borderWidth:1, fill:'+1', backgroundColor:c5, pointRadius:0, tension:0.2, spanGaps:false },
-                { label:'CI 95% Lower',
-                  data:[...nullPad,...fc.allFc.map((f,h)=>f-1.96*fc.sigma*Math.sqrt(varF(h)))],
+                { label:'P10 (lower)',
+                  data:[...nullPad,...fc.p10],
                   borderColor:c4, borderWidth:1, fill:false, pointRadius:0, tension:0.2, spanGaps:false }
             ];
 
@@ -7281,7 +7306,7 @@
         }
 
                 // ── ALG.0: Main run function (called inside runMLAnalysis) ────
-        function runForecastAlg(hasTempData, hasBebanData, td, bd) {
+        async function runForecastAlg(hasTempData, hasBebanData, td, bd) {
             // ─ Gather temperature series
             let tempSeries=[], tempTs=[], tempSrc='';
             if (firestoreLogs.length >= 5) {
@@ -7320,9 +7345,29 @@
                 loadSrc    = 'ION8650 sesaat';
             }
 
-            // ─ Compute forecasts
-            const fcTemp = tempSeries.length >= 4 ? computeHoltWinters(tempSeries, tempTs) : null;
-            const fcLoad = loadSeries.length >= 4 ? computeHoltWinters(loadSeries, loadTs) : null;
+            // ─ Fetch REAL forecast (SHIELD Stage 2 Part F) -- lihat
+            // _fcFetchForecastAndModels: GET /api/forecast (server/forecast_job.py,
+            // model AKTIF per trafo+fasa) + GET /api/ml/models (metrics backtest).
+            // Ini mengganti TOTAL perhitungan Holt-Winters di browser yang lama.
+            const T = parseInt(selectedTrafo);
+            const { fcData, modelsData } = await _fcFetchForecastAndModels(T);
+
+            let fcTemp = null, fcLoad = null, loadMethod = null;
+            if (fcData && fcData.phases) {
+                const mergedLoad = _fcMergePhaseSeries(fcData.phases, 'load_p50_a', 'load_p10_a', 'load_p90_a');
+                const mergedTemp = _fcMergePhaseSeries(fcData.phases, 't_hot_pred_c', 't_hot_pred_c', 't_hot_pred_c');
+                let loadMetrics = null, tempMetrics = null;
+                if (mergedLoad && mergedLoad.worstPhase) {
+                    const m = _fcActiveModelFor(modelsData, mergedLoad.worstPhase, _FC_FORECAST_TYPES);
+                    if (m) { loadMetrics = m.metrics; loadMethod = m.model_type; }
+                }
+                if (mergedTemp && mergedTemp.worstPhase) {
+                    const m = _fcActiveModelFor(modelsData, mergedTemp.worstPhase, _FC_BASELINE_TYPES);
+                    if (m) tempMetrics = m.metrics;
+                }
+                fcLoad = (mergedLoad && loadSeries.length) ? _fcBuildFcObject(mergedLoad, loadSeries, loadMetrics, 'load') : null;
+                fcTemp = (mergedTemp && tempSeries.length) ? _fcBuildFcObject(mergedTemp, tempSeries, tempMetrics, 'temp') : null;
+            }
 
             const src = tempSrc || loadSrc;
             const nPts = Math.max(tempSeries.length, loadSeries.length);
@@ -7330,160 +7375,198 @@
             // ─ Update status bar
             setText_id('fc-data-src', src||'Tidak ada data');
             setText_id('fc-n-pts', nPts.toString());
+            setText_id('fc-step-min', '1 jam/titik (forecast)');
+            const methodLabel = loadMethod
+                ? { seasonal_naive:'Seasonal-Naive', gbm_calendar:'GBM-Kalender', poly_calendar:'Polinomial-Kalender' }[loadMethod] || loadMethod
+                : 'belum ada model forecasting aktif';
+            setText_id('fc-method-badge', methodLabel + (fcLoad && fcLoad.worstPhase ? ` (fasa ${fcLoad.worstPhase})` : ''));
+            setText_id('fc-temp-method-badge', 'Baseline Part B' + (fcTemp && fcTemp.worstPhase ? ` (fasa ${fcTemp.worstPhase})` : ''));
+            setText_id('fc-load-method-badge', methodLabel);
             const now = new Date().toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
             setText_id('fc-last-update-tab', now);
             setText_id('ml-last-update', 'Update: ' + now);
 
+            // Indeks jam-ke-depan untuk tabel multi-horizon: allFc[0] = +1 jam.
+            const H_IDX = { '30m':0, '1h':1, '2h':3, '4h':23 }; // key lama dipertahankan sbg ID elemen, nilainya +1h/+2h/+4h/+24h
+            const bandStr = (fc, h) => {
+                if (!fc || fc.p10[h] == null || fc.p90[h] == null) return '—';
+                return '±' + ((fc.p90[h] - fc.p10[h]) / 2).toFixed(fc === fcTemp ? 1 : 0);
+            };
+
             if (fcTemp) {
-                const avgMin = (fcTemp.avgStepMs/60000).toFixed(1);
-                setText_id('fc-step-min', avgMin + ' mnt/sample');
+                const h1 = fcTemp.allFc[0]; // +1 jam
+                setText_id('fc-temp-1h', h1 != null ? h1.toFixed(1) + ' °C' : '—');
+                setText_id('fc-temp-1h-ci', bandStr(fcTemp, 0));
+                setText_id('fc-acc-temp', fcTemp.accuracy != null ? fcTemp.accuracy.toFixed(1) + '%' : '—');
+                setText_id('fc-rmse-temp', fcTemp.MAE != null ? fcTemp.MAE.toFixed(2) + '°C' : '—');
 
-                // KPI
-                const f1h = fcTemp.ci95[1]; // +1hr index
-                setText_id('fc-temp-1h', f1h.f.toFixed(1) + ' °C');
-                setText_id('fc-temp-1h-ci', '±' + f1h.se.toFixed(1));
-                setText_id('fc-acc-temp', fcTemp.accuracy.toFixed(1) + '%');
-                setText_id('fc-rmse-temp', fcTemp.RMSE.toFixed(2) + '°C');
-
-                // Trend badge
-                const trendTemp = fcTemp.T;
+                // Trend badge dari selisih +1h vs +4h real (bukan parameter smoothing)
                 const tBadge = document.getElementById('fc-temp-trend-badge');
-                if (tBadge) {
-                    const lbl = trendTemp > 0.05 ? '↑ Naik ' + (trendTemp*60).toFixed(2)+'°C/jam'
-                             : trendTemp < -0.05 ? '↓ Turun '+ Math.abs(trendTemp*60).toFixed(2)+'°C/jam'
+                if (tBadge && fcTemp.allFc[0] != null && fcTemp.allFc[3] != null) {
+                    const dPerH = (fcTemp.allFc[3] - fcTemp.allFc[0]) / 3;
+                    const lbl = dPerH > 0.1 ? '↑ Naik ' + dPerH.toFixed(2)+'°C/jam'
+                             : dPerH < -0.1 ? '↓ Turun '+ Math.abs(dPerH).toFixed(2)+'°C/jam'
                              : '→ Stabil';
-                    const cls = trendTemp > 0.1 ? 'bg-red-100 text-red-700' : trendTemp < -0.1 ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700';
+                    const cls = dPerH > 0.3 ? 'bg-red-100 text-red-700' : dPerH < -0.3 ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700';
                     tBadge.textContent = lbl;
                     tBadge.className = `mt-2 text-[9px] font-extrabold px-2 py-0.5 rounded-full inline-block ${cls}`;
-                }
+                } else if (tBadge) { tBadge.textContent = '—'; }
 
-                // Acc badge
                 const accTBadge = document.getElementById('fc-acc-temp-badge');
                 if (accTBadge) {
-                    accTBadge.textContent = fcTemp.accuracy>=90?'✓ Sangat Akurat':fcTemp.accuracy>=75?'◎ Cukup Akurat':'⚠ Perlu lebih data';
-                    accTBadge.className = `mt-2 text-[9px] font-extrabold px-2 py-0.5 rounded-full inline-block ${fcTemp.accuracy>=90?'bg-emerald-100 text-emerald-700':fcTemp.accuracy>=75?'bg-amber-100 text-amber-700':'bg-red-100 text-red-700'}`;
+                    if (fcTemp.accuracy != null) {
+                        accTBadge.textContent = fcTemp.accuracy>=90?'✓ Sangat Andal':fcTemp.accuracy>=75?'◎ Cukup Andal':'⚠ R² rendah';
+                        accTBadge.className = `mt-2 text-[9px] font-extrabold px-2 py-0.5 rounded-full inline-block ${fcTemp.accuracy>=90?'bg-emerald-100 text-emerald-700':fcTemp.accuracy>=75?'bg-amber-100 text-amber-700':'bg-red-100 text-red-700'}`;
+                    } else { accTBadge.textContent = '⚠ Baseline belum aktif'; accTBadge.className = 'mt-2 text-[9px] font-extrabold px-2 py-0.5 rounded-full inline-block bg-slate-100 text-slate-500'; }
                 }
 
-                // Horizon table
-                const lblH = ['-30m','-1h','-2h','-4h'];
-                fcTemp.ci95.forEach((ci,i) => {
-                    const pIds = ['fc-t-30m','fc-t-1h','fc-t-2h','fc-t-4h'];
-                    const cIds = ['fc-t-30m-ci','fc-t-1h-ci','fc-t-2h-ci','fc-t-4h-ci'];
-                    setText_id(pIds[i], ci.f.toFixed(1));
-                    setText_id(cIds[i], '±'+ci.se.toFixed(1));
+                const pIds = ['fc-t-30m','fc-t-1h','fc-t-2h','fc-t-4h'];
+                const cIds = ['fc-t-30m-ci','fc-t-1h-ci','fc-t-2h-ci','fc-t-4h-ci'];
+                Object.values(H_IDX).forEach((h,i) => {
+                    const v = fcTemp.allFc[h];
+                    setText_id(pIds[i], v != null ? v.toFixed(1) : '—');
+                    setText_id(cIds[i], bandStr(fcTemp, h));
                 });
 
-                // Full accuracy
-                setText_id('fc-mae-temp',  fcTemp.MAE.toFixed(2));
-                setText_id('fc-rmse-temp-full', fcTemp.RMSE.toFixed(2));
-                setText_id('fc-mape-temp', fcTemp.MAPE.toFixed(2)+'%');
-                setText_id('fc-r2-temp',   fcTemp.R2.toFixed(3));
-                setText_id('fc-acc-temp-pct', fcTemp.accuracy.toFixed(1)+'%');
+                setText_id('fc-mae-temp',  fcTemp.MAE  != null ? fcTemp.MAE.toFixed(2)  : '—');
+                setText_id('fc-rmse-temp-full', '—'); // tidak dihitung untuk model baseline (lihat ml/models.py compute_metrics)
+                setText_id('fc-mape-temp', '—'); // idem
+                setText_id('fc-r2-temp',   fcTemp.R2 != null ? fcTemp.R2.toFixed(3) : '—');
+                setText_id('fc-acc-temp-pct', fcTemp.accuracy != null ? fcTemp.accuracy.toFixed(1)+'%' : '—');
                 const accTBar = document.getElementById('fc-acc-temp-bar');
-                if (accTBar) {
+                if (accTBar && fcTemp.accuracy != null) {
                     accTBar.style.width = fcTemp.accuracy.toFixed(0)+'%';
                     accTBar.className = `h-2 rounded-full transition-all ${fcTemp.accuracy>=90?'bg-emerald-400':fcTemp.accuracy>=75?'bg-amber-400':'bg-red-400'}`;
                 }
 
-                // Interpretation
-                setText_id('fc-temp-interp', `Holt-Winters DES: L=${fcTemp.L.toFixed(2)}°C, T=${fcTemp.T.toFixed(4)}°C/step (α=0.30, β=0.10). Forecast +1hr=${f1h.f.toFixed(1)}°C ±${f1h.se.toFixed(2)}°C (95%CI). Akurasi: ${fcTemp.accuracy.toFixed(1)}% (MAPE=${fcTemp.MAPE.toFixed(2)}%, RMSE=${fcTemp.RMSE.toFixed(2)}°C, R²=${fcTemp.R2.toFixed(3)}). N=${fcTemp.n} titik data.`);
+                setText_id('fc-temp-interp', h1 != null
+                    ? `Baseline ΔT sehat AKTIF (Part B, fasa ${fcTemp.worstPhase}) pada beban yang diprediksi. Forecast +1 jam = ${h1.toFixed(1)}°C. R² baseline = ${fcTemp.R2 != null ? fcTemp.R2.toFixed(3) : '—'}, MAE = ${fcTemp.MAE != null ? fcTemp.MAE.toFixed(2)+'°C' : '—'} (data validasi training).`
+                    : 'Belum ada model baseline AKTIF untuk fasa manapun pada trafo ini -- forecast suhu tidak tersedia.');
 
                 const _dTemp = document.getElementById('kpi-desc-temp-1h');
-                if (_dTemp) {
-                    const _v = f1h.f;
-                    _dTemp.textContent = _v > 80 ? `⚠ Kritis: diprediksi ${_v.toFixed(1)}°C — melewati batas IEC 60076-2 (80°C). Aktifkan pendingin tambahan dan kurangi beban segera.` : _v > 70 ? `Perhatian: menuju ${_v.toFixed(1)}°C. Periksa sistem pendingin dan pantau tren beban. Ambang batas perhatian 70°C.` : `Aman: diprediksi ${_v.toFixed(1)}°C — dalam batas normal operasi (<70°C). Tidak diperlukan tindakan khusus.`;
-                    _dTemp.className = `text-[9px] mt-2 pt-2 border-t leading-relaxed ${_v > 80 ? 'text-red-600 border-red-100' : _v > 70 ? 'text-amber-600 border-amber-100' : 'text-emerald-600 border-emerald-100'}`;
+                if (_dTemp && h1 != null) {
+                    _dTemp.textContent = h1 > 80 ? `⚠ Kritis: diprediksi ${h1.toFixed(1)}°C — melewati batas IEC 60076-2 (80°C). Aktifkan pendingin tambahan dan kurangi beban segera.` : h1 > 70 ? `Perhatian: menuju ${h1.toFixed(1)}°C. Periksa sistem pendingin dan pantau tren beban. Ambang batas perhatian 70°C.` : `Aman: diprediksi ${h1.toFixed(1)}°C — dalam batas normal operasi (<70°C). Tidak diperlukan tindakan khusus.`;
+                    _dTemp.className = `text-[9px] mt-2 pt-2 border-t leading-relaxed ${h1 > 80 ? 'text-red-600 border-red-100' : h1 > 70 ? 'text-amber-600 border-amber-100' : 'text-emerald-600 border-emerald-100'}`;
+                } else if (_dTemp) {
+                    _dTemp.textContent = 'Belum ada model baseline AKTIF -- aktifkan model Part B untuk fasa ini dulu.';
+                    _dTemp.className = 'text-[9px] mt-2 pt-2 border-t leading-relaxed text-slate-400 border-slate-100';
                 }
                 const _dAccT = document.getElementById('kpi-desc-acc-temp');
                 if (_dAccT) {
-                    const _a = fcTemp.accuracy;
-                    _dAccT.textContent = _a >= 90 ? `Model sangat akurat (${_a.toFixed(1)}%). Forecast dapat dijadikan acuan penuh untuk keputusan operasional harian.` : _a >= 75 ? `Akurasi cukup (${_a.toFixed(1)}%). Tambahkan lebih banyak data historis agar model semakin andal.` : `Akurasi rendah (${_a.toFixed(1)}%). Jangan andalkan forecast untuk keputusan kritis — periksa kualitas data sensor.`;
-                    _dAccT.className = `text-[9px] mt-2 pt-2 border-t leading-relaxed ${_a >= 90 ? 'text-emerald-600 border-emerald-100' : _a >= 75 ? 'text-amber-600 border-amber-100' : 'text-red-600 border-red-100'}`;
+                    if (fcTemp.accuracy != null) {
+                        const _a = fcTemp.accuracy;
+                        _dAccT.textContent = _a >= 90 ? `Baseline sangat andal (R²=${(fcTemp.R2??0).toFixed(3)}). Forecast dapat dijadikan acuan penuh untuk keputusan operasional harian.` : _a >= 75 ? `Baseline cukup andal (R²=${(fcTemp.R2??0).toFixed(3)}). Tambahkan lebih banyak data historis agar model semakin baik.` : `R² baseline rendah. Jangan andalkan forecast suhu untuk keputusan kritis — periksa kualitas model Part B.`;
+                        _dAccT.className = `text-[9px] mt-2 pt-2 border-t leading-relaxed ${_a >= 90 ? 'text-emerald-600 border-emerald-100' : _a >= 75 ? 'text-amber-600 border-amber-100' : 'text-red-600 border-red-100'}`;
+                    } else {
+                        _dAccT.textContent = 'Belum ada model baseline AKTIF (Part B) untuk fasa manapun pada trafo ini.';
+                        _dAccT.className = 'text-[9px] mt-2 pt-2 border-t leading-relaxed text-slate-400 border-slate-100';
+                    }
                 }
 
-                updateOverviewCard('a0', fcTemp.accuracy.toFixed(1), fcTemp.accuracy>=90?'NORMAL':fcTemp.accuracy>=75?'PERHATIAN':'KRITIS');
+                if (fcTemp.accuracy != null) updateOverviewCard('a0', fcTemp.accuracy.toFixed(1), fcTemp.accuracy>=90?'NORMAL':fcTemp.accuracy>=75?'PERHATIAN':'KRITIS');
+            } else {
+                ['fc-temp-1h','fc-temp-1h-ci','fc-acc-temp','fc-rmse-temp','fc-mae-temp','fc-rmse-temp-full','fc-mape-temp','fc-r2-temp','fc-acc-temp-pct'].forEach(id=>setText_id(id,'—'));
+                setText_id('fc-temp-interp', 'Belum ada model baseline AKTIF (Part B) untuk trafo ini -- lihat GET /api/ml/models.');
             }
 
             if (fcLoad) {
-                const f1h = fcLoad.ci95[1];
-                setText_id('fc-load-1h', f1h.f.toFixed(0) + ' A');
-                setText_id('fc-load-1h-ci', '±' + f1h.se.toFixed(0));
-                setText_id('fc-acc-load', fcLoad.accuracy.toFixed(1) + '%');
-                setText_id('fc-rmse-load', fcLoad.RMSE.toFixed(1) + 'A');
+                const h1 = fcLoad.allFc[0];
+                setText_id('fc-load-1h', h1 != null ? h1.toFixed(0) + ' A' : '—');
+                setText_id('fc-load-1h-ci', bandStr(fcLoad, 0));
+                setText_id('fc-acc-load', fcLoad.accuracy != null ? fcLoad.accuracy.toFixed(1) + '%' : '—');
+                setText_id('fc-rmse-load', fcLoad.nBacktest != null ? fcLoad.nBacktest + ' jam' : '—');
 
-                const trendLoad = fcLoad.T;
                 const lBadge = document.getElementById('fc-load-trend-badge');
-                if (lBadge) {
-                    const lbl = trendLoad > 1 ? '↑ Naik ' + (trendLoad*60).toFixed(0)+'A/jam'
-                             : trendLoad < -1 ? '↓ Turun '+Math.abs(trendLoad*60).toFixed(0)+'A/jam'
+                if (lBadge && fcLoad.allFc[0] != null && fcLoad.allFc[3] != null) {
+                    const dPerH = (fcLoad.allFc[3] - fcLoad.allFc[0]) / 3;
+                    const lbl = dPerH > 1 ? '↑ Naik ' + dPerH.toFixed(0)+'A/jam'
+                             : dPerH < -1 ? '↓ Turun '+Math.abs(dPerH).toFixed(0)+'A/jam'
                              : '→ Stabil';
-                    const cls = trendLoad > 5 ? 'bg-amber-100 text-amber-700' : trendLoad < -5 ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700';
+                    const cls = dPerH > 5 ? 'bg-amber-100 text-amber-700' : dPerH < -5 ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700';
                     lBadge.textContent = lbl;
                     lBadge.className = `mt-2 text-[9px] font-extrabold px-2 py-0.5 rounded-full inline-block ${cls}`;
-                }
+                } else if (lBadge) { lBadge.textContent = '—'; }
+
                 const accLBadge = document.getElementById('fc-acc-load-badge');
                 if (accLBadge) {
-                    accLBadge.textContent = fcLoad.accuracy>=90?'✓ Sangat Akurat':fcLoad.accuracy>=75?'◎ Cukup Akurat':'⚠ Perlu lebih data';
-                    accLBadge.className = `mt-2 text-[9px] font-extrabold px-2 py-0.5 rounded-full inline-block ${fcLoad.accuracy>=90?'bg-emerald-100 text-emerald-700':fcLoad.accuracy>=75?'bg-amber-100 text-amber-700':'bg-red-100 text-red-700'}`;
+                    if (fcLoad.accuracy != null) {
+                        accLBadge.textContent = fcLoad.accuracy>=90?'✓ Sangat Akurat':fcLoad.accuracy>=75?'◎ Cukup Akurat':'⚠ MAPE tinggi';
+                        accLBadge.className = `mt-2 text-[9px] font-extrabold px-2 py-0.5 rounded-full inline-block ${fcLoad.accuracy>=90?'bg-emerald-100 text-emerald-700':fcLoad.accuracy>=75?'bg-amber-100 text-amber-700':'bg-red-100 text-red-700'}`;
+                    } else { accLBadge.textContent = '⚠ Belum ada model aktif'; accLBadge.className = 'mt-2 text-[9px] font-extrabold px-2 py-0.5 rounded-full inline-block bg-slate-100 text-slate-500'; }
                 }
 
-                fcLoad.ci95.forEach((ci,i) => {
-                    const pIds = ['fc-l-30m','fc-l-1h','fc-l-2h','fc-l-4h'];
-                    const cIds = ['fc-l-30m-ci','fc-l-1h-ci','fc-l-2h-ci','fc-l-4h-ci'];
-                    setText_id(pIds[i], ci.f.toFixed(0));
-                    setText_id(cIds[i], '±'+ci.se.toFixed(0));
+                const pIdsL = ['fc-l-30m','fc-l-1h','fc-l-2h','fc-l-4h'];
+                const cIdsL = ['fc-l-30m-ci','fc-l-1h-ci','fc-l-2h-ci','fc-l-4h-ci'];
+                Object.values(H_IDX).forEach((h,i) => {
+                    const v = fcLoad.allFc[h];
+                    setText_id(pIdsL[i], v != null ? v.toFixed(0) : '—');
+                    setText_id(cIdsL[i], bandStr(fcLoad, h));
                 });
 
-                setText_id('fc-mae-load',  fcLoad.MAE.toFixed(2));
-                setText_id('fc-rmse-load-full', fcLoad.RMSE.toFixed(2));
-                setText_id('fc-mape-load', fcLoad.MAPE.toFixed(2)+'%');
-                setText_id('fc-r2-load',   fcLoad.R2.toFixed(3));
-                setText_id('fc-acc-load-pct', fcLoad.accuracy.toFixed(1)+'%');
+                setText_id('fc-mae-load',  '—'); // tidak dihitung untuk model forecasting beban (lihat ml/train_load_forecast.py)
+                setText_id('fc-rmse-load-full', '—');
+                setText_id('fc-mape-load', fcLoad.MAPE != null ? fcLoad.MAPE.toFixed(2)+'%' : '—');
+                setText_id('fc-r2-load',   '—');
+                setText_id('fc-acc-load-pct', fcLoad.accuracy != null ? fcLoad.accuracy.toFixed(1)+'%' : '—');
                 const accLBar = document.getElementById('fc-acc-load-bar');
-                if (accLBar) {
+                if (accLBar && fcLoad.accuracy != null) {
                     accLBar.style.width = fcLoad.accuracy.toFixed(0)+'%';
                     accLBar.className = `h-2 rounded-full transition-all ${fcLoad.accuracy>=90?'bg-violet-400':fcLoad.accuracy>=75?'bg-amber-400':'bg-red-400'}`;
                 }
 
-                setText_id('fc-load-interp', `Holt-Winters DES: L=${fcLoad.L.toFixed(1)}A, T=${fcLoad.T.toFixed(3)}A/step. Forecast +1hr=${f1h.f.toFixed(0)}A ±${f1h.se.toFixed(0)}A (95%CI). Akurasi: ${fcLoad.accuracy.toFixed(1)}% (MAPE=${fcLoad.MAPE.toFixed(2)}%, RMSE=${fcLoad.RMSE.toFixed(2)}A, R²=${fcLoad.R2.toFixed(3)}). N=${fcLoad.n} titik data.`);
+                setText_id('fc-load-interp', h1 != null
+                    ? `Model ${methodLabel} AKTIF (fasa ${fcLoad.worstPhase}, SHIELD Part F). Forecast +1 jam = ${h1.toFixed(0)}A (band P10–P90: ${bandStr(fcLoad,0)}A). Akurasi backtest 7 hari: ${fcLoad.accuracy != null ? fcLoad.accuracy.toFixed(1)+'%' : '—'} (MAPE=${fcLoad.MAPE != null ? fcLoad.MAPE.toFixed(2)+'%' : '—'}, n=${fcLoad.nBacktest ?? '—'}).`
+                    : 'Belum ada model forecasting beban AKTIF untuk trafo ini -- lihat GET /api/ml/models, aktifkan lewat POST /api/ml/models/{id}/activate.');
 
                 const _dLoad = document.getElementById('kpi-desc-load-1h');
-                if (_dLoad) {
-                    const _lv = f1h.f;
-                    const _lpct = ((_lv / (window.I_NOMINAL_TRAFO || 2000)) * 100).toFixed(0);
-                    _dLoad.textContent = _lv > 1800 ? `⚠ Kritis: beban diprediksi ${_lv.toFixed(0)}A (~${_lpct}% kapasitas). Risiko overload — pertimbangkan manuver ke trafo lain.` : _lv > 1400 ? `Perhatian: beban ${_lv.toFixed(0)}A (~${_lpct}% kapasitas). Antisipasi beban puncak, siapkan tindakan pengurangan beban.` : `Normal: beban diprediksi ${_lv.toFixed(0)}A (~${_lpct}% kapasitas). Operasi aman — tidak diperlukan tindakan.`;
-                    _dLoad.className = `text-[9px] mt-2 pt-2 border-t leading-relaxed ${_lv > 1800 ? 'text-red-600 border-red-100' : _lv > 1400 ? 'text-amber-600 border-amber-100' : 'text-emerald-600 border-emerald-100'}`;
+                if (_dLoad && h1 != null) {
+                    const _lpct = ((h1 / (window.I_NOMINAL_TRAFO || 2000)) * 100).toFixed(0);
+                    _dLoad.textContent = h1 > 1800 ? `⚠ Kritis: beban diprediksi ${h1.toFixed(0)}A (~${_lpct}% kapasitas). Risiko overload — pertimbangkan manuver ke trafo lain.` : h1 > 1400 ? `Perhatian: beban ${h1.toFixed(0)}A (~${_lpct}% kapasitas). Antisipasi beban puncak, siapkan tindakan pengurangan beban.` : `Normal: beban diprediksi ${h1.toFixed(0)}A (~${_lpct}% kapasitas). Operasi aman — tidak diperlukan tindakan.`;
+                    _dLoad.className = `text-[9px] mt-2 pt-2 border-t leading-relaxed ${h1 > 1800 ? 'text-red-600 border-red-100' : h1 > 1400 ? 'text-amber-600 border-amber-100' : 'text-emerald-600 border-emerald-100'}`;
+                } else if (_dLoad) {
+                    _dLoad.textContent = 'Belum ada model forecasting beban AKTIF -- aktifkan model Part F untuk fasa ini dulu.';
+                    _dLoad.className = 'text-[9px] mt-2 pt-2 border-t leading-relaxed text-slate-400 border-slate-100';
                 }
                 const _dAccL = document.getElementById('kpi-desc-acc-load');
                 if (_dAccL) {
-                    const _la = fcLoad.accuracy;
-                    _dAccL.textContent = _la >= 90 ? `Model sangat akurat (${_la.toFixed(1)}%). Forecast arus beban dapat diandalkan untuk perencanaan operasional.` : _la >= 75 ? `Akurasi cukup (${_la.toFixed(1)}%). Tingkatkan dengan lebih banyak data log beban dari ION8650.` : `Akurasi rendah (${_la.toFixed(1)}%). Periksa kelengkapan data ION8650 — mungkin ada gap atau outlier pada log beban.`;
-                    _dAccL.className = `text-[9px] mt-2 pt-2 border-t leading-relaxed ${_la >= 90 ? 'text-emerald-600 border-emerald-100' : _la >= 75 ? 'text-amber-600 border-amber-100' : 'text-red-600 border-red-100'}`;
+                    if (fcLoad.accuracy != null) {
+                        const _la = fcLoad.accuracy;
+                        _dAccL.textContent = _la >= 90 ? `Model sangat akurat (${_la.toFixed(1)}%, backtest 7 hari). Forecast arus beban dapat diandalkan untuk perencanaan operasional.` : _la >= 75 ? `Akurasi cukup (${_la.toFixed(1)}%). Pertimbangkan melatih ulang dengan data historis yang lebih panjang.` : `Akurasi rendah (${_la.toFixed(1)}%). Tinjau ulang pemilihan model lewat ml/train_load_forecast.py.`;
+                        _dAccL.className = `text-[9px] mt-2 pt-2 border-t leading-relaxed ${_la >= 90 ? 'text-emerald-600 border-emerald-100' : _la >= 75 ? 'text-amber-600 border-amber-100' : 'text-red-600 border-red-100'}`;
+                    } else {
+                        _dAccL.textContent = 'Belum ada model forecasting beban AKTIF untuk fasa manapun pada trafo ini.';
+                        _dAccL.className = 'text-[9px] mt-2 pt-2 border-t leading-relaxed text-slate-400 border-slate-100';
+                    }
                 }
+            } else {
+                ['fc-load-1h','fc-load-1h-ci','fc-acc-load','fc-rmse-load','fc-mae-load','fc-rmse-load-full','fc-mape-load','fc-r2-load','fc-acc-load-pct'].forEach(id=>setText_id(id,'—'));
+                setText_id('fc-load-interp', 'Belum ada model forecasting beban AKTIF untuk trafo ini -- lihat GET /api/ml/models.');
             }
 
             // ─ Insight A0 (berdasarkan fcTemp dan fcLoad jika tersedia)
-            if (fcTemp) {
-                const accT = fcTemp.accuracy;
+            if (fcTemp || fcLoad) {
+                const accT = fcTemp ? fcTemp.accuracy : null;
                 const accL = fcLoad ? fcLoad.accuracy : null;
-                const a0st = accT >= 90 ? 'NORMAL' : accT >= 75 ? 'PERHATIAN' : 'KRITIS';
-                const forecastStr = `prediksi suhu 1 jam ke depan: <b>${fcTemp.ci95[1].f.toFixed(1)}°C</b>`;
-                const loadStr = fcLoad ? `, beban 1 jam ke depan: <b>${fcLoad.ci95[1].f.toFixed(0)} A</b>` : '';
+                const bestAcc = Math.max(accT ?? -1, accL ?? -1);
+                const a0st = bestAcc < 0 ? 'PERHATIAN' : bestAcc >= 90 ? 'NORMAL' : bestAcc >= 75 ? 'PERHATIAN' : 'KRITIS';
+                const forecastStr = fcTemp && fcTemp.allFc[0] != null ? `prediksi suhu 1 jam ke depan: <b>${fcTemp.allFc[0].toFixed(1)}°C</b>` : 'prediksi suhu tidak tersedia';
+                const loadStr = fcLoad && fcLoad.allFc[0] != null ? `, beban 1 jam ke depan: <b>${fcLoad.allFc[0].toFixed(0)} A</b>` : '';
                 const a0k = a0st === 'NORMAL'
-                    ? `Model Holt-Winters DES menghasilkan akurasi ${accT.toFixed(1)}% untuk suhu${accL ? ` dan ${accL.toFixed(1)}% untuk arus beban` : ''}. Hasil ${forecastStr}${loadStr}. Model sudah stabil dan representatif dengan ${fcTemp.n} titik data. Performa forecasting sangat baik — dapat dijadikan acuan operasional.`
-                    : a0st === 'PERHATIAN'
-                    ? `Akurasi model suhu ${accT.toFixed(1)}%${accL ? ` dan beban ${accL.toFixed(1)}%` : ''} — cukup baik namun belum optimal. Hasil ${forecastStr}${loadStr}. Performa bisa menurun jika data tidak konsisten atau ada outlier. Diperlukan lebih banyak data historis untuk stabilisasi model.`
-                    : `Akurasi model suhu rendah: ${accT.toFixed(1)}%. Prediksi tidak dapat diandalkan sepenuhnya. Hasil ${forecastStr}${loadStr}. Kemungkinan penyebab: data terlalu sedikit, sensor bermasalah, atau fluktuasi kondisi operasi yang ekstrem.`;
+                    ? `Model forecasting Part F (${methodLabel}) + baseline Part B aktif dan terbukti akurat lewat backtest${accT!=null?` (R² suhu=${accT.toFixed(1)}%)`:''}${accL!=null?` (akurasi beban=${accL.toFixed(1)}%)`:''}. Hasil ${forecastStr}${loadStr}.`
+                    : a0st === 'KRITIS'
+                    ? `Akurasi model di bawah ambang andal${accT!=null?` (suhu ${accT.toFixed(1)}%)`:''}${accL!=null?` (beban ${accL.toFixed(1)}%)`:''}. Hasil ${forecastStr}${loadStr}. Jangan jadikan acuan keputusan kritis.`
+                    : `Sebagian model forecasting belum aktif atau akurasinya belum optimal. Hasil ${forecastStr}${loadStr}. Lihat GET /api/ml/models untuk status per fasa.`;
                 const a0r = a0st === 'NORMAL'
-                    ? `Pertahankan koneksi MQTT agar buffer data terus terisi. Tidak diperlukan tindakan khusus. Gunakan nilai forecast untuk antisipasi beban puncak dan pengaturan pendingin.`
-                    : a0st === 'PERHATIAN'
-                    ? `Pastikan koneksi MQTT stabil dan tidak ada jeda panjang. Periksa apakah ada outlier data yang mengganggu model. Akurasi akan meningkat seiring bertambahnya data historis yang konsisten.`
-                    : `Periksa kondisi sensor suhu (kalibrasi, koneksi). Pastikan data MQTT mengalir tanpa gangguan. Jangan gunakan hasil forecast untuk keputusan kritis sampai akurasi ≥75%. Prioritaskan perbaikan koneksi sensor.`;
+                    ? `Pertahankan cron forecast_job.py berjalan tiap jam. Gunakan nilai forecast untuk antisipasi beban puncak dan pengaturan pendingin.`
+                    : `Lengkapi/latih ulang model yang belum aktif (ml/train_load_forecast.py untuk Part F, ml/train_baseline.py untuk Part B), lalu aktifkan lewat POST /api/ml/models/{id}/activate.`;
                 setInsight('a0-insight', a0st, a0k, a0r);
+            } else {
+                setInsight('a0-insight', 'PERHATIAN',
+                    'Belum ada model forecasting (Part F) atau baseline (Part B) AKTIF untuk trafo ini.',
+                    'Latih dan aktifkan model lewat ml/train_load_forecast.py / ml/train_baseline.py, lalu POST /api/ml/models/{id}/activate.');
             }
 
-            // ─ Dulfur integration status
-            const T = parseInt(selectedTrafo);
+            // ─ Dulfur integration status (T sudah dideklarasikan di atas)
             const rcAll = getValidatedRContactData(T);
             const dulfurDiv = document.getElementById('fc-dulfur-status');
             if (dulfurDiv) {
@@ -7523,15 +7606,15 @@
             if (fcLoad) _lastFcLoadData = { fc: fcLoad, series: loadSeries, ts: loadTs };
             // Capture ALG.0 summary data for Executive Summary
             if (_exSumData) {
-                if (fcTemp && fcTemp.forecasts && fcTemp.forecasts.length) {
-                    _exSumData.fc_temp_1h = fcTemp.forecasts[0].f;
-                    _exSumData.fc_alarm = fcTemp.forecasts[0].f > 75;
+                if (fcTemp && fcTemp.allFc[0] != null) {
+                    _exSumData.fc_temp_1h = fcTemp.allFc[0];
+                    _exSumData.fc_alarm = fcTemp.allFc[0] > 75;
                     _exSumData.fc_accuracy = fcTemp.accuracy;
                 }
-                if (fcLoad && fcLoad.forecasts && fcLoad.forecasts.length) {
-                    _exSumData.fc_load_1h = fcLoad.forecasts[0].f;
+                if (fcLoad && fcLoad.allFc[0] != null) {
+                    _exSumData.fc_load_1h = fcLoad.allFc[0];
                 }
-                _exSumData.fc_trend_ok = !(fcTemp && fcTemp.forecasts && fcTemp.forecasts.length && fcTemp.forecasts[0].f > 75);
+                _exSumData.fc_trend_ok = !(fcTemp && fcTemp.allFc[0] != null && fcTemp.allFc[0] > 75);
             }
 
             // ─ Render charts (respects current filter period)
@@ -7557,7 +7640,7 @@
             mlCharts['fc-temp'] = new Chart(ctx, {
                 type:'line', data:{ labels:allLbls, datasets },
                 options:{ responsive:true, maintainAspectRatio:false,
-                    plugins:{ legend:{ position:'top', labels:{ font:{size:9,weight:'bold'}, usePointStyle:true, filter:l=>l.text!=='CI 95% Lower' }}},
+                    plugins:{ legend:{ position:'top', labels:{ font:{size:9,weight:'bold'}, usePointStyle:true, filter:l=>l.text!=='P10 (lower)' }}},
                     scales:{ x:{ ticks:{ font:{size:8}, maxTicksLimit:tk.maxTicksLimit, maxRotation:tk.maxRotation }},
                              y:{ ticks:{ font:{size:9}, callback:v=>v.toFixed(0)+'°C' }, grid:{ color:'#f1f5f9' }}}}
             });
@@ -7577,7 +7660,7 @@
             mlCharts['fc-load'] = new Chart(ctx, {
                 type:'line', data:{ labels:allLbls, datasets },
                 options:{ responsive:true, maintainAspectRatio:false,
-                    plugins:{ legend:{ position:'top', labels:{ font:{size:9,weight:'bold'}, usePointStyle:true, filter:l=>l.text!=='CI 95% Lower' }}},
+                    plugins:{ legend:{ position:'top', labels:{ font:{size:9,weight:'bold'}, usePointStyle:true, filter:l=>l.text!=='P10 (lower)' }}},
                     scales:{ x:{ ticks:{ font:{size:8}, maxTicksLimit:tk.maxTicksLimit, maxRotation:tk.maxRotation }},
                              y:{ ticks:{ font:{size:9}, callback:v=>v.toFixed(0)+'A' }, grid:{ color:'#f1f5f9' }}}}
             });
@@ -7601,8 +7684,8 @@
             sm.total   = sm.totalH + sm.totalFc;
             const isTemp = type === 'temp';
             document.getElementById('fc-sim-md-title').textContent =
-                isTemp ? 'Simulasi Forecast Suhu — Holt-Winters DES'
-                       : 'Simulasi Forecast Beban — Holt-Winters DES';
+                isTemp ? 'Simulasi Forecast Suhu — Baseline ΔT Sehat (Part B)'
+                       : 'Simulasi Forecast Beban — ' + (data.fc.worstPhase ? ('Model Aktif Fasa ' + data.fc.worstPhase) : 'Part F');
             const iconEl = document.getElementById('fc-sim-md-icon');
             iconEl.textContent = isTemp ? '🌡️' : '⚡';
             iconEl.style.background = isTemp
@@ -7614,10 +7697,23 @@
             document.getElementById('fc-sim-md-nh').textContent   = sm.totalH;
             document.getElementById('fc-sim-md-nf').textContent   = sm.totalFc;
             document.getElementById('fc-sim-md-nt').textContent   = sm.total;
-            ['fc-sim-md-time','fc-sim-md-fc','fc-sim-md-act','fc-sim-md-err',
-             'fc-sim-md-mae','fc-sim-md-rmse','fc-sim-md-mape','fc-sim-md-acc'].forEach(id=>{
+            ['fc-sim-md-time','fc-sim-md-fc','fc-sim-md-act','fc-sim-md-err'].forEach(id=>{
                 const el=document.getElementById(id); if(el) el.textContent='—';
             });
+            // Badge akurasi diisi dari metrik backtest REAL (ml_models.metrics),
+            // bukan dihitung ulang saat replay -- '—' kalau belum tersedia.
+            const simDec = isTemp ? 1 : 0;
+            const simU   = isTemp ? '°C' : 'A';
+            document.getElementById('fc-sim-md-mae').textContent  = data.fc.MAE  != null ? data.fc.MAE.toFixed(simDec)+simU : '—';
+            document.getElementById('fc-sim-md-rmse').textContent = data.fc.RMSE != null ? data.fc.RMSE.toFixed(simDec)+simU : '—';
+            document.getElementById('fc-sim-md-mape').textContent = data.fc.MAPE != null ? data.fc.MAPE.toFixed(2)+'%' : '—';
+            const simAccEl = document.getElementById('fc-sim-md-acc');
+            if (simAccEl) {
+                if (data.fc.accuracy != null) {
+                    simAccEl.textContent = data.fc.accuracy.toFixed(1)+'%';
+                    simAccEl.className = `font-mono font-bold ${data.fc.accuracy>=90?'text-emerald-400':data.fc.accuracy>=75?'text-amber-400':'text-red-400'}`;
+                } else { simAccEl.textContent = '—'; simAccEl.className = 'font-mono font-bold text-white/30'; }
+            }
             document.getElementById('fc-sim-md-log').innerHTML='';
             document.getElementById('fc-sim-md-status').textContent='Siap';
             const fcColor  = isTemp ? '#10b981' : '#f59e0b';
@@ -7653,9 +7749,9 @@
             const fmt    = t => new Date(t).toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'});
             const allLbls = [...ts.map(fmt),...fc.allFc.map((_,h)=>fmt(lastTs+(h+1)*fc.avgStepMs))];
             const fullFcLine = [...fc.fitted,...fc.allFc];
-            const varF  = h => Array.from({length:h+1},(_,j)=>Math.pow(1+j*0.10,2)).reduce((a,b)=>a+b,0);
-            const ciUp  = [...Array(totalH).fill(null),...fc.allFc.map((f,h)=>f+1.96*fc.sigma*Math.sqrt(varF(h)))];
-            const ciLow = [...Array(totalH).fill(null),...fc.allFc.map((f,h)=>f-1.96*fc.sigma*Math.sqrt(varF(h)))];
+            // P10/P90 real dari kalibrasi residual empiris backtest (bukan rumus varians).
+            const ciUp  = [...Array(totalH).fill(null),...fc.p90];
+            const ciLow = [...Array(totalH).fill(null),...fc.p10];
             const ctx = document.getElementById('fc-sim-md-canvas');
             sm.chart = new Chart(ctx, {
                 type:'line',
@@ -7663,10 +7759,10 @@
                     { label:'Model Forecast', data:[...fullFcLine],
                       borderColor:cFc, borderWidth:2, borderDash:[6,3],
                       fill:false, pointRadius:0, tension:0.3, spanGaps:true, order:2 },
-                    { label:'CI 95% Upper', data:ciUp,
+                    { label:'P90 (upper)', data:ciUp,
                       borderColor:cCI, borderWidth:1, fill:'+1', backgroundColor:cCI,
                       pointRadius:0, tension:0.2, spanGaps:false, order:4 },
-                    { label:'CI 95% Lower', data:ciLow,
+                    { label:'P10 (lower)', data:ciLow,
                       borderColor:cCI, borderWidth:1, fill:false,
                       pointRadius:0, tension:0.2, spanGaps:false, order:4 },
                     { label:'Data Aktual', data:Array(total).fill(null),
@@ -7689,7 +7785,7 @@
                     plugins:{
                         legend:{ position:'top', labels:{ font:{size:10,weight:'bold'},
                             usePointStyle:true,
-                            filter:l=>!['CI 95% Lower','_errH','_errL','_cursor'].includes(l.text) }},
+                            filter:l=>!['P10 (lower)','_errH','_errL','_cursor'].includes(l.text) }},
                         tooltip:{ mode:'index', intersect:false,
                             callbacks:{ label:ctx=>{
                                 if(ctx.parsed.y===null) return null;
@@ -7735,8 +7831,9 @@
             sm.chart.update('none');
             document.getElementById('fc-sim-md-prog').style.width = '0%';
             document.getElementById('fc-sim-md-step').textContent = '0/'+sm.total;
-            ['fc-sim-md-time','fc-sim-md-fc','fc-sim-md-act','fc-sim-md-err',
-             'fc-sim-md-mae','fc-sim-md-rmse','fc-sim-md-mape','fc-sim-md-acc'].forEach(id=>{
+            // mae/rmse/mape/acc TIDAK direset -- itu metrik backtest statis
+            // (lihat openFcSimModal), bukan hasil replay yang perlu diulang.
+            ['fc-sim-md-time','fc-sim-md-fc','fc-sim-md-act','fc-sim-md-err'].forEach(id=>{
                 const el=document.getElementById(id); if(el) el.textContent='—';
             });
             document.getElementById('fc-sim-md-log').innerHTML='';
@@ -7779,18 +7876,13 @@
             }
             let forecast, actual, time, errorPct = null;
             if (sm.step < totalH) {
+                // Fase historis: tidak ada rekonstruksi model tersimpan untuk
+                // titik lampau ini (lihat _fcBuildFcObject) -- tampilkan HANYA
+                // data aktual, jangan pura-pura ada "forecast" untuk dibandingkan.
                 actual   = series[sm.step];
-                forecast = fc.fitted[sm.step] != null ? fc.fitted[sm.step] : (fc.L + sm.step * fc.T);
+                forecast = actual;
                 time     = ts[sm.step];
                 sm.chart.data.datasets[3].data[sm.step] = actual;
-                if (actual != null) {
-                    sm.chart.data.datasets[4].data[sm.step] = Math.max(forecast, actual);
-                    sm.chart.data.datasets[5].data[sm.step] = Math.min(forecast, actual);
-                    if (actual !== 0) {
-                        errorPct = Math.abs((forecast-actual)/actual)*100;
-                        sm.errors.push({ e:Math.abs(forecast-actual), e2:(forecast-actual)**2, pe:errorPct });
-                    }
-                }
             } else {
                 const fi = sm.step - totalH;
                 forecast = fc.allFc[fi];
@@ -7804,7 +7896,7 @@
             const setT = (id,v) => { const el=document.getElementById(id); if(el) el.textContent=v; };
             setT('fc-sim-md-time', timeStr);
             const fcEl = document.getElementById('fc-sim-md-fc');
-            if (fcEl) fcEl.textContent = forecast.toFixed(dec)+unit;
+            if (fcEl) fcEl.textContent = forecast != null ? forecast.toFixed(dec)+unit : '—';
             setT('fc-sim-md-act', actual!=null ? actual.toFixed(dec)+unit : '— (Prediksi)');
             const errEl = document.getElementById('fc-sim-md-err');
             if (errEl) {
@@ -7815,35 +7907,30 @@
             }
             document.getElementById('fc-sim-md-prog').style.width=((sm.step+1)/total*100).toFixed(1)+'%';
             setT('fc-sim-md-step',(sm.step+1)+'/'+total);
-            if (sm.errors.length > 0) {
-                const n=sm.errors.length;
-                const mae  = sm.errors.reduce((s,e)=>s+e.e,0)/n;
-                const rmse = Math.sqrt(sm.errors.reduce((s,e)=>s+e.e2,0)/n);
-                const mape = sm.errors.reduce((s,e)=>s+e.pe,0)/n;
-                const acc  = Math.max(0,100-mape);
-                setT('fc-sim-md-mae',  mae.toFixed(dec)+unit);
-                setT('fc-sim-md-rmse', rmse.toFixed(dec)+unit);
-                setT('fc-sim-md-mape', mape.toFixed(2)+'%');
-                const accEl=document.getElementById('fc-sim-md-acc');
-                if(accEl){ accEl.textContent=acc.toFixed(1)+'%';
-                    accEl.className=`font-mono font-bold ${acc>=90?'text-emerald-400':acc>=75?'text-amber-400':'text-red-400'}`; }
-            }
+            // MAE/RMSE/MAPE/akurasi TIDAK dihitung live dari replay (fase historis
+            // di atas tidak punya "forecast" lampau untuk dibandingkan) -- badge ini
+            // diisi SEKALI di openFcSimModal dari metrik backtest real (ml_models.metrics).
             if (actual !== null) {
                 const logEl = document.getElementById('fc-sim-md-log');
                 if (logEl) {
-                    const errCls = errorPct!=null
-                        ?(errorPct<5?'text-emerald-400':errorPct<15?'text-amber-400':'text-red-400')
-                        :'text-white/30';
-                    const status = errorPct==null?'—'
-                        :errorPct<2?'Sangat Akurat':errorPct<5?'Akurat':errorPct<15?'Deviasi':'Error Tinggi';
                     const fcColor = isTemp?'#10b981':'#f59e0b';
                     const row = document.createElement('div');
                     row.className='flex gap-2 text-[8.5px] font-mono border-b border-white/10 py-0.5';
                     row.innerHTML=`<span class="text-white/40 w-12 shrink-0">${timeStr}</span>`
-                        +`<span class="w-14 shrink-0" style="color:${fcColor}">${forecast.toFixed(dec)}${unit}</span>`
                         +`<span class="w-14 shrink-0 text-white/80">${actual.toFixed(dec)}${unit}</span>`
-                        +`<span class="w-12 shrink-0 ${errCls}">${errorPct!=null?errorPct.toFixed(2)+'%':'—'}</span>`
-                        +`<span class="flex-1 text-right ${errCls}">${status}</span>`;
+                        +`<span class="flex-1 text-right text-white/40">Data aktual</span>`;
+                    logEl.prepend(row);
+                    while(logEl.children.length>15) logEl.removeChild(logEl.lastChild);
+                }
+            } else {
+                const logEl = document.getElementById('fc-sim-md-log');
+                if (logEl) {
+                    const fcColor = isTemp?'#10b981':'#f59e0b';
+                    const row = document.createElement('div');
+                    row.className='flex gap-2 text-[8.5px] font-mono border-b border-white/10 py-0.5';
+                    row.innerHTML=`<span class="text-white/40 w-12 shrink-0">${timeStr}</span>`
+                        +`<span class="w-14 shrink-0" style="color:${fcColor}">${forecast != null ? forecast.toFixed(dec)+unit : '—'}</span>`
+                        +`<span class="flex-1 text-right text-white/40">Forecast (P10–P90 di atas)</span>`;
                     logEl.prepend(row);
                     while(logEl.children.length>15) logEl.removeChild(logEl.lastChild);
                 }
@@ -8011,7 +8098,7 @@
             // CHI = indeks kesehatan aset gabungan 0–100 (100 = prima)
             // Sintesis dua analisis realtime yang tersisa di dashboard ini:
             //   1) LNTAI — anomali termal ternormalisasi beban (bobot 70%, indikator kondisi fisik)
-            //   2) Forecast Holt-Winters — keandalan tren jangka pendek (bobot 30%)
+            //   2) Forecast Part F/B — keandalan tren jangka pendek (bobot 30%)
             const lntai = d.lntai;
             const hi_lntai    = lntai != null ? _clampNumber(1 - (lntai.lntai / LNTAI_CFG.scoreMax), 0, 1) : null; // w=0.70
             const hi_forecast = d.fc_accuracy != null ? _clampNumber(d.fc_accuracy / 100, 0, 1)
@@ -8039,7 +8126,7 @@
             const lntaiStatus = lntai == null ? '—' : lntai.level === 'CRITICAL' ? 'CRITICAL' : lntai.level === 'WARNING' ? 'ATTENTION' : 'NORMAL';
             const algoRows = [
                 { alg:'LNTAI', nama:'Load-Normalized Thermal Anomaly Index', nilai: lntai != null ? `${lntai.lntai.toFixed(1)}/40 · ΔT=${lntai.delta_T_real.toFixed(1)}K · hottest phase ${lntai.hottestPhase} · load ${lntai.loading_pct.toFixed(0)}%` : '—', status: lntaiStatus, standar:'IEC 62271-1:2017 §4 · Montsinger/Arrhenius rule', color:'red' },
-                { alg:'Forecast', nama:'Holt-Winters DES (Real-Time)', nilai: d.fc_temp_1h != null ? `${d.fc_temp_1h.toFixed(1)}°C / ${d.fc_load_1h != null ? d.fc_load_1h.toFixed(0) : '—'} A (+1 hour forecast)` : '—', status: d.fc_alarm ? 'ALERT' : (d.fc_trend_ok == null ? '—' : 'NORMAL'), standar:'Holt (1957) Oper.Res. · Box-Jenkins (1976)', color:'cyan' },
+                { alg:'Forecast', nama:'Part F/B Forecast (Real-Time)', nilai: d.fc_temp_1h != null ? `${d.fc_temp_1h.toFixed(1)}°C / ${d.fc_load_1h != null ? d.fc_load_1h.toFixed(0) : '—'} A (+1 hour forecast)` : '—', status: d.fc_alarm ? 'ALERT' : (d.fc_trend_ok == null ? '—' : 'NORMAL'), standar:'SHIELD Stage 2 Part F (GET /api/forecast)', color:'cyan' },
             ];
 
             const statusCfg = {
@@ -8091,7 +8178,7 @@
                       })()
                     : 'The LNTAI score cannot be computed yet — awaiting a valid, time-matched pair of temperature and load readings.';
                 const fcTxt = d.fc_temp_1h != null
-                    ? `The Holt-Winters forecast projects a contact temperature of <b>${d.fc_temp_1h.toFixed(1)}°C</b> and a load of <b>${d.fc_load_1h != null ? d.fc_load_1h.toFixed(0) : '—'} A</b> one hour ahead${d.fc_accuracy != null ? ` (historical model accuracy ${d.fc_accuracy.toFixed(1)}%)` : ''}. ${d.fc_alarm ? 'The trend indicates the temperature threshold may be exceeded — this warrants attention.' : 'The short-term trend is within normal bounds.'}`
+                    ? `The Part F/B forecast projects a contact temperature of <b>${d.fc_temp_1h.toFixed(1)}°C</b> and a load of <b>${d.fc_load_1h != null ? d.fc_load_1h.toFixed(0) : '—'} A</b> one hour ahead${d.fc_accuracy != null ? ` (backtested model accuracy ${d.fc_accuracy.toFixed(1)}%)` : ''}. ${d.fc_alarm ? 'The trend indicates the temperature threshold may be exceeded — this warrants attention.' : 'The short-term trend is within normal bounds.'}`
                     : '';
                 synthesis = [chiTxt, lntaiTxt, fcTxt].filter(Boolean).join(' ');
             }
@@ -8303,7 +8390,7 @@
                   ${[
                     'PLN SKDIR 0520-2.K/DIR/2014','IEC 62271-100:2021','IEC 62271-1:2017',
                     'IEEE C57.91-2011 (Arrhenius)','IEC 60216-1','ISO 31000:2018','ISO 55000:2014',
-                    'Holt (1957)','Box-Jenkins (1976)'
+                    'SHIELD Stage 2 Part F/B'
                   ].map(s=>`<span class="text-[8px] bg-white border border-slate-200 text-slate-500 px-1.5 py-0.5 rounded font-medium">${s}</span>`).join('')}
                 </div>
                 <p class="text-[9px] text-slate-400 mt-2">This Executive Summary is an automated synthesis of the LNTAI (thermal anomaly) analysis and the Real-Time Forecast, both running in parallel. Final operational decisions remain the responsibility of the accountable engineer, per ISO 55000:2014 §6.2.</p>
@@ -8354,11 +8441,11 @@
 
             const isTemp = type === 'temp';
             document.getElementById('fc-fv-title').textContent    = isTemp
-                ? 'Forecast Suhu — Holt-Winters DES'
-                : 'Forecast Beban — Holt-Winters DES';
+                ? 'Forecast Suhu Hotspot — Baseline ΔT Sehat (Part B)'
+                : 'Forecast Beban — ' + (data.fc.worstPhase ? ('Model Aktif Fasa ' + data.fc.worstPhase + ' (Part F)') : 'Part F');
             document.getElementById('fc-fv-subtitle').textContent = isTemp
-                ? 'IEC 61000-4-30 · Box-Jenkins · Sensor Acrel ATP007'
-                : 'IEEE 1459 · Holt (1957) · ION8650 PM Meter';
+                ? 'Dari beban yang diprediksi · Sensor Acrel ATP007'
+                : 'GET /api/forecast · ION8650 PM Meter';
             const iconEl = document.getElementById('fc-fv-icon');
             iconEl.textContent = isTemp ? '🌡️' : '⚡';
             iconEl.style.background = isTemp
@@ -8403,7 +8490,7 @@
                 options: {
                     responsive: true, maintainAspectRatio: false, animation: { duration: 350 },
                     plugins: {
-                        legend: { position:'top', labels:{ font:{size:11,weight:'bold'}, usePointStyle:true, filter:l=>l.text!=='CI 95% Lower' }},
+                        legend: { position:'top', labels:{ font:{size:11,weight:'bold'}, usePointStyle:true, filter:l=>l.text!=='P10 (lower)' }},
                         tooltip: { mode:'index', intersect:false, bodyFont:{size:11}, titleFont:{size:11,weight:'bold'},
                             callbacks:{ label: ctx => ctx.parsed.y===null ? null : ` ${ctx.dataset.label}: ${ctx.parsed.y.toFixed(2)} ${yUnit}` }
                         },
@@ -9449,7 +9536,7 @@
           <div id="fc-fv-icon" class="w-8 h-8 rounded-xl flex items-center justify-center text-base shadow-md">🌡️</div>
           <div>
             <div id="fc-fv-title" class="text-xs font-extrabold text-slate-800 uppercase tracking-wider leading-tight">Forecast Chart</div>
-            <div id="fc-fv-subtitle" class="text-[9px] text-slate-400 font-mono leading-tight">Holt-Winters DES</div>
+            <div id="fc-fv-subtitle" class="text-[9px] text-slate-400 font-mono leading-tight">SHIELD Stage 2 Part F</div>
           </div>
         </div>
 
@@ -9459,9 +9546,9 @@
         <div class="flex items-center gap-1.5 flex-wrap">
           <span class="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mr-0.5">Dataset:</span>
           <button id="fv-toggle-hist"     onclick="toggleFcFvDataset(0)" class="fv-ds-btn" title="Tampil/sembunyikan data historis">Historis</button>
-          <button id="fv-toggle-fitted"   onclick="toggleFcFvDataset(1)" class="fv-ds-btn" title="Tampil/sembunyikan kurva fitted">Fitted</button>
+          <button id="fv-toggle-fitted"   onclick="toggleFcFvDataset(1)" class="fv-ds-btn" title="Tampil/sembunyikan kurva fitted (= data historis, tidak ada rekonstruksi in-sample tersimpan)">Fitted</button>
           <button id="fv-toggle-forecast" onclick="toggleFcFvDataset(2)" class="fv-ds-btn" title="Tampil/sembunyikan garis forecast">Forecast</button>
-          <button id="fv-toggle-ci"       onclick="toggleFcFvDataset(3)" class="fv-ds-btn" title="Tampil/sembunyikan pita CI 95%">CI 95%</button>
+          <button id="fv-toggle-ci"       onclick="toggleFcFvDataset(3)" class="fv-ds-btn" title="Tampil/sembunyikan band P10–P90">Band P10–P90</button>
           <button id="fv-toggle-logfc"    onclick="toggleFcFvDataset(5)" class="fv-ds-btn" title="Garis Log Forecast penuh — model output dari historis hingga masa depan">Log Forecast</button>
         </div>
 
@@ -9517,7 +9604,7 @@
       <!-- ── Footer ── -->
       <div class="bg-white/10 rounded-xl px-4 py-2 flex items-center justify-between gap-3">
         <span id="fc-fv-interp" class="text-[10px] text-white/80 font-bold leading-relaxed">—</span>
-        <span class="text-[9px] text-white/40 font-mono whitespace-nowrap shrink-0">SHIELD ML Engine · Holt-Winters DES</span>
+        <span class="text-[9px] text-white/40 font-mono whitespace-nowrap shrink-0">SHIELD Stage 2 Part F</span>
       </div>
 
     </div>
@@ -9531,7 +9618,7 @@
         <div id="fc-sim-md-icon" class="w-10 h-10 rounded-xl flex items-center justify-center text-xl shrink-0" style="background:linear-gradient(135deg,#fca5a5,#ef4444)">🌡️</div>
         <div>
           <div id="fc-sim-md-title" class="text-sm font-extrabold text-white uppercase tracking-wider">Simulasi Forecast</div>
-          <div class="text-[9px] font-mono" style="color:rgba(255,255,255,0.4)">Holt-Winters DES · Replay animasi grafik forecast vs data aktual real-time</div>
+          <div class="text-[9px] font-mono" style="color:rgba(255,255,255,0.4)">SHIELD Stage 2 Part F · Replay animasi grafik forecast vs data aktual real-time</div>
         </div>
         <button onclick="closeFcSimModal()" title="Tutup (ESC)"
           class="ml-auto px-4 py-2 rounded-lg font-bold text-[10px] text-white transition-colors"
@@ -9717,9 +9804,9 @@
                 ['Kirim / bagikan gambar chart', 'Send or share the chart image'],
                 ['Tutup', 'Close'],
                 ['Tampil/sembunyikan data historis', 'Show or hide historical data'],
-                ['Tampil/sembunyikan kurva fitted', 'Show or hide the fitted curve'],
+                ['Tampil/sembunyikan kurva fitted (= data historis, tidak ada rekonstruksi in-sample tersimpan)', 'Show or hide the fitted curve (= historical data, no stored in-sample reconstruction)'],
                 ['Tampil/sembunyikan garis forecast', 'Show or hide the forecast line'],
-                ['Tampil/sembunyikan pita CI 95%', 'Show or hide the 95% CI band'],
+                ['Tampil/sembunyikan band P10–P90', 'Show or hide the P10–P90 band'],
                 ['Garis Log Forecast penuh', 'Complete forecast log line'],
                 ['Rentang Waktu', 'Time Interval'],
                 ['Semua', 'All'],
