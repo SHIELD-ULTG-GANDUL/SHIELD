@@ -1,0 +1,10 @@
+[Unit]
+Description=Run shield-forecast-job.service hourly (Stage 2 Part F)
+
+[Timer]
+OnCalendar=*-*-* *:05:00
+Persistent=true
+RandomizedDelaySec=60
+
+[Install]
+WantedBy=timers.target

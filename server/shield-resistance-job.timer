@@ -1,0 +1,14 @@
+[Unit]
+Description=Run shield-resistance-job.service weekly (Stage 2 Part D, beta)
+
+[Timer]
+# resistance_job.py always targets the LAST FULLY-COMPLETED ISO week
+# (run_once() computes iso_week_start(today) - 7 days) and is idempotent
+# (ON CONFLICT DO NOTHING), so running Monday morning is safe even if a
+# run is missed and caught up later by Persistent=true.
+OnCalendar=Mon *-*-* 02:00:00
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target

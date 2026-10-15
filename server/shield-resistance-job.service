@@ -1,0 +1,11 @@
+[Unit]
+Description=SHIELD relative contact resistance job (Stage 2 Part D, beta) — one-shot, run by shield-resistance-job.timer
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=shield
+WorkingDirectory=/opt/shield/server
+EnvironmentFile=/opt/shield/server/.env
+ExecStart=/opt/shield/server/venv/bin/python3 resistance_job.py

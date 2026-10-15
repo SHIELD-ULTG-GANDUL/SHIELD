@@ -1,0 +1,10 @@
+[Unit]
+Description=Run shield-aging-job.service daily (Stage 2 Part C)
+
+[Timer]
+OnCalendar=*-*-* 01:15:00
+Persistent=true
+RandomizedDelaySec=120
+
+[Install]
+WantedBy=timers.target

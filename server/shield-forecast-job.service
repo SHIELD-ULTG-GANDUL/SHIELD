@@ -1,0 +1,11 @@
+[Unit]
+Description=SHIELD load/LNTAI forecast job (Stage 2 Part F) — one-shot, run by shield-forecast-job.timer
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=shield
+WorkingDirectory=/opt/shield/server
+EnvironmentFile=/opt/shield/server/.env
+ExecStart=/opt/shield/server/venv/bin/python3 forecast_job.py
