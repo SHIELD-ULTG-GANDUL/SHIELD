@@ -58,6 +58,7 @@ from lntai_worker import (  # noqa: E402
     _PAIRING_TOLERANCE_MINUTES,
     build_sample,
     combined_quality_flags,
+    compute_v3_baseline_overrides,
     insert_result,
     should_compute,
 )
@@ -139,7 +140,17 @@ def backfill(cur, trafo: str, ts_from: datetime, ts_to: datetime, dry_run: bool,
             # v2 `result` di atas HANYA dipakai sebagai input v3 di sini --
             # TIDAK pernah di-INSERT ketika --model-version lntai-v3 dipilih
             # (lihat docstring modul).
-            v3_result = calculator.update_v3(trafo, result, ts.timestamp())
+            #
+            # Bug ditemukan saat go-live (2026-10-15): backfill ini TIDAK
+            # PERNAH memanggil compute_v3_baseline_overrides() -- berbeda
+            # dari lntai_worker.py process_trafo_batch() yang memanggilnya
+            # setiap baris. Akibatnya backfill SELALU memakai fisika legacy
+            # (calibrated=false) walau model ML sudah diaktifkan di
+            # ml_models, sampai baris itu diproses ulang oleh worker
+            # real-time. Diperbaiki dengan memanggil fungsi yang SAMA di
+            # sini, supaya backfill dan worker konsisten.
+            baseline_overrides = compute_v3_baseline_overrides(cur, trafo, ts, result, load_row, calculator.i_rated)
+            v3_result = calculator.update_v3(trafo, result, ts.timestamp(), baseline_overrides=baseline_overrides)
             if not dry_run:
                 insert_result(
                     cur, trafo, ts, calculator.v3_model_version, v3_result, quality_flags, paired,
