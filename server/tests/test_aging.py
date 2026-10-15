@@ -20,10 +20,17 @@ TEST_CFG = {"ea_ev": 0.5, "t_ref_c": 55.0, "max_gap_minutes_for_integration": 60
 
 
 class TestIsConfigured:
-    def test_default_shipped_config_is_not_configured(self):
-        """aging_config.json yang dikirim defaultnya ea_ev/t_ref_c null --
-        lihat TODO(calibration) di file itu."""
-        assert aging.is_configured() is False
+    def test_default_shipped_config_is_configured(self):
+        """aging_config.json yang dikirim (sejak go-live 2026-10-15, lihat
+        docs/STAGE2_FINAL_REPORT.md §6) sudah berisi ea_ev/t_ref_c
+        PROVISIONAL dari literatur umum -- is_configured() hanya mengecek
+        keduanya bukan None, TIDAK peduli apakah angkanya sudah
+        dikonfirmasi riil atau masih provisional (lihat TestGetCalibrationStatus
+        untuk pembedaan provisional vs calibrated)."""
+        assert aging.is_configured() is True
+
+    def test_explicit_not_configured_dict_is_not_configured(self):
+        assert aging.is_configured({"ea_ev": None, "t_ref_c": None}) is False
 
     def test_fully_configured_dict_is_configured(self):
         assert aging.is_configured(TEST_CFG) is True
@@ -40,8 +47,19 @@ class TestGetCalibrationStatus:
     aging_config.json SELALU divalidasi ulang di sini, tidak pernah
     dipercaya apa adanya -- lihat docstring get_calibration_status()."""
 
-    def test_default_shipped_config_is_not_configured(self):
+    def test_default_shipped_config_is_provisional(self):
+        """Sejak go-live 2026-10-15 (docs/STAGE2_FINAL_REPORT.md §6):
+        ea_ev=1.61 (literatur Cu-Al, BUKAN Ag-Cu -- proxy, bukan data asli
+        material kontak PIX-24/EGA CK-2000), t_ref_c=115.0 (IEC 62271-1:2017,
+        batas kontak silver/nickel-plated), status='provisional' dengan
+        ea_source terisi -- jadi get_calibration_status() HARUS melaporkan
+        'provisional', bukan 'calibrated' atau 'not_configured'."""
         result = aging.get_calibration_status()
+        assert result["status"] == "provisional"
+        assert result["ea_source"]  # non-empty citation string
+
+    def test_explicit_not_configured_dict_reports_not_configured(self):
+        result = aging.get_calibration_status({"ea_ev": None, "t_ref_c": None})
         assert result == {"status": "not_configured", "ea_source": None}
 
     def test_fully_valid_provisional_is_accepted(self):
@@ -96,7 +114,7 @@ class TestCelsiusKelvinConversion:
 
 class TestArrheniusFactor:
     def test_not_configured_returns_none(self):
-        assert aging.arrhenius_factor(80.0) is None
+        assert aging.arrhenius_factor(80.0, {"ea_ev": None, "t_ref_c": None}) is None
 
     def test_f_equals_one_at_reference_temperature(self):
         f = aging.arrhenius_factor(TEST_CFG["t_ref_c"], TEST_CFG)
@@ -119,7 +137,7 @@ class TestArrheniusFactor:
 
 class TestIntegrateEqDays:
     def test_not_configured_returns_status_not_configured(self):
-        result = aging.integrate_eq_days([(0.0, 55.0)])
+        result = aging.integrate_eq_days([(0.0, 55.0)], {"ea_ev": None, "t_ref_c": None})
         assert result["status"] == "not_configured"
 
     def test_empty_samples(self):
