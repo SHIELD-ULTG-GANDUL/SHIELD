@@ -9,39 +9,42 @@ python-dotenv==1.0.1
 
 # T3 — client HTTP untuk ambient_worker.py (Open-Meteo) dan/atau endpoint
 # relay ambient, menggantikan curl manual di langkah audit Fase 0
-httpx==0.27.2
+httpx==0.28.1
 
 # T8 — test suite server/tests/
-pytest==8.3.3
+pytest==9.1.1
 
 # SHIELD Stage 2 Part B — ml_gbm/hybrid (ml/models.py) butuh backend GBM.
 # scikit-learn dipakai SEBAGAI FALLBACK (HistGradientBoostingRegressor) --
 # LightGBM dicoba lebih dulu kalau terpasang (lihat ml/models.py
-# _try_import_gbm_backend()), tapi TIDAK dicantumkan di sini: sandbox
-# pengembangan tidak punya akses internet untuk memverifikasi apakah
-# LightGBM punya wheel yang kompatibel dengan Python 3.14 di server ini
-# (lihat laporan audit Stage 2 kickoff). Coba dulu secara manual di server:
-#   pip install lightgbm
-# kalau berhasil dan ingin dipakai, tambahkan baris versi-nya di sini
-# setelah diverifikasi -- JANGAN ditambah tanpa verifikasi langsung.
-# physics_quadratic dan physics_rc TIDAK butuh baris ini sama sekali.
-scikit-learn==1.5.2
+# _try_import_gbm_backend()). KEDUANYA sekarang terverifikasi bisa
+# dipasang (`pip install`) DAN diimpor di environment Python 3.14.7 ini
+# (2026-10-15) -- caveat lama "sandbox tidak punya akses internet" sudah
+# tidak berlaku, sudah dicoba langsung.
+scikit-learn==1.9.1
+lightgbm==4.7.0
+# CAVEAT (ditemukan saat verifikasi di atas, BUKAN tebakan): lightgbm
+# TERPASANG lewat pip tapi native lib-nya (lib_lightgbm.dylib) gagal
+# dimuat di macOS tanpa `libomp` (OpenMP runtime) terpasang lewat
+# Homebrew (`brew install libomp`) -- gagalnya berupa OSError saat
+# `import lightgbm`, BUKAN ImportError. _try_import_gbm_backend() di
+# ml/models.py sudah diperbaiki untuk menangkap OSError ini juga dan
+# fallback ke scikit-learn, bukan crash -- tapi di SERVER PRODUKSI
+# (kalau Linux, biasanya sudah ada libgomp bawaan OS) hasilnya bisa
+# berbeda. Cek `ml_models.features -> fit_info.backend` setelah training
+# pertama untuk tahu backend mana yang benar-benar terpakai.
 
 # SHIELD Stage 2 Part H — proyeksi degradasi (server/degradation.py) --
-# regresi Bayesian NUMPY SAJA, sesuai task brief ("numpy only"). numpy
-# TIDAK tersedia di sandbox pengembangan ini juga (sama seperti
-# scikit-learn/lightgbm di atas) -- formula diverifikasi manual dengan
-# reimplementasi pure-Python sekali pakai (tidak dikirim ke repo), bukan
-# dijalankan via numpy langsung. degradation.py melempar RuntimeError yang
-# jelas kalau numpy belum terpasang (pola sama dengan
-# _try_import_gbm_backend() Part B) -- is_sufficient_data() dan modul lain
-# TIDAK butuh numpy sama sekali.
-numpy==2.1.3
+# regresi Bayesian NUMPY SAJA, sesuai task brief ("numpy only"). Sekarang
+# terverifikasi terpasang & diimpor -- seluruh test server/tests/
+# test_degradation.py (termasuk yang sebelumnya di-skip) jalan untuk
+# nyata, bukan hanya diverifikasi lewat reimplementasi pure-Python.
+numpy==2.5.4
 
-# CATATAN (Tahap 1, Oktober 2026): versi di atas dipin saat server memakai
-# Python 3.14.4 (lihat audit Fase 0, Q4) — semuanya pure-Python/wheel umum,
-# seharusnya kompatibel, tapi belum sempat diverifikasi `pip install` di
-# environment dengan akses internet (sandbox pengembangan ini tidak
-# punya akses keluar). TODO(verifikasi): jalankan
-# `pip install -r requirements.txt` di server/staging sebelum deploy, dan
-# laporkan kalau ada konflik versi.
+# CATATAN (2026-10-15): seluruh versi di atas sudah diverifikasi LANGSUNG
+# bisa `pip install` DAN diimpor di environment Python 3.14.7 ini (sandbox
+# pengembangan kini punya akses internet keluar -- caveat lama di
+# changelog ini tidak berlaku lagi). TODO(verifikasi) yang MASIH berlaku:
+# jalankan `pip install -r requirements.txt` di server produksi/staging
+# sebelum deploy -- OS/arch server produksi (terutama untuk lightgbm,
+# lihat caveat libomp di atas) belum tentu identik dengan sandbox ini.

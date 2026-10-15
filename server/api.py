@@ -38,6 +38,7 @@ import degradation as dg
 import forecast as fc
 import explain as xp
 import data_quality as dq
+import lntai_vs_aging as lva
 from settings import load_ambient_location_settings, load_api_settings, load_database_settings
 
 import explain_contrib  # noqa: E402 -- ml/explain_contrib.py (kontribusi per-fitur, Part G)
@@ -250,12 +251,20 @@ def lntai_logs(
     limit: int = Query(300, ge=1, le=20000),
     from_: Optional[datetime] = Query(default=None, alias="from"),
     to_: Optional[datetime] = Query(default=None, alias="to"),
+    model_version: Optional[str] = Query(
+        default=None, description="Filter opsional, mis. 'lntai-v3' -- kosong = semua versi (perilaku lama, dipertahankan untuk caller yang sudah ada)."
+    ),
     x_api_key: Optional[str] = Header(default=None, alias="X-API-Key"),
 ):
     """Histori LNTAI v2 dihitung server (T4) untuk satu trafo. Frontend
     memakai ini sebagai sumber UTAMA panel LNTAI; kalkulasi di browser
     (_lntaiStep di index.html) jadi fallback saat endpoint ini tidak
-    terjangkau -- lihat badge "source" di panel LNTAI."""
+    terjangkau -- lihat badge "source" di panel LNTAI.
+
+    `model_version` (Stage 2 Part J2): worker menulis SATU baris v2 DAN
+    SATU baris v3 per tick dengan `ts` yang sama -- tanpa filter ini,
+    rentang waktu campur v2/v3 tidak terurai per model. Opsional dan
+    default None supaya caller lama (panel LNTAI v2) tidak berubah."""
     _check_api_key(x_api_key)
 
     with _pool.connection() as conn, conn.cursor(row_factory=dict_row) as cur:
@@ -269,10 +278,11 @@ def lntai_logs(
             WHERE trafo_id = %s
               AND (%s::timestamptz IS NULL OR ts >= %s)
               AND (%s::timestamptz IS NULL OR ts <= %s)
+              AND (%s::text IS NULL OR model_version = %s)
             ORDER BY ts DESC
             LIMIT %s
             """,
-            (str(trafo), from_, from_, to_, to_, limit),
+            (str(trafo), from_, from_, to_, to_, model_version, model_version, limit),
         )
         rows = cur.fetchall()
 
@@ -285,10 +295,19 @@ def lntai_logs(
 @app.get("/api/lntai-latest")
 def lntai_latest(
     trafo: int = Query(..., ge=2, le=4, description="Nomor trafo: 2, 3, atau 4"),
+    model_version: Optional[str] = Query(
+        default=None, description="Filter opsional, mis. 'lntai-v3' -- kosong = tidak difilter (perilaku lama, dipertahankan untuk caller yang sudah ada)."
+    ),
     x_api_key: Optional[str] = Header(default=None, alias="X-API-Key"),
 ):
-    """Hasil LNTAI v2 TERBARU untuk satu trafo -- dipakai tick realtime
-    panel LNTAI (polling ringan, tidak perlu mengambil histori penuh)."""
+    """Hasil LNTAI TERBARU untuk satu trafo -- dipakai tick realtime
+    panel LNTAI (polling ringan, tidak perlu mengambil histori penuh).
+
+    `model_version` (Stage 2 Part J2): tanpa filter ini, baris v2 dan v3
+    yang ditulis pada `ts` yang sama tidak punya urutan tie-break yang
+    dijamin -- caller yang butuh SPESIFIK v3 (mis. panel J1/J2) HARUS
+    mengisi parameter ini. Opsional dan default None supaya caller lama
+    (panel LNTAI v2) tidak berubah perilakunya."""
     _check_api_key(x_api_key)
 
     with _pool.connection() as conn, conn.cursor(row_factory=dict_row) as cur:
@@ -297,13 +316,15 @@ def lntai_latest(
             SELECT ts, model_version, lntai, level, s_temp, s_delta_t, s_res,
                    hottest_phase, t_contact, t_ambient, ambient_source,
                    delta_t_real, delta_t_pred, residual, z, i_eff_norm,
-                   delta_phase, dab_max, per_phase, quality_flags, paired, error
+                   delta_phase, dab_max, per_phase, quality_flags, paired, error,
+                   baseline_id, calibrated, lntai_rolling_median_30min
             FROM lntai_results
             WHERE trafo_id = %s
+              AND (%s::text IS NULL OR model_version = %s)
             ORDER BY ts DESC
             LIMIT 1
             """,
-            (str(trafo),),
+            (str(trafo), model_version, model_version),
         )
         row = cur.fetchone()
 
@@ -336,13 +357,22 @@ def data_quality_summary(
     terakhir, untuk kartu "Kualitas Data" di dashboard. Dihitung dari kolom
     quality_flags trafo_temperature/trafo_load -- TIDAK menghitung ulang
     aturan data_quality.py di sini, hanya membaca bitmask yang sudah ditulis
-    mqtt_subscriber.py (T5) saat insert."""
+    mqtt_subscriber.py (T5) saat insert.
+
+    `completeness_pct`/`longest_gap_minutes`/`ambient` (Stage 2 Part J3):
+    tambahan ADITIF -- completeness_pct = baris yang benar-benar ada /
+    baris yang SEHARUSNYA ada kalau sampling persis setiap
+    nominal_sample_interval_seconds (data_quality_config.json) tanpa jeda
+    sama sekali; longest_gap_minutes dihitung dari selisih timestamp
+    berurutan (baris yang HILANG SAMA SEKALI, bukan dari bit TIME_GAP di
+    quality_flags -- bit itu menandai satu baris yang terlambat, bukan
+    ukuran jeda itu sendiri)."""
     _check_api_key(x_api_key)
     since = datetime.now(timezone.utc) - timedelta(minutes=window)
 
     with _pool.connection() as conn, conn.cursor(row_factory=dict_row) as cur:
         cur.execute(
-            'SELECT quality_flags FROM trafo_temperature WHERE trafo_id = %s AND "timestamp" >= %s',
+            'SELECT "timestamp", quality_flags FROM trafo_temperature WHERE trafo_id = %s AND "timestamp" >= %s ORDER BY "timestamp" ASC',
             (str(trafo), since),
         )
         temp_rows = cur.fetchall()
@@ -351,12 +381,47 @@ def data_quality_summary(
             (str(trafo), since),
         )
         load_rows = cur.fetchall()
+        cur.execute(
+            'SELECT "timestamp", ok, source FROM ambient_logs WHERE "timestamp" >= %s ORDER BY "timestamp" ASC',
+            (since,),
+        )
+        ambient_rows = cur.fetchall()
+
+    nominal_interval_s = dq.DATA_QUALITY_CONFIG["nominal_sample_interval_seconds"]
+    expected_rows = max(1, int((window * 60) / nominal_interval_s))
+    completeness_pct = min(100.0, round(len(temp_rows) / expected_rows * 100.0, 1))
+
+    longest_gap_minutes = None
+    if len(temp_rows) >= 2:
+        gaps = [
+            (temp_rows[i]["timestamp"] - temp_rows[i - 1]["timestamp"]).total_seconds() / 60.0
+            for i in range(1, len(temp_rows))
+        ]
+        longest_gap_minutes = round(max(gaps), 1)
+
+    ambient_ok_rows = [r for r in ambient_rows if r["ok"]]
+    ambient_longest_gap_minutes = None
+    if len(ambient_ok_rows) >= 2:
+        ambient_gaps = [
+            (ambient_ok_rows[i]["timestamp"] - ambient_ok_rows[i - 1]["timestamp"]).total_seconds() / 60.0
+            for i in range(1, len(ambient_ok_rows))
+        ]
+        ambient_longest_gap_minutes = round(max(ambient_gaps), 1)
+    latest_ambient_source = ambient_ok_rows[-1]["source"] if ambient_ok_rows else None
 
     return {
         "trafo": trafo,
         "window_minutes": window,
         "temperature": {"total_rows": len(temp_rows), "flag_counts": _count_flags(temp_rows)},
         "load": {"total_rows": len(load_rows), "flag_counts": _count_flags(load_rows)},
+        "completeness_pct": completeness_pct,
+        "longest_gap_minutes": longest_gap_minutes,
+        "ambient": {
+            "total_reports": len(ambient_rows),
+            "ok_reports": len(ambient_ok_rows),
+            "latest_source": latest_ambient_source,
+            "longest_gap_minutes": ambient_longest_gap_minutes,
+        },
     }
 
 
@@ -831,6 +896,120 @@ def resistance_relative(
             "fair_max_pct": resistance.RESISTANCE_CONFIG["guidance"]["fair_max_pct"],
             "citation": resistance.GUIDANCE_CITATION,
         },
+    }
+
+
+# =====================================================
+# LNTAI vs AGING FACTOR (Stage 2, Part J2)
+# =====================================================
+
+@app.get("/api/lntai-vs-aging")
+def lntai_vs_aging_endpoint(
+    trafo: Optional[int] = Query(default=None, ge=2, le=4, description="Nomor trafo tunggal: 2, 3, atau 4"),
+    all_trafos: bool = Query(default=False, alias="all", description="true = semua trafo (2,3,4) sekaligus; mengabaikan `trafo` kalau diisi bersamaan"),
+    days: int = Query(
+        default=lva.LNTAI_VS_AGING_CONFIG["daily_days_default"], ge=1,
+        le=lva.LNTAI_VS_AGING_CONFIG["daily_days_max"],
+    ),
+    x_api_key: Optional[str] = Header(default=None, alias="X-API-Key"),
+):
+    """Scatter kuadran (titik TERBARU per fasa per trafo: x=faktor
+    penuaan, y=LNTAI v3) + tren harian 'days' hari terakhir (LNTAI
+    maksimum harian & faktor penuaan rata-rata harian), untuk panel
+    "LNTAI vs Aging Factor" (Part J2). Kuadran dihitung
+    server/lntai_vs_aging.py (fungsi murni, diuji tanpa DB) -- endpoint
+    ini hanya mengambil baris lalu memanggilnya. Titik/hari tanpa data
+    cukup (fasa belum ada baris v3, atau aging belum terkonfigurasi)
+    MUNCUL dengan nilai null / quadrant='unknown', BUKAN dihilangkan --
+    supaya frontend bisa menampilkan empty state yang jelas per titik."""
+    _check_api_key(x_api_key)
+
+    if trafo is None and not all_trafos:
+        raise HTTPException(status_code=400, detail="Provide either `trafo` (2-4) or `all=true`.")
+
+    trafos = [2, 3, 4] if all_trafos else [trafo]
+
+    scatter: list[dict[str, Any]] = []
+    daily: dict[str, dict[str, Any]] = {}
+
+    with _pool.connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+        for t in trafos:
+            t_str = str(t)
+
+            cur.execute(
+                """
+                SELECT per_phase FROM lntai_results
+                WHERE trafo_id = %s AND model_version = 'lntai-v3'
+                ORDER BY ts DESC LIMIT 1
+                """,
+                (t_str,),
+            )
+            lntai_row = cur.fetchone()
+            per_phase_lntai = (lntai_row or {}).get("per_phase") or {}
+
+            cur.execute(
+                """
+                SELECT DISTINCT ON (phase) phase, f_mean
+                FROM aging_daily
+                WHERE trafo = %s
+                ORDER BY phase, date DESC
+                """,
+                (t_str,),
+            )
+            f_mean_by_phase = {r["phase"]: r["f_mean"] for r in cur.fetchall()}
+
+            for p in ("R", "S", "T"):
+                phase_entry = per_phase_lntai.get(p) if per_phase_lntai else None
+                lntai_z = phase_entry.get("z") if phase_entry else None
+                aging_factor = f_mean_by_phase.get(p)
+                scatter.append(lva.build_scatter_point(t_str, p, lntai_z, aging_factor))
+
+            cur.execute(
+                """
+                SELECT date_trunc('day', ts) AS day, MAX(lntai) AS max_lntai
+                FROM lntai_results
+                WHERE trafo_id = %s AND model_version = 'lntai-v3'
+                  AND ts >= now() - (%s::text || ' days')::interval
+                GROUP BY day ORDER BY day ASC
+                """,
+                (t_str, days),
+            )
+            lntai_daily_rows = cur.fetchall()
+
+            cur.execute(
+                """
+                SELECT date, AVG(f_mean) AS mean_aging_factor
+                FROM aging_daily
+                WHERE trafo = %s
+                  AND date >= (now() - (%s::text || ' days')::interval)::date
+                GROUP BY date ORDER BY date ASC
+                """,
+                (t_str, days),
+            )
+            aging_daily_rows = cur.fetchall()
+
+            daily[t_str] = {
+                "lntai": [
+                    {"date": r["day"].date().isoformat(), "max_lntai": r["max_lntai"]}
+                    for r in lntai_daily_rows
+                ],
+                "aging_factor": [
+                    {"date": r["date"].isoformat(), "mean_aging_factor": r["mean_aging_factor"]}
+                    for r in aging_daily_rows
+                ],
+            }
+
+    return {
+        "trafos": trafos,
+        "days": days,
+        "quadrant_splits": {
+            "aging_factor_split": lva.AGING_FACTOR_SPLIT,
+            "lntai_split": lva.LNTAI_SPLIT,
+        },
+        "quadrant_labels": lva.QUADRANT_LABELS,
+        "reading_note": lva.QUADRANT_READING_NOTE,
+        "scatter": scatter,
+        "daily": daily,
     }
 
 

@@ -1,0 +1,10 @@
+{
+  "aging_factor_split": 1.5,
+  "_aging_factor_split_note": "TODO(calibration): batas rendah/tinggi faktor penuaan Arrhenius F(t) untuk klasifikasi kuadran (Part J2) -- default tebakan rekayasa (F=1.5, kira-kira setengah jalan ke 'dua kali lipat laju penuaan' kalau doubling_k=10 di lntai_config.json), BELUM divalidasi dari data degradasi riil. Ganti kapan saja lewat file ini saja -- tidak ada tempat lain yang menyimpan nilai ini.",
+
+  "lntai_split_source": "reuses config.LNTAI_V3_THRESHOLDS['caution']",
+  "_lntai_split_note": "Batas rendah/tinggi LNTAI untuk klasifikasi kuadran SENGAJA TIDAK disimpan sebagai angka terpisah di sini -- dipakai ULANG dari lntai_v3_config.json thresholds.caution (lihat server/lntai_vs_aging.py) supaya 'tinggi' di kuadran ini berarti PERSIS 'Caution' di panel LNTAI v3, bukan angka independen ketiga yang bisa menyimpang dari dua definisi lain.",
+
+  "daily_days_default": 30,
+  "daily_days_max": 180
+}

@@ -238,6 +238,14 @@ def _try_import_gbm_backend() -> tuple[str, Any]:
         return "lightgbm", lightgbm.LGBMRegressor
     except ImportError:
         pass
+    except OSError:
+        # lightgbm TERPASANG (pip install sukses) tapi native lib-nya gagal
+        # dimuat -- paling umum di macOS tanpa libomp (OpenMP runtime)
+        # terpasang lewat Homebrew. Ini BUKAN "tidak terpasang" tapi tetap
+        # harus fallback ke sklearn, bukan crash, karena caller tidak bisa
+        # membedakan "tidak ada" dari "ada tapi rusak" -- keduanya sama saja
+        # tidak bisa dipakai.
+        pass
     try:
         from sklearn.ensemble import HistGradientBoostingRegressor  # type: ignore
         return "sklearn.HistGradientBoostingRegressor", HistGradientBoostingRegressor

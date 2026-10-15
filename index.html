@@ -291,6 +291,15 @@
             </div>
           </div>
 
+          <!-- LNTAI vs Aging Factor (Stage 2, Part J1/J2) -->
+          <div>
+            <div id="menu-aging" onclick="switchPage('aging')"
+              class="sidebar-item flex items-center gap-3 px-4 py-3.5 text-sm font-bold rounded-xl">
+              <i data-lucide="gauge" class="w-5 h-5 shrink-0"></i>
+              <span class="flex-1">LNTAI vs Aging Factor</span>
+            </div>
+          </div>
+
         </nav>
         <div class="p-4 border-t border-white/10">
             <button onclick="reconnectMQTT()" class="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-white/10 text-white text-xs font-bold hover:bg-white/20 transition-all"><i data-lucide="refresh-cw" class="w-4 h-4"></i> Hubungkan Ulang </button>
@@ -1904,6 +1913,293 @@
 
             </div> <!-- end view-ml -->
 
+            <!-- HALAMAN: LNTAI vs AGING FACTOR (Stage 2, Part J1/J2) -->
+            <div id="view-aging" class="hidden space-y-6">
+
+                <!-- Header row: last data time, CB type, data source -->
+                <div class="glass-card p-4 flex items-center justify-between flex-wrap gap-3">
+                    <div class="flex items-center gap-6 flex-wrap text-[11px] font-bold text-slate-500">
+                        <div>Last data: <span id="aging-last-data-time" class="font-mono text-slate-700">—</span> WIB</div>
+                        <div>CB type: <span id="aging-cb-type" class="text-slate-700">—</span></div>
+                    </div>
+                    <span id="aging-data-source-badge" class="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-slate-100 text-slate-500">Data source: —</span>
+                </div>
+
+                <!-- Status banner -->
+                <div id="aging-status-banner" class="hidden glass-card p-4 border-l-4 border-amber-400 bg-amber-50 text-amber-800 text-xs font-bold"></div>
+
+                <!-- 4 KPI cards -->
+                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
+                    <!-- KPI 1: LNTAI score -->
+                    <div class="glass-card p-5">
+                        <div class="flex items-center justify-between mb-2">
+                            <h5 class="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest">LNTAI score</h5>
+                            <span id="aging-kpi-lntai-baseline-badge" class="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-slate-100 text-slate-500">—</span>
+                        </div>
+                        <div id="aging-kpi-lntai-body">
+                            <div class="flex items-baseline gap-2">
+                                <span id="aging-kpi-lntai-value" class="text-3xl font-black text-slate-800">-</span>
+                                <span id="aging-kpi-lntai-level" class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-slate-100 text-slate-500">—</span>
+                            </div>
+                            <p id="aging-kpi-lntai-insight" class="text-[10px] text-slate-500 mt-2 leading-relaxed">—</p>
+                            <div class="relative w-full h-2 bg-slate-100 rounded-full mt-3">
+                                <div id="aging-kpi-lntai-bar" class="h-2 rounded-full bg-emerald-400 transition-all" style="width:0%"></div>
+                            </div>
+                            <div class="flex justify-between text-[8px] text-slate-400 font-bold mt-1">
+                                <span>0</span><span>1.5</span><span>3.0</span><span>5.0</span>
+                            </div>
+                        </div>
+                        <div id="aging-kpi-lntai-empty" class="hidden text-[11px] text-slate-400 font-bold py-4 text-center">No LNTAI v3 data yet for this trafo.</div>
+                    </div>
+
+                    <!-- KPI 2: Thermal aging factor (today) -->
+                    <div class="glass-card p-5">
+                        <div class="flex items-center justify-between mb-2">
+                            <h5 class="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest">Thermal aging factor (today)</h5>
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-slate-200 text-slate-600">Physics · relative</span>
+                        </div>
+                        <div id="aging-kpi-factor-body">
+                            <span id="aging-kpi-factor-value" class="text-3xl font-black text-slate-800">-</span>
+                            <p id="aging-kpi-factor-insight" class="text-[10px] text-slate-500 mt-2 leading-relaxed">Arrhenius acceleration factor vs. a fixed reference temperature — 2.0× means aging twice as fast as reference today.</p>
+                        </div>
+                        <div id="aging-kpi-factor-empty" class="hidden text-[11px] text-slate-400 font-bold py-4 text-center">Activation energy not configured.</div>
+                    </div>
+
+                    <!-- KPI 3: Cumulative equivalent age -->
+                    <div class="glass-card p-5">
+                        <div class="flex items-center justify-between mb-2">
+                            <h5 class="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest">Cumulative equivalent age</h5>
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-slate-200 text-slate-600">Physics · relative</span>
+                        </div>
+                        <div id="aging-kpi-cumage-body">
+                            <span id="aging-kpi-cumage-value" class="text-2xl font-black text-slate-800">-</span>
+                            <p id="aging-kpi-cumage-insight" class="text-[10px] text-slate-500 mt-2 leading-relaxed">—</p>
+                        </div>
+                        <div id="aging-kpi-cumage-empty" class="hidden text-[11px] text-slate-400 font-bold py-4 text-center">Activation energy not configured.</div>
+                    </div>
+
+                    <!-- KPI 4: Relative contact resistance -->
+                    <div class="glass-card p-5">
+                        <div class="flex items-center justify-between mb-2">
+                            <h5 class="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest">Relative contact resistance</h5>
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-orange-100 text-orange-700">Beta</span>
+                        </div>
+                        <div id="aging-kpi-resistance-body">
+                            <span id="aging-kpi-resistance-value" class="text-3xl font-black text-slate-800">-</span>
+                            <p id="aging-kpi-resistance-insight" class="text-[10px] text-slate-500 mt-2 leading-relaxed">—</p>
+                        </div>
+                        <div id="aging-kpi-resistance-empty" class="hidden text-[11px] text-slate-400 font-bold py-4 text-center">No reference / insufficient data.</div>
+                    </div>
+                </div>
+
+                <!-- J2: LNTAI vs Aging Factor quadrant scatter + daily trend -->
+                <div class="glass-card p-6">
+                    <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+                        <h4 class="text-xs font-extrabold text-slate-600 uppercase tracking-widest">LNTAI vs Aging Factor — Quadrant View</h4>
+                        <select id="aging-quadrant-scope" onchange="initAgingPage()" class="text-[10px] font-bold border border-slate-200 rounded-lg px-2 py-1 outline-none">
+                            <option value="selected">Selected trafo only</option>
+                            <option value="all">All trafos</option>
+                        </select>
+                    </div>
+                    <p class="text-[10px] text-slate-500 mb-3 leading-relaxed" id="aging-quadrant-reading-note">Each point is one phase of one trafo: x = thermal aging factor (today), y = LNTAI (residual z-score). Top-right (high aging AND high LNTAI) is the priority case; top-left (high LNTAI at low aging) is worth investigating even though load-driven aging looks normal.</p>
+                    <div class="relative" style="height:320px;">
+                        <canvas id="aging-quadrant-chart"></canvas>
+                    </div>
+                    <div id="aging-quadrant-empty" class="hidden text-[11px] text-slate-400 font-bold py-10 text-center">No data available to plot yet.</div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mt-6">
+                        <div>
+                            <h5 class="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-2">Daily max LNTAI (last 30 days)</h5>
+                            <div class="relative" style="height:180px;">
+                                <canvas id="aging-daily-lntai-chart"></canvas>
+                            </div>
+                            <div id="aging-daily-lntai-empty" class="hidden text-[11px] text-slate-400 font-bold py-8 text-center">No daily LNTAI data in this range.</div>
+                        </div>
+                        <div>
+                            <h5 class="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-2">Daily mean aging factor (last 30 days)</h5>
+                            <div class="relative" style="height:180px;">
+                                <canvas id="aging-daily-factor-chart"></canvas>
+                            </div>
+                            <div id="aging-daily-factor-empty" class="hidden text-[11px] text-slate-400 font-bold py-8 text-center">No daily aging-factor data in this range.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- J2: LNTAI last 7 days + 24h forecast -->
+                <div class="glass-card p-6">
+                    <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+                        <h4 class="text-xs font-extrabold text-slate-600 uppercase tracking-widest">LNTAI — Last 7 Days + 24h Forecast</h4>
+                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-blue-100 text-blue-700">ML forecast</span>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <div class="relative" style="height:300px; min-width:600px;">
+                            <canvas id="aging-forecast-chart"></canvas>
+                        </div>
+                    </div>
+                    <div id="aging-forecast-empty" class="hidden text-[11px] text-slate-400 font-bold py-10 text-center">No measured history or forecast available yet for this trafo.</div>
+                </div>
+
+                <!-- J2: Early warning card -->
+                <div class="glass-card p-6 border-l-4 border-orange-400">
+                    <div class="flex items-center justify-between mb-4">
+                        <h4 class="text-xs font-extrabold text-orange-700 uppercase tracking-widest">Early Warning</h4>
+                        <button onclick="scrollToInspectionForm()" class="text-[10px] font-extrabold px-3 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-all">Log inspection</button>
+                    </div>
+                    <div id="aging-warning-body" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 text-[11px]">
+                        <!-- populated by JS -->
+                    </div>
+                    <div id="aging-warning-empty" class="hidden text-[11px] text-slate-400 font-bold py-6 text-center">No predicted level crossing in the forecast horizon — levels look stable.</div>
+                </div>
+
+                <!-- J3: Why did the score rise? -->
+                <div class="glass-card p-6">
+                    <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+                        <h4 class="text-xs font-extrabold text-slate-600 uppercase tracking-widest">Why Did The Score Rise?</h4>
+                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-purple-100 text-purple-700">Explainability</span>
+                    </div>
+                    <div id="aging-explain-body">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5 text-[11px]">
+                            <div class="bg-slate-50 rounded-lg p-3">
+                                <div class="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Measured hotspot</div>
+                                <div id="aging-explain-measured" class="font-mono font-bold text-slate-700 text-lg">—</div>
+                            </div>
+                            <div class="bg-slate-50 rounded-lg p-3">
+                                <div class="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Predicted healthy</div>
+                                <div id="aging-explain-predicted" class="font-mono font-bold text-slate-700 text-lg">—</div>
+                            </div>
+                            <div class="bg-slate-50 rounded-lg p-3">
+                                <div class="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Unexplained residual</div>
+                                <div id="aging-explain-residual" class="font-mono font-bold text-slate-700 text-lg">—</div>
+                            </div>
+                        </div>
+                        <div class="relative" style="height:160px;">
+                            <canvas id="aging-explain-contrib-chart"></canvas>
+                        </div>
+                        <p id="aging-explain-method" class="text-[10px] text-slate-400 mt-2">—</p>
+                        <div id="aging-explain-cusum" class="hidden mt-3 text-[11px] font-bold text-orange-700 bg-orange-50 rounded-lg p-3"></div>
+                    </div>
+                    <div id="aging-explain-empty" class="hidden text-[11px] text-slate-400 font-bold py-8 text-center">No active baseline model or no data for this phase yet.</div>
+                </div>
+
+                <!-- J3: Per-phase table -->
+                <div class="glass-card p-6">
+                    <h4 class="text-xs font-extrabold text-slate-600 uppercase tracking-widest mb-4">Per-Phase Summary</h4>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-[11px]">
+                            <thead>
+                                <tr class="text-left text-[9px] font-extrabold text-slate-400 uppercase tracking-widest border-b border-slate-200">
+                                    <th class="py-2 pr-4">Phase</th>
+                                    <th class="py-2 pr-4">Hotspot (°C)</th>
+                                    <th class="py-2 pr-4">Current (A)</th>
+                                    <th class="py-2 pr-4">LNTAI</th>
+                                    <th class="py-2 pr-4">R/R_ref</th>
+                                    <th class="py-2 pr-4">Aging factor</th>
+                                </tr>
+                            </thead>
+                            <tbody id="aging-phase-table-body"><!-- populated by JS --></tbody>
+                        </table>
+                    </div>
+                    <p id="aging-phase-relative-sentence" class="text-[10px] text-slate-500 mt-3">—</p>
+                    <div id="aging-phase-table-empty" class="hidden text-[11px] text-slate-400 font-bold py-8 text-center">No data available for any phase yet.</div>
+                </div>
+
+                <!-- J3: Relative resistance trend & degradation projection -->
+                <div class="glass-card p-6">
+                    <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+                        <h4 class="text-xs font-extrabold text-slate-600 uppercase tracking-widest">Relative Resistance Trend & Degradation Projection</h4>
+                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-orange-100 text-orange-700">Beta · Bayesian</span>
+                    </div>
+                    <div class="relative" style="height:260px;">
+                        <canvas id="aging-resistance-trend-chart"></canvas>
+                    </div>
+                    <div id="aging-resistance-trend-empty" class="hidden text-[11px] text-slate-400 font-bold py-10 text-center">No reference / insufficient weekly resistance data yet.</div>
+                    <p id="aging-projection-note" class="text-[10px] text-slate-500 mt-3">—</p>
+                </div>
+
+                <!-- J3: Data quality (7 days) -->
+                <div class="glass-card p-6">
+                    <h4 class="text-xs font-extrabold text-slate-600 uppercase tracking-widest mb-4">Data Quality (7 Days)</h4>
+                    <div id="aging-dq-body" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 text-[11px]">
+                        <!-- populated by JS -->
+                    </div>
+                    <p class="text-[10px] text-slate-400 mt-4">Flagged samples are excluded from LNTAI and aging factor.</p>
+                </div>
+
+                <!-- J3: Model performance & transparency -->
+                <div class="glass-card p-6">
+                    <h4 class="text-xs font-extrabold text-slate-600 uppercase tracking-widest mb-4">Model Performance &amp; Transparency</h4>
+                    <div id="aging-model-perf-body" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 text-[11px]">
+                        <!-- populated by JS -->
+                    </div>
+                    <div id="aging-model-perf-empty" class="hidden text-[11px] text-slate-400 font-bold py-8 text-center">No active baseline model for this phase yet.</div>
+                    <p class="text-[10px] text-slate-400 mt-4">Full model documentation: <code class="bg-slate-100 px-1.5 py-0.5 rounded">docs/MODEL_CARD.md</code> on the server.</p>
+                </div>
+
+                <!-- J3: Log inspection form -->
+                <div id="aging-inspection-form" class="glass-card p-6 border-l-4 border-emerald-400">
+                    <h4 class="text-xs font-extrabold text-emerald-700 uppercase tracking-widest mb-4">Log Inspection</h4>
+                    <form onsubmit="submitInspectionLog(event)" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 text-[11px]">
+                        <div>
+                            <label for="insp-trafo" class="block text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Trafo</label>
+                            <select id="insp-trafo" required class="w-full border border-slate-200 rounded-lg px-3 py-2 outline-none">
+                                <option value="2">Trafo 2</option>
+                                <option value="3">Trafo 3</option>
+                                <option value="4">Trafo 4</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="insp-phase" class="block text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Phase</label>
+                            <select id="insp-phase" class="w-full border border-slate-200 rounded-lg px-3 py-2 outline-none">
+                                <option value="">All phases</option>
+                                <option value="R">R</option>
+                                <option value="S">S</option>
+                                <option value="T">T</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="insp-event-type" class="block text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Event type</label>
+                            <select id="insp-event-type" required onchange="_toggleInspectionResistanceFields()" class="w-full border border-slate-200 rounded-lg px-3 py-2 outline-none">
+                                <option value="inspection">Inspection</option>
+                                <option value="cleaning">Cleaning</option>
+                                <option value="tightening">Tightening</option>
+                                <option value="replacement">Replacement</option>
+                                <option value="resistance_test">Resistance test</option>
+                                <option value="thermovision">Thermovision</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="insp-event-ts" class="block text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Event date/time</label>
+                            <input id="insp-event-ts" type="datetime-local" required class="w-full border border-slate-200 rounded-lg px-3 py-2 outline-none">
+                        </div>
+                        <div id="insp-resistance-field">
+                            <label for="insp-resistance" class="block text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Contact resistance (µΩ)</label>
+                            <input id="insp-resistance" type="number" step="0.01" min="0" class="w-full border border-slate-200 rounded-lg px-3 py-2 outline-none">
+                        </div>
+                        <div id="insp-test-current-field">
+                            <label for="insp-test-current" class="block text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Test current (A)</label>
+                            <input id="insp-test-current" type="number" step="0.1" min="0" class="w-full border border-slate-200 rounded-lg px-3 py-2 outline-none">
+                        </div>
+                        <div class="md:col-span-2 xl:col-span-3">
+                            <label for="insp-notes" class="block text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Notes</label>
+                            <textarea id="insp-notes" rows="2" class="w-full border border-slate-200 rounded-lg px-3 py-2 outline-none"></textarea>
+                        </div>
+                        <div>
+                            <label for="insp-created-by" class="block text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Logged by</label>
+                            <input id="insp-created-by" type="text" required class="w-full border border-slate-200 rounded-lg px-3 py-2 outline-none">
+                        </div>
+                        <div class="flex items-center gap-2 mt-5">
+                            <input id="insp-resets-baseline" type="checkbox" class="w-4 h-4">
+                            <label for="insp-resets-baseline" class="text-[10px] font-bold text-slate-600">This maintenance resets the baseline (flags the frozen reference model for re-calibration)</label>
+                        </div>
+                        <div class="md:col-span-2 xl:col-span-3 flex items-center justify-between mt-2">
+                            <span id="insp-form-status" class="text-[10px] font-bold"></span>
+                            <button type="submit" class="text-[11px] font-extrabold px-5 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-all">Submit</button>
+                        </div>
+                    </form>
+                </div>
+
+            </div> <!-- end view-aging -->
+
         </main>
     </div>
 
@@ -2840,12 +3136,12 @@
             if(document.getElementById(menuId)) {
                 document.getElementById(menuId).classList.add('active');
             }
-            ['dashboard','logger','graphs','ml'].forEach(g => {
+            ['dashboard','logger','graphs','ml','aging'].forEach(g => {
                 _subMenuOpen[g] = (g === page);
                 _applySubMenuState(g);
             });
-            
-            ['dashboard', 'logger', 'graphs', 'ml'].forEach(id => {
+
+            ['dashboard', 'logger', 'graphs', 'ml', 'aging'].forEach(id => {
                 const view = document.getElementById(`view-${id}`);
                 if(view) view.classList.add('hidden');
             });
@@ -2877,6 +3173,9 @@
                 titleEl.textContent = 'Machine Learning Analysis';
                 _mlPendingUpdate = false;
                 initMLPage();
+            } else if (page === 'aging') {
+                titleEl.textContent = 'LNTAI vs Aging Factor';
+                if (typeof initAgingPage === 'function') initAgingPage();
             }
         }
 
@@ -2927,6 +3226,10 @@
                 loadHistoricalLogs();
                 loadBebanLogs();
                 _scheduleMLRealtimeUpdate('pergantian trafo');
+            }
+
+            if (activePage === 'aging' && typeof initAgingPage === 'function') {
+                initAgingPage();
             }
         }
 
@@ -8953,6 +9256,886 @@
                 }
             }
         });
+
+        // ════════════════════════════════════════════════════════════════
+        // LNTAI vs AGING FACTOR (Stage 2, Part J1/J2)
+        // ════════════════════════════════════════════════════════════════
+        // Ambang 1.5/3.0/5.0 di bawah ini HARUS SAMA PERSIS dengan
+        // lntai_v3_config.json thresholds (caution/alert/critical) --
+        // halaman ini TIDAK menghitung LNTAI sendiri (selalu dari server),
+        // jadi ini hanya dipakai untuk pewarnaan/label di sisi tampilan.
+        // Kalau nilai di server diubah, ubah juga di sini.
+        const AGING_PAGE_V3_THRESHOLDS = { caution: 1.5, alert: 3.0, critical: 5.0 };
+
+        function _agingV3LevelOf(z) {
+            const v = Number(z);
+            if (!Number.isFinite(v)) return null;
+            if (v >= AGING_PAGE_V3_THRESHOLDS.critical) return 'Critical';
+            if (v >= AGING_PAGE_V3_THRESHOLDS.alert) return 'Alert';
+            if (v >= AGING_PAGE_V3_THRESHOLDS.caution) return 'Caution';
+            return 'Normal';
+        }
+
+        const _AGING_LEVEL_BADGE_CLASSES = {
+            Normal: 'bg-emerald-100 text-emerald-700',
+            Caution: 'bg-amber-100 text-amber-700',
+            Alert: 'bg-orange-100 text-orange-700',
+            Critical: 'bg-red-200 text-red-800',
+        };
+        const _AGING_LEVEL_BAR_CLASSES = {
+            Normal: 'bg-emerald-400', Caution: 'bg-amber-400', Alert: 'bg-orange-500', Critical: 'bg-red-600',
+        };
+        const _AGING_QUADRANT_COLORS = {
+            healthy: '#10b981', high_stress_normal: '#f59e0b',
+            anomalous_low_stress: '#ef4444', anomalous_high_stress: '#991b1b', unknown: '#94a3b8',
+        };
+
+        async function _agingFetchJson(path) {
+            if (!window.timescaleReady) return null;
+            try {
+                const headers = TIMESCALE_API_KEY ? { 'X-API-Key': TIMESCALE_API_KEY } : {};
+                const res = await fetch(`${TIMESCALE_API_BASE_URL}${path}`, { headers, cache: 'no-store' });
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                return await res.json();
+            } catch (err) {
+                console.warn('[SHIELD Aging]', path, err.message);
+                return null;
+            }
+        }
+
+        function _agingDaysAgoISO(days) {
+            return new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
+        }
+
+        function _agingFmtWib(iso) {
+            if (!iso) return '—';
+            return new Date(iso).toLocaleString('id-ID', {
+                timeZone: 'Asia/Jakarta', hour12: false, day: '2-digit', month: 'short',
+                hour: '2-digit', minute: '2-digit',
+            });
+        }
+
+        let _agingPageBusy = false;
+
+        async function initAgingPage() {
+            if (_agingPageBusy) return;
+            _agingPageBusy = true;
+            try {
+                const trafo = selectedTrafo;
+                const scopeSel = document.getElementById('aging-quadrant-scope');
+                const quadrantScopeQuery = (scopeSel && scopeSel.value === 'all') ? 'all=true' : `trafo=${trafo}`;
+
+                const badge = document.getElementById('aging-data-source-badge');
+                if (badge) badge.textContent = window.timescaleReady ? 'Data source: server' : 'Data source: unavailable';
+
+                const [lntaiJson, agingJson, resJson, quadJson, forecastJson, measuredJson] = await Promise.all([
+                    _agingFetchJson(`/lntai-latest?trafo=${trafo}&model_version=lntai-v3`),
+                    _agingFetchJson(`/aging/latest?trafo=${trafo}`),
+                    _agingFetchJson(`/resistance/relative?trafo=${trafo}&from=${_agingDaysAgoISO(60)}`),
+                    _agingFetchJson(`/lntai-vs-aging?${quadrantScopeQuery}&days=30`),
+                    _agingFetchJson(`/forecast?trafo=${trafo}&horizon=24h`),
+                    _agingFetchJson(`/lntai-logs?trafo=${trafo}&model_version=lntai-v3&from=${_agingDaysAgoISO(7)}&limit=5000`),
+                ]);
+
+                const hottestPhase = (lntaiJson && lntaiJson.row && lntaiJson.row.hottest_phase) || 'R';
+
+                _renderAgingHeader(lntaiJson);
+                _renderAgingStatusBanner(lntaiJson, agingJson, resJson);
+                _renderAgingLntaiKpi(lntaiJson);
+                _renderAgingFactorKpi(agingJson, hottestPhase);
+                _renderAgingCumAgeKpi(agingJson, hottestPhase);
+                _renderAgingResistanceKpi(resJson, hottestPhase);
+                _renderAgingQuadrant(quadJson);
+                _renderAgingDailyCharts(quadJson, trafo);
+                _renderAgingForecastChart(measuredJson, forecastJson, hottestPhase);
+                _renderAgingWarning(forecastJson, hottestPhase);
+
+                // Part J3 -- panel tambahan, butuh fetch sendiri (fasa
+                // terpanas sudah diketahui dari lntaiJson di atas).
+                const [explainJson, bebanJson, degradationJson, dqJson, modelsJson] = await Promise.all([
+                    _agingFetchJson(`/explain/latest?trafo=${trafo}&phase=${hottestPhase}`),
+                    _agingFetchJson(`/beban-logs?trafo=${trafo}&limit=1`),
+                    _agingFetchJson(`/degradation/projection?trafo=${trafo}&phase=${hottestPhase}`),
+                    _agingFetchJson(`/data-quality/summary?trafo=${trafo}&window=10080`),
+                    _agingFetchJson(`/ml/models?trafo=${trafo}`),
+                ]);
+
+                _renderAgingExplain(explainJson);
+                _renderAgingPhaseTable(lntaiJson, bebanJson, resJson, agingJson);
+                _renderAgingResistanceTrend(resJson, degradationJson, hottestPhase);
+                _renderAgingDataQuality(dqJson);
+                _renderAgingModelPerf(modelsJson, hottestPhase, agingJson);
+            } finally {
+                _agingPageBusy = false;
+            }
+        }
+
+        function _renderAgingHeader(lntaiJson) {
+            const row = lntaiJson && lntaiJson.row;
+            const timeEl = document.getElementById('aging-last-data-time');
+            if (timeEl) timeEl.textContent = (row && row.timestamp) ? _agingFmtWib(row.timestamp) : '—';
+            // CB type belum dicatat di mana pun di schema (dicek lewat grep
+            // sebelum implementasi) -- "—" sampai ada sumber data riil,
+            // bukan nilai dikarang.
+            const cbEl = document.getElementById('aging-cb-type');
+            if (cbEl) cbEl.textContent = '—';
+        }
+
+        function _renderAgingStatusBanner(lntaiJson, agingJson, resJson) {
+            const banner = document.getElementById('aging-status-banner');
+            if (!banner) return;
+            const messages = [];
+            const row = lntaiJson && lntaiJson.row;
+            if (row && row.calibrated === false) {
+                messages.push('Baseline not calibrated — LNTAI residual is computed against an uncalibrated legacy physics baseline.');
+            }
+            if (agingJson && agingJson.status === 'not_configured') {
+                messages.push('Activation energy not configured — thermal aging factor and cumulative equivalent age cannot be computed yet.');
+            }
+            const recalRow = ((resJson && resJson.rows) || []).find(r => r.status === 'needs_recalibration' && r.reason);
+            if (recalRow) {
+                messages.push(`Reference baseline ${recalRow.reason}`);
+            }
+            if (!messages.length) {
+                banner.classList.add('hidden');
+                banner.textContent = '';
+            } else {
+                banner.classList.remove('hidden');
+                banner.innerHTML = messages.map(m => `<div>⚠ ${m}</div>`).join('');
+            }
+        }
+
+        function _renderAgingLntaiKpi(lntaiJson) {
+            const body = document.getElementById('aging-kpi-lntai-body');
+            const empty = document.getElementById('aging-kpi-lntai-empty');
+            const row = lntaiJson && lntaiJson.row;
+            if (!row || row.lntai === null || row.lntai === undefined || row.level === 'DATA_INVALID') {
+                if (body) body.classList.add('hidden');
+                if (empty) empty.classList.remove('hidden');
+                return;
+            }
+            if (body) body.classList.remove('hidden');
+            if (empty) empty.classList.add('hidden');
+
+            const z = Number(row.lntai);
+            const level = _agingV3LevelOf(z);
+
+            const valueEl = document.getElementById('aging-kpi-lntai-value');
+            if (valueEl) valueEl.textContent = z.toFixed(2);
+
+            const levelEl = document.getElementById('aging-kpi-lntai-level');
+            if (levelEl) {
+                levelEl.textContent = level || '—';
+                levelEl.className = 'inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold ' +
+                    (_AGING_LEVEL_BADGE_CLASSES[level] || 'bg-slate-100 text-slate-500');
+            }
+
+            const insightEl = document.getElementById('aging-kpi-lntai-insight');
+            if (insightEl) {
+                const hp = row.hottest_phase;
+                const deltaReal = Number(row.delta_t_real);
+                const deltaPred = Number(row.delta_t_pred);
+                if (hp && Number.isFinite(deltaReal) && Number.isFinite(deltaPred)) {
+                    const hotter = deltaReal - deltaPred;
+                    const median30 = Number.isFinite(Number(row.lntai_rolling_median_30min)) ? Number(row.lntai_rolling_median_30min) : z;
+                    insightEl.textContent = `Phase ${hp} is ${hotter.toFixed(1)} °C hotter than the healthy prediction (30-min median LNTAI: ${median30.toFixed(2)}).`;
+                } else {
+                    insightEl.textContent = '—';
+                }
+            }
+
+            const barEl = document.getElementById('aging-kpi-lntai-bar');
+            if (barEl) {
+                const pct = Math.max(0, Math.min(100, (z / AGING_PAGE_V3_THRESHOLDS.critical) * 100));
+                barEl.style.width = pct + '%';
+                barEl.className = 'h-2 rounded-full transition-all ' + (_AGING_LEVEL_BAR_CLASSES[level] || 'bg-slate-300');
+            }
+
+            const badgeEl = document.getElementById('aging-kpi-lntai-baseline-badge');
+            if (badgeEl) {
+                const isMl = typeof row.baseline_id === 'string' && row.baseline_id.startsWith('ml_model:');
+                badgeEl.textContent = isMl ? 'ML baseline' : 'Physics baseline';
+                badgeEl.className = 'inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-extrabold ' +
+                    (isMl ? 'bg-blue-100 text-blue-700' : 'bg-slate-200 text-slate-600');
+            }
+        }
+
+        function _renderAgingFactorKpi(agingJson, hottestPhase) {
+            const body = document.getElementById('aging-kpi-factor-body');
+            const empty = document.getElementById('aging-kpi-factor-empty');
+            if (!agingJson || agingJson.status !== 'ok') {
+                if (body) body.classList.add('hidden');
+                if (empty) {
+                    empty.classList.remove('hidden');
+                    empty.textContent = (agingJson && agingJson.status === 'not_configured')
+                        ? 'Activation energy not configured.' : 'No aging data yet for this trafo.';
+                }
+                return;
+            }
+            const rows = agingJson.rows || [];
+            const row = rows.find(r => r.phase === hottestPhase) || rows[0];
+            if (!row || row.f_mean === null || row.f_mean === undefined) {
+                if (body) body.classList.add('hidden');
+                if (empty) { empty.classList.remove('hidden'); empty.textContent = 'No aging-factor value for this phase yet.'; }
+                return;
+            }
+            if (body) body.classList.remove('hidden');
+            if (empty) empty.classList.add('hidden');
+            document.getElementById('aging-kpi-factor-value').textContent = Number(row.f_mean).toFixed(2) + '×';
+            document.getElementById('aging-kpi-factor-insight').textContent =
+                `Phase ${row.phase}: ${Number(row.f_mean).toFixed(2)}× aging rate vs. reference temperature today` +
+                (row.f_peak != null ? ` (peak ${Number(row.f_peak).toFixed(2)}×).` : '.');
+        }
+
+        function _renderAgingCumAgeKpi(agingJson, hottestPhase) {
+            const body = document.getElementById('aging-kpi-cumage-body');
+            const empty = document.getElementById('aging-kpi-cumage-empty');
+            if (!agingJson || agingJson.status !== 'ok') {
+                if (body) body.classList.add('hidden');
+                if (empty) { empty.classList.remove('hidden'); empty.textContent = 'Activation energy not configured.'; }
+                return;
+            }
+            const rows = agingJson.rows || [];
+            const row = rows.find(r => r.phase === hottestPhase) || rows[0];
+            if (!row || row.eq_days_cum === null || row.eq_days_cum === undefined) {
+                if (body) body.classList.add('hidden');
+                if (empty) { empty.classList.remove('hidden'); empty.textContent = 'No cumulative-age value for this phase yet.'; }
+                return;
+            }
+            if (body) body.classList.remove('hidden');
+            if (empty) empty.classList.add('hidden');
+            const ratio = row.calendar_days ? (row.eq_days_cum / row.calendar_days) : null;
+            document.getElementById('aging-kpi-cumage-value').textContent = Number(row.eq_days_cum).toFixed(1) + ' eq-days';
+            document.getElementById('aging-kpi-cumage-insight').textContent =
+                `Phase ${row.phase}: ${Number(row.calendar_days).toFixed(0)} calendar days since reset` +
+                (ratio !== null ? ` — ratio ${ratio.toFixed(2)}×.` : '.') +
+                ` Reset source: ${row.reset_source || '—'}.`;
+        }
+
+        function _renderAgingResistanceKpi(resJson, hottestPhase) {
+            const body = document.getElementById('aging-kpi-resistance-body');
+            const empty = document.getElementById('aging-kpi-resistance-empty');
+            const rows = (resJson && Array.isArray(resJson.rows)) ? resJson.rows : [];
+            const candidates = rows.filter(r => r.phase === hottestPhase);
+            const pool = candidates.length ? candidates : rows;
+            const latest = pool.length ? pool.reduce((a, b) => (a.week_start > b.week_start ? a : b)) : null;
+
+            if (!latest || latest.status !== 'ok' || latest.r_ratio_median_pct === null || latest.r_ratio_median_pct === undefined) {
+                if (body) body.classList.add('hidden');
+                if (empty) {
+                    empty.classList.remove('hidden');
+                    empty.textContent = latest ? (latest.reason || latest.status) : 'No reference / insufficient data.';
+                }
+                return;
+            }
+            if (body) body.classList.remove('hidden');
+            if (empty) empty.classList.add('hidden');
+            document.getElementById('aging-kpi-resistance-value').textContent = Number(latest.r_ratio_median_pct).toFixed(1) + '%';
+            document.getElementById('aging-kpi-resistance-insight').textContent =
+                `Phase ${latest.phase}, week of ${latest.week_start} — IQR [${Number(latest.r_ratio_q1_pct).toFixed(0)}–${Number(latest.r_ratio_q3_pct).toFixed(0)}]%, ` +
+                `${latest.guidance_label || ''} (${latest.n_samples_valid}/${latest.n_samples_total} steady-load samples).`;
+        }
+
+        function _renderAgingQuadrant(quadJson) {
+            destroyChart('aging-quadrant');
+            const canvas = document.getElementById('aging-quadrant-chart');
+            const empty = document.getElementById('aging-quadrant-empty');
+            const noteEl = document.getElementById('aging-quadrant-reading-note');
+            if (!canvas) return;
+
+            if (noteEl && quadJson && quadJson.reading_note) noteEl.textContent = quadJson.reading_note;
+
+            const points = (quadJson && Array.isArray(quadJson.scatter)) ? quadJson.scatter : [];
+            const plottable = points.filter(p => p.aging_factor !== null && p.aging_factor !== undefined &&
+                p.lntai !== null && p.lntai !== undefined);
+
+            if (!plottable.length) {
+                canvas.classList.add('hidden');
+                if (empty) empty.classList.remove('hidden');
+                return;
+            }
+            canvas.classList.remove('hidden');
+            if (empty) empty.classList.add('hidden');
+
+            const splits = (quadJson && quadJson.quadrant_splits) || {};
+            const agingSplit = splits.aging_factor_split ?? 1.5;
+            const lntaiSplit = splits.lntai_split ?? 1.5;
+            const selectedT = String(selectedTrafo);
+
+            mlCharts['aging-quadrant'] = new Chart(canvas, {
+                type: 'scatter',
+                data: {
+                    datasets: [{
+                        label: 'Phases',
+                        data: plottable.map(p => ({ x: p.aging_factor, y: p.lntai, meta: p })),
+                        backgroundColor: plottable.map(p => _AGING_QUADRANT_COLORS[p.quadrant] || _AGING_QUADRANT_COLORS.unknown),
+                        pointRadius: plottable.map(p => String(p.trafo) === selectedT ? 8 : 5),
+                        pointBorderWidth: plottable.map(p => String(p.trafo) === selectedT ? 2 : 0),
+                        pointBorderColor: '#1e293b',
+                    }],
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    scales: {
+                        x: { title: { display: true, text: 'Thermal aging factor' }, grid: { color: '#f1f5f9' } },
+                        y: { title: { display: true, text: 'LNTAI (residual z-score)' }, grid: { color: '#f1f5f9' } },
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: (ctx) => {
+                                    const m = ctx.raw.meta;
+                                    return `Trafo ${m.trafo} · Phase ${m.phase} — aging ${m.aging_factor.toFixed(2)}, LNTAI ${m.lntai.toFixed(2)} (${m.quadrant})`;
+                                },
+                            },
+                        },
+                    },
+                },
+                plugins: [{
+                    id: 'agingQuadrantSplitLines',
+                    afterDraw(chart) {
+                        const { ctx, chartArea, scales } = chart;
+                        if (!chartArea) return;
+                        const xPix = scales.x.getPixelForValue(agingSplit);
+                        const yPix = scales.y.getPixelForValue(lntaiSplit);
+                        ctx.save();
+                        ctx.strokeStyle = '#cbd5e1';
+                        ctx.setLineDash([4, 4]);
+                        ctx.beginPath(); ctx.moveTo(xPix, chartArea.top); ctx.lineTo(xPix, chartArea.bottom); ctx.stroke();
+                        ctx.beginPath(); ctx.moveTo(chartArea.left, yPix); ctx.lineTo(chartArea.right, yPix); ctx.stroke();
+                        ctx.restore();
+                    },
+                }],
+            });
+        }
+
+        function _renderAgingDailyCharts(quadJson, trafo) {
+            const key = String(trafo);
+            const dailyForTrafo = (quadJson && quadJson.daily && quadJson.daily[key]) ? quadJson.daily[key] : null;
+
+            destroyChart('aging-daily-lntai');
+            destroyChart('aging-daily-factor');
+
+            const lntaiCanvas = document.getElementById('aging-daily-lntai-chart');
+            const lntaiEmpty = document.getElementById('aging-daily-lntai-empty');
+            const factorCanvas = document.getElementById('aging-daily-factor-chart');
+            const factorEmpty = document.getElementById('aging-daily-factor-empty');
+
+            const lntaiRows = (dailyForTrafo && dailyForTrafo.lntai) || [];
+            const factorRows = (dailyForTrafo && dailyForTrafo.aging_factor) || [];
+
+            if (!lntaiRows.length) {
+                if (lntaiCanvas) lntaiCanvas.classList.add('hidden');
+                if (lntaiEmpty) lntaiEmpty.classList.remove('hidden');
+            } else {
+                if (lntaiCanvas) lntaiCanvas.classList.remove('hidden');
+                if (lntaiEmpty) lntaiEmpty.classList.add('hidden');
+                mlCharts['aging-daily-lntai'] = new Chart(lntaiCanvas, {
+                    type: 'line',
+                    data: {
+                        labels: lntaiRows.map(r => r.date),
+                        datasets: [{
+                            label: 'Daily max LNTAI', data: lntaiRows.map(r => r.max_lntai),
+                            borderColor: '#dc2626', backgroundColor: 'rgba(220,38,38,0.08)',
+                            borderWidth: 2, fill: true, tension: 0.2, pointRadius: 2,
+                        }],
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: { y: { beginAtZero: true } },
+                    },
+                });
+            }
+
+            if (!factorRows.length) {
+                if (factorCanvas) factorCanvas.classList.add('hidden');
+                if (factorEmpty) factorEmpty.classList.remove('hidden');
+            } else {
+                if (factorCanvas) factorCanvas.classList.remove('hidden');
+                if (factorEmpty) factorEmpty.classList.add('hidden');
+                mlCharts['aging-daily-factor'] = new Chart(factorCanvas, {
+                    type: 'line',
+                    data: {
+                        labels: factorRows.map(r => r.date),
+                        datasets: [{
+                            label: 'Daily mean aging factor', data: factorRows.map(r => r.mean_aging_factor),
+                            borderColor: '#7c3aed', backgroundColor: 'rgba(124,58,237,0.08)',
+                            borderWidth: 2, fill: true, tension: 0.2, pointRadius: 2,
+                        }],
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: { y: { beginAtZero: true } },
+                    },
+                });
+            }
+        }
+
+        function _renderAgingForecastChart(measuredJson, forecastJson, hottestPhase) {
+            destroyChart('aging-forecast');
+            const canvas = document.getElementById('aging-forecast-chart');
+            const empty = document.getElementById('aging-forecast-empty');
+            if (!canvas) return;
+
+            const measuredRows = ((measuredJson && measuredJson.rows) || [])
+                .filter(r => r.lntai !== null && r.lntai !== undefined)
+                .slice().reverse(); // API returns DESC -> dibalik jadi ascending
+
+            const phaseForecast = (forecastJson && forecastJson.phases && forecastJson.phases[hottestPhase]) || null;
+            const forecastPoints = (phaseForecast && phaseForecast.points) || [];
+
+            if (!measuredRows.length && !forecastPoints.length) {
+                canvas.classList.add('hidden');
+                if (empty) empty.classList.remove('hidden');
+                return;
+            }
+            canvas.classList.remove('hidden');
+            if (empty) empty.classList.add('hidden');
+
+            const labels = [
+                ...measuredRows.map(r => _agingFmtWib(r.timestamp)),
+                ...forecastPoints.map(p => _agingFmtWib(p.target_ts)),
+            ];
+            const nowIndex = measuredRows.length; // indeks titik forecast PERTAMA == "sekarang"
+
+            const measuredData = measuredRows.map(r => Number(r.lntai)).concat(forecastPoints.map(() => null));
+            const p50Data = measuredRows.map(() => null).concat(forecastPoints.map(p => p.lntai_pred_p50));
+            const p10Data = measuredRows.map(() => null).concat(forecastPoints.map(p => p.lntai_pred_p10));
+            const p90Data = measuredRows.map(() => null).concat(forecastPoints.map(p => p.lntai_pred_p90));
+            const thresholdLine = (v) => labels.map(() => v);
+
+            mlCharts['aging-forecast'] = new Chart(canvas, {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [
+                        { label: 'Measured LNTAI', data: measuredData, borderColor: '#0f172a', backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, tension: 0.15, spanGaps: false },
+                        { label: 'Forecast P90', data: p90Data, borderColor: 'transparent', backgroundColor: 'rgba(59,130,246,0.15)', pointRadius: 0, fill: '+1', tension: 0.15, spanGaps: false },
+                        { label: 'Forecast P10', data: p10Data, borderColor: 'transparent', backgroundColor: 'rgba(59,130,246,0.15)', pointRadius: 0, fill: false, tension: 0.15, spanGaps: false },
+                        { label: 'Forecast P50', data: p50Data, borderColor: '#2563eb', borderDash: [6, 4], backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, tension: 0.15, spanGaps: false },
+                        { label: 'Caution 1.5', data: thresholdLine(AGING_PAGE_V3_THRESHOLDS.caution), borderColor: '#f59e0b', borderDash: [3, 3], borderWidth: 1, pointRadius: 0 },
+                        { label: 'Alert 3.0', data: thresholdLine(AGING_PAGE_V3_THRESHOLDS.alert), borderColor: '#f97316', borderDash: [3, 3], borderWidth: 1, pointRadius: 0 },
+                        { label: 'Critical 5.0', data: thresholdLine(AGING_PAGE_V3_THRESHOLDS.critical), borderColor: '#b91c1c', borderDash: [3, 3], borderWidth: 1, pointRadius: 0 },
+                    ],
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    interaction: { mode: 'nearest', intersect: false, axis: 'x' },
+                    plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 9 } } } },
+                    scales: {
+                        x: { ticks: { maxRotation: 60, minRotation: 60, autoSkip: true, font: { size: 8 } } },
+                        y: { title: { display: true, text: 'LNTAI' } },
+                    },
+                },
+                plugins: [{
+                    id: 'agingForecastNowMarker',
+                    afterDraw(chart) {
+                        if (nowIndex <= 0 || nowIndex >= labels.length) return;
+                        const { ctx, chartArea, scales } = chart;
+                        if (!chartArea) return;
+                        const xPix = scales.x.getPixelForValue(nowIndex);
+                        ctx.save();
+                        ctx.strokeStyle = '#64748b';
+                        ctx.setLineDash([2, 2]);
+                        ctx.beginPath(); ctx.moveTo(xPix, chartArea.top); ctx.lineTo(xPix, chartArea.bottom); ctx.stroke();
+                        ctx.fillStyle = '#64748b';
+                        ctx.font = '9px sans-serif';
+                        ctx.fillText('now', xPix + 3, chartArea.top + 10);
+                        ctx.restore();
+                    },
+                }],
+            });
+        }
+
+        function _renderAgingWarning(forecastJson, hottestPhase) {
+            const body = document.getElementById('aging-warning-body');
+            const empty = document.getElementById('aging-warning-empty');
+            const phaseForecast = (forecastJson && forecastJson.phases && forecastJson.phases[hottestPhase]) || null;
+            const warning = phaseForecast && phaseForecast.warning;
+
+            if (!warning) {
+                if (body) { body.innerHTML = ''; body.classList.add('hidden'); }
+                if (empty) empty.classList.remove('hidden');
+                return;
+            }
+            if (body) body.classList.remove('hidden');
+            if (empty) empty.classList.add('hidden');
+
+            const [p10, p50, p90] = warning.lntai_pred_interval || [null, null, null];
+            const agingCmp = warning.aging_rate_comparison;
+
+            const cells = [
+                ['Predicted crossing', `${warning.from_level} → ${warning.to_level} at ${_agingFmtWib(warning.target_ts)} WIB`],
+                ['Peak load (A)', warning.expected_peak_load_a != null ? Number(warning.expected_peak_load_a).toFixed(0) : '—'],
+                ['Predicted hotspot (°C)', warning.predicted_hotspot_c != null ? Number(warning.predicted_hotspot_c).toFixed(1) : '—'],
+                ['LNTAI interval (P10–P50–P90)', [p10, p50, p90].map(v => v != null ? Number(v).toFixed(2) : '—').join(' – ')],
+                ['Aging factor at peak', warning.aging_f_pred_at_peak != null ? Number(warning.aging_f_pred_at_peak).toFixed(2) + '×' : 'Not available'],
+                ['7-day aging vs 30-day average', agingCmp ? `${(agingCmp.ratio * 100).toFixed(0)}%` : 'Not available'],
+            ];
+
+            body.innerHTML = cells.map(([label, value]) => `
+                <div class="bg-slate-50 rounded-lg p-3">
+                    <div class="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">${label}</div>
+                    <div class="font-mono font-bold text-slate-700">${value}</div>
+                </div>
+            `).join('') + `
+                <div class="bg-orange-50 rounded-lg p-3 md:col-span-2 xl:col-span-3">
+                    <div class="text-[9px] font-extrabold text-orange-500 uppercase tracking-widest mb-1">Suggested action</div>
+                    <div class="font-bold text-orange-800">${warning.suggested_action || '—'}</div>
+                </div>
+            `;
+        }
+
+        // ── Part J3: Why did the score rise? (Explainability) ────────────
+
+        function _renderAgingExplain(explainJson) {
+            const body = document.getElementById('aging-explain-body');
+            const empty = document.getElementById('aging-explain-empty');
+            destroyChart('aging-explain-contrib');
+            if (!explainJson || explainJson.status !== 'ok') {
+                if (body) body.classList.add('hidden');
+                if (empty) {
+                    empty.classList.remove('hidden');
+                    empty.textContent = (explainJson && explainJson.reason) || 'No active baseline model or no data for this phase yet.';
+                }
+                return;
+            }
+            if (body) body.classList.remove('hidden');
+            if (empty) empty.classList.add('hidden');
+
+            document.getElementById('aging-explain-measured').textContent = Number(explainJson.measured_hotspot_c).toFixed(1) + ' °C';
+            document.getElementById('aging-explain-predicted').textContent = Number(explainJson.predicted_healthy_c).toFixed(1) + ' °C';
+            document.getElementById('aging-explain-residual').textContent = Number(explainJson.unexplained_residual_c).toFixed(1) + ' °C';
+            document.getElementById('aging-explain-method').textContent =
+                `Baseline model: ${explainJson.baseline_model_type} (id ${explainJson.baseline_model_id}) — contribution method: ${explainJson.contribution_method}.`;
+
+            const cusumEl = document.getElementById('aging-explain-cusum');
+            if (explainJson.cusum_triggered && explainJson.cusum_message) {
+                cusumEl.classList.remove('hidden');
+                cusumEl.textContent = `CUSUM pattern: ${explainJson.cusum_message}`;
+            } else {
+                cusumEl.classList.add('hidden');
+                cusumEl.textContent = '';
+            }
+
+            const contrib = explainJson.contributions_c || {};
+            const labels = Object.keys(contrib);
+            const values = labels.map(k => Number(contrib[k]));
+            const canvas = document.getElementById('aging-explain-contrib-chart');
+            if (canvas && labels.length) {
+                mlCharts['aging-explain-contrib'] = new Chart(canvas, {
+                    type: 'bar',
+                    data: { labels, datasets: [{ label: 'Contribution (°C)', data: values, backgroundColor: values.map(v => v >= 0 ? '#2563eb' : '#dc2626') }] },
+                    options: {
+                        indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: { x: { title: { display: true, text: '°C' } } },
+                    },
+                });
+            }
+        }
+
+        // ── Part J3: Per-phase summary table ─────────────────────────────
+
+        function _renderAgingPhaseTable(lntaiJson, bebanJson, resJson, agingJson) {
+            const tbody = document.getElementById('aging-phase-table-body');
+            const empty = document.getElementById('aging-phase-table-empty');
+            const sentenceEl = document.getElementById('aging-phase-relative-sentence');
+            if (!tbody) return;
+
+            const perPhase = (lntaiJson && lntaiJson.row && lntaiJson.row.per_phase) || null;
+            const bebanRow = (bebanJson && bebanJson.rows && bebanJson.rows[0]) || null;
+            const resRows = (resJson && resJson.rows) || [];
+            const agingRows = (agingJson && agingJson.status === 'ok' && agingJson.rows) || [];
+            const currentKey = { R: 'I_R', S: 'I_S', T: 'I_T' };
+
+            if (!perPhase) {
+                tbody.innerHTML = '';
+                if (empty) empty.classList.remove('hidden');
+                if (sentenceEl) sentenceEl.textContent = 'Not available yet.';
+                return;
+            }
+            if (empty) empty.classList.add('hidden');
+
+            tbody.innerHTML = ['R', 'S', 'T'].map(p => {
+                const pd = perPhase[p];
+                const hotspot = pd && Number.isFinite(Number(pd.T)) ? Number(pd.T).toFixed(1) : '—';
+                const current = (bebanRow && bebanRow[currentKey[p]] != null) ? Number(bebanRow[currentKey[p]]).toFixed(1) : '—';
+                const z = pd && Number.isFinite(Number(pd.z)) ? Number(pd.z) : null;
+                const level = z !== null ? _agingV3LevelOf(z) : null;
+                const lntaiChip = z !== null
+                    ? `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-extrabold ${_AGING_LEVEL_BADGE_CLASSES[level] || 'bg-slate-100 text-slate-500'}">${z.toFixed(2)}</span>`
+                    : '—';
+                const resCandidates = resRows.filter(r => r.phase === p && r.status === 'ok' && r.r_ratio_median_pct != null);
+                const resLatest = resCandidates.length ? resCandidates.reduce((a, b) => (a.week_start > b.week_start ? a : b)) : null;
+                const rRatio = resLatest ? Number(resLatest.r_ratio_median_pct).toFixed(1) + '%' : '—';
+                const agingRow = agingRows.find(r => r.phase === p);
+                const agingFactor = (agingRow && agingRow.f_mean != null) ? Number(agingRow.f_mean).toFixed(2) + '×' : '—';
+                return `<tr class="border-b border-slate-100">
+                    <td class="py-2 pr-4 font-extrabold text-slate-600">${p}</td>
+                    <td class="py-2 pr-4 font-mono">${hotspot}</td>
+                    <td class="py-2 pr-4 font-mono">${current}</td>
+                    <td class="py-2 pr-4">${lntaiChip}</td>
+                    <td class="py-2 pr-4 font-mono">${rRatio}</td>
+                    <td class="py-2 pr-4 font-mono">${agingFactor}</td>
+                </tr>`;
+            }).join('');
+
+            if (sentenceEl) {
+                const withRatio = resRows
+                    .filter(r => r.phase_relative_ratio_pct != null)
+                    .map(r => ({ ...r, deviation: r.phase_relative_ratio_pct - 100 }));
+                if (withRatio.length) {
+                    const worst = withRatio.reduce((a, b) => (Math.abs(a.deviation) > Math.abs(b.deviation) ? a : b));
+                    const direction = worst.deviation >= 0 ? 'higher than' : 'lower than';
+                    sentenceEl.textContent = `Phase-relative ratio: phase ${worst.phase}'s contact resistance is ${Math.abs(worst.deviation).toFixed(1)}% ${direction} the median of the other two phases (week of ${worst.week_start}).`;
+                } else {
+                    sentenceEl.textContent = 'No phase-relative ratio available yet (needs a valid weekly resistance estimate for all three phases in the same week).';
+                }
+            }
+        }
+
+        // ── Part J3: Relative resistance trend & degradation projection ──
+
+        function _agingResistanceTrendChartOptions() {
+            return {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 9 } } } },
+                scales: {
+                    y: { title: { display: true, text: '% of reference' } },
+                    x: { ticks: { maxRotation: 60, minRotation: 60, autoSkip: true, font: { size: 8 } } },
+                },
+            };
+        }
+
+        function _renderAgingResistanceTrend(resJson, degradationJson, hottestPhase) {
+            destroyChart('aging-resistance-trend');
+            const canvas = document.getElementById('aging-resistance-trend-chart');
+            const empty = document.getElementById('aging-resistance-trend-empty');
+            const noteEl = document.getElementById('aging-projection-note');
+            if (!canvas) return;
+
+            const rows = ((resJson && resJson.rows) || [])
+                .filter(r => r.phase === hottestPhase && r.status === 'ok' && r.r_ratio_median_pct != null)
+                .slice().sort((a, b) => (a.week_start < b.week_start ? -1 : 1));
+
+            if (!rows.length) {
+                canvas.classList.add('hidden');
+                if (empty) empty.classList.remove('hidden');
+                if (noteEl) noteEl.textContent = 'No weekly resistance data for this phase yet.';
+                return;
+            }
+            canvas.classList.remove('hidden');
+            if (empty) empty.classList.add('hidden');
+
+            const guidance = (resJson && resJson.guidance) || { good_max_pct: 105, fair_max_pct: 120 };
+            const isProjected = !!(degradationJson && degradationJson.status === 'ok' &&
+                Array.isArray(degradationJson.beta_mean) && degradationJson.reference_date);
+            const refDate = isProjected
+                ? new Date(degradationJson.reference_date + 'T00:00:00Z')
+                : new Date(rows[0].week_start + 'T00:00:00Z');
+
+            const lastHistoricalWeek = Math.round((new Date(rows[rows.length - 1].week_start + 'T00:00:00Z') - refDate) / (7 * 86400000));
+            let horizonWeeks = lastHistoricalWeek + 8;
+            if (isProjected && degradationJson.crossing_date_p90) {
+                horizonWeeks = Math.max(horizonWeeks, Math.ceil((new Date(degradationJson.crossing_date_p90 + 'T00:00:00Z') - refDate) / (7 * 86400000)) + 2);
+            }
+
+            const weekOffsets = [];
+            for (let w = 0; w <= horizonWeeks; w++) weekOffsets.push(w);
+            const labels = weekOffsets.map(w => new Date(refDate.getTime() + w * 7 * 86400000).toISOString().slice(0, 10));
+
+            const measuredByOffset = {};
+            rows.forEach(r => {
+                const off = Math.round((new Date(r.week_start + 'T00:00:00Z') - refDate) / (7 * 86400000));
+                measuredByOffset[off] = r.r_ratio_median_pct;
+            });
+            const measuredSeries = weekOffsets.map(w => (w in measuredByOffset) ? measuredByOffset[w] : null);
+
+            const datasets = [
+                { label: `Phase ${hottestPhase} R/R_ref (%)`, data: measuredSeries, borderColor: '#0f172a', backgroundColor: 'rgba(15,23,42,0.06)', borderWidth: 2, fill: true, tension: 0.15, pointRadius: 3, spanGaps: false },
+                { label: `Good ≤ ${guidance.good_max_pct}%`, data: weekOffsets.map(() => guidance.good_max_pct), borderColor: '#10b981', borderDash: [4, 4], borderWidth: 1, pointRadius: 0 },
+                { label: `Fair ≤ ${guidance.fair_max_pct}%`, data: weekOffsets.map(() => guidance.fair_max_pct), borderColor: '#f59e0b', borderDash: [4, 4], borderWidth: 1, pointRadius: 0 },
+            ];
+
+            if (isProjected) {
+                const projSeries = weekOffsets.map(w => degradationJson.beta_mean[0] + degradationJson.beta_mean[1] * w);
+                datasets.push({
+                    label: 'Bayesian trend projection', data: projSeries, borderColor: '#2563eb',
+                    borderDash: [6, 4], backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0,
+                });
+
+                const dates = [degradationJson.crossing_date_p10, degradationJson.crossing_date_p50, degradationJson.crossing_date_p90].filter(Boolean);
+                if (dates.length === 3) {
+                    noteEl.textContent = `Projected to cross the ${guidance.fair_max_pct}% (fair/poor) threshold between ${dates[0]} and ${dates[2]} (median estimate: ${dates[1]}). Bayesian projection, calibrated with ${degradationJson.n_resistance_tests} resistance test(s) and ${degradationJson.n_valid_weeks} valid week(s) of data.`;
+                } else {
+                    noteEl.textContent = 'No threshold crossing projected within the forecast horizon (trend is flat or improving).';
+                }
+            } else {
+                noteEl.textContent = (degradationJson && degradationJson.reason)
+                    ? `Degradation projection not available: ${degradationJson.reason}`
+                    : 'Degradation projection not available yet for this phase.';
+            }
+
+            mlCharts['aging-resistance-trend'] = new Chart(canvas, {
+                type: 'line',
+                data: { labels, datasets },
+                options: _agingResistanceTrendChartOptions(),
+            });
+        }
+
+        // ── Part J3: Data quality (7 days) ────────────────────────────────
+
+        function _renderAgingDataQuality(dqJson) {
+            const body = document.getElementById('aging-dq-body');
+            if (!body) return;
+            if (!dqJson) {
+                body.innerHTML = '<div class="col-span-full text-center text-slate-400 font-bold py-8">Data quality summary unavailable (server unreachable).</div>';
+                return;
+            }
+            if (dqJson.temperature.total_rows === 0 && dqJson.load.total_rows === 0) {
+                body.innerHTML = '<div class="col-span-full text-center text-slate-400 font-bold py-8">No temperature or load samples in the last 7 days for this trafo.</div>';
+                return;
+            }
+            const tempFlags = dqJson.temperature.flag_counts || {};
+            const loadFlags = dqJson.load.flag_counts || {};
+            const issueNames = Object.keys(tempFlags).filter(k => (tempFlags[k] || 0) > 0 || (loadFlags[k] || 0) > 0);
+            const issuesText = issueNames.length
+                ? issueNames.map(k => `${k}: ${(tempFlags[k] || 0) + (loadFlags[k] || 0)}`).join(', ')
+                : 'None';
+
+            const cells = [
+                ['Completeness', `${dqJson.completeness_pct.toFixed(1)}%`],
+                ['Longest gap', dqJson.longest_gap_minutes != null ? `${dqJson.longest_gap_minutes.toFixed(0)} min` : 'No gaps'],
+                ['Per-sensor issues (7d)', issuesText],
+                ['Ambient source', dqJson.ambient.latest_source || 'Not available'],
+                ['Ambient reports', `${dqJson.ambient.ok_reports}/${dqJson.ambient.total_reports} ok`],
+                ['Ambient longest gap', dqJson.ambient.longest_gap_minutes != null ? `${dqJson.ambient.longest_gap_minutes.toFixed(0)} min` : 'No gaps'],
+            ];
+            body.innerHTML = cells.map(([label, value]) => `
+                <div class="bg-slate-50 rounded-lg p-3">
+                    <div class="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">${label}</div>
+                    <div class="font-mono font-bold text-slate-700">${value}</div>
+                </div>
+            `).join('');
+        }
+
+        // ── Part J3: Model performance & transparency ─────────────────────
+        // legacySigma HARUS sama dengan lntai_v3_config.json baseline.sigma --
+        // sama persis seperti AGING_PAGE_V3_THRESHOLDS di atas, satu-satunya
+        // nilai server yang disalin manual ke JS, bukan dikarang.
+        const _AGING_LEGACY_PHYSICS_SIGMA_C = 4.6761;
+
+        function _renderAgingModelPerf(modelsJson, hottestPhase, agingJson) {
+            const body = document.getElementById('aging-model-perf-body');
+            const empty = document.getElementById('aging-model-perf-empty');
+            const rows = (modelsJson && modelsJson.rows) || [];
+            const active = rows.find(r => r.phase === hottestPhase && r.is_active);
+
+            if (!active) {
+                if (body) body.classList.add('hidden');
+                if (empty) empty.classList.remove('hidden');
+                return;
+            }
+            if (body) body.classList.remove('hidden');
+            if (empty) empty.classList.add('hidden');
+
+            const fi = (active.metrics && active.metrics.fault_injection) || null;
+            let faultText = 'Not run yet — see Part I (ml/evaluate_fault_injection.py).';
+            if (fi && fi.false_alarms_per_week) {
+                const za = fi.false_alarms_per_week.z_score_median;
+                const ca = fi.false_alarms_per_week.cusum;
+                const biggestStep = (fi.fault_results || [])
+                    .filter(r => r.fault_type === 'step')
+                    .sort((a, b) => b.magnitude_c - a.magnitude_c)[0];
+                const delay = (biggestStep && biggestStep.cusum) ? biggestStep.cusum.detection_delay_hours : null;
+                faultText = `False alarms/week — z-score+median: ${za != null ? za.toFixed(2) : '—'}, CUSUM: ${ca != null ? ca.toFixed(2) : '—'}.` +
+                    (delay != null ? ` Detection delay for a ${biggestStep.magnitude_c} °C step fault: ${delay.toFixed(1)} h (CUSUM).` : '');
+            }
+
+            const cells = [
+                ['Active baseline', `${active.model_type} (v${active.version})`],
+                ['Robust σ (this model)', active.sigma != null ? Number(active.sigma).toFixed(2) + ' °C' : '—'],
+                ['Legacy physics σ', _AGING_LEGACY_PHYSICS_SIGMA_C.toFixed(2) + ' °C'],
+                ['Validation', 'Time-ordered split (train strictly before validation)'],
+                ['Fault-injection validation', faultText],
+                ['Last calibration (healthy period)', `${active.healthy_from} → ${active.healthy_to}`],
+                ['Scope', (agingJson && agingJson.scope) || 'Covers the contact-finger connection only — not the vacuum interrupter or operating mechanism.'],
+            ];
+            body.innerHTML = cells.map(([label, value]) => `
+                <div class="bg-slate-50 rounded-lg p-3">
+                    <div class="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">${label}</div>
+                    <div class="font-bold text-slate-700">${value}</div>
+                </div>
+            `).join('');
+        }
+
+        // ── Part J3: Log inspection form ───────────────────────────────────
+
+        function scrollToInspectionForm() {
+            const el = document.getElementById('aging-inspection-form');
+            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function _toggleInspectionResistanceFields() {
+            const type = document.getElementById('insp-event-type').value;
+            document.getElementById('insp-resistance').required = (type === 'resistance_test');
+        }
+
+        async function submitInspectionLog(evt) {
+            evt.preventDefault();
+            const statusEl = document.getElementById('insp-form-status');
+            const trafo = document.getElementById('insp-trafo').value;
+            const phase = document.getElementById('insp-phase').value || null;
+            const eventType = document.getElementById('insp-event-type').value;
+            const eventTsRaw = document.getElementById('insp-event-ts').value;
+            const resistance = document.getElementById('insp-resistance').value;
+            const testCurrent = document.getElementById('insp-test-current').value;
+            const notes = document.getElementById('insp-notes').value;
+            const createdBy = document.getElementById('insp-created-by').value;
+            const resetsBaseline = document.getElementById('insp-resets-baseline').checked;
+
+            if (!eventTsRaw) {
+                statusEl.textContent = 'Event date/time is required.';
+                statusEl.className = 'text-[10px] font-bold text-red-600';
+                return;
+            }
+
+            const body = {
+                trafo, phase, event_type: eventType,
+                event_ts: new Date(eventTsRaw).toISOString(),
+                resistance_uohm: resistance ? Number(resistance) : null,
+                test_current_a: testCurrent ? Number(testCurrent) : null,
+                notes: notes || null,
+                resets_baseline: resetsBaseline,
+                created_by: createdBy || null,
+            };
+
+            statusEl.textContent = 'Submitting...';
+            statusEl.className = 'text-[10px] font-bold text-slate-500';
+
+            try {
+                const headers = { 'Content-Type': 'application/json' };
+                if (TIMESCALE_API_KEY) headers['X-API-Key'] = TIMESCALE_API_KEY;
+                const res = await fetch(`${TIMESCALE_API_BASE_URL}/maintenance-events`, {
+                    method: 'POST', headers, body: JSON.stringify(body),
+                });
+                if (!res.ok) {
+                    const errJson = await res.json().catch(() => null);
+                    throw new Error((errJson && errJson.detail) ? JSON.stringify(errJson.detail) : `HTTP ${res.status}`);
+                }
+                statusEl.textContent = 'Logged successfully.';
+                statusEl.className = 'text-[10px] font-bold text-emerald-600';
+                evt.target.reset();
+                if (typeof initAgingPage === 'function') initAgingPage();
+            } catch (err) {
+                statusEl.textContent = `Failed: ${err.message}`;
+                statusEl.className = 'text-[10px] font-bold text-red-600';
+            }
+        }
 
     </script>
 

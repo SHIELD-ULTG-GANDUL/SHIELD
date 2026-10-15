@@ -291,13 +291,19 @@ class TestLntaiLogs:
 
 
 class _FakeDataQualityCursor:
-    def __init__(self, temp_rows, load_rows):
+    def __init__(self, temp_rows, load_rows, ambient_rows=None):
         self._temp_rows = temp_rows
         self._load_rows = load_rows
+        self._ambient_rows = ambient_rows or []
         self._last = []
 
     def execute(self, sql, params=None):
-        self._last = self._temp_rows if "trafo_temperature" in sql else self._load_rows
+        if "ambient_logs" in sql:
+            self._last = self._ambient_rows
+        elif "trafo_temperature" in sql:
+            self._last = self._temp_rows
+        else:
+            self._last = self._load_rows
 
     def fetchall(self):
         return self._last
@@ -310,12 +316,13 @@ class _FakeDataQualityCursor:
 
 
 class _FakeDataQualityConn:
-    def __init__(self, temp_rows, load_rows):
+    def __init__(self, temp_rows, load_rows, ambient_rows=None):
         self._temp_rows = temp_rows
         self._load_rows = load_rows
+        self._ambient_rows = ambient_rows or []
 
     def cursor(self, row_factory=None):
-        return _FakeDataQualityCursor(self._temp_rows, self._load_rows)
+        return _FakeDataQualityCursor(self._temp_rows, self._load_rows, self._ambient_rows)
 
     def __enter__(self):
         return self
@@ -325,22 +332,24 @@ class _FakeDataQualityConn:
 
 
 class _FakeDataQualityPool:
-    def __init__(self, temp_rows, load_rows):
+    def __init__(self, temp_rows, load_rows, ambient_rows=None):
         self._temp_rows = temp_rows
         self._load_rows = load_rows
+        self._ambient_rows = ambient_rows or []
 
     def connection(self):
-        return _FakeDataQualityConn(self._temp_rows, self._load_rows)
+        return _FakeDataQualityConn(self._temp_rows, self._load_rows, self._ambient_rows)
 
 
 class TestDataQualitySummary:
     def test_counts_flags_per_bit(self, monkeypatch):
         import data_quality as dq
 
+        base = datetime(2026, 10, 1, tzinfo=timezone.utc)
         temp_rows = [
-            {"quality_flags": 0},
-            {"quality_flags": dq.flags_to_bitmask({"MISSING"})},
-            {"quality_flags": dq.flags_to_bitmask({"ZERO_READING", "OUT_OF_RANGE"})},
+            {"timestamp": base, "quality_flags": 0},
+            {"timestamp": base + timedelta(minutes=5), "quality_flags": dq.flags_to_bitmask({"MISSING"})},
+            {"timestamp": base + timedelta(minutes=10), "quality_flags": dq.flags_to_bitmask({"ZERO_READING", "OUT_OF_RANGE"})},
         ]
         load_rows = [{"quality_flags": 0}, {"quality_flags": None}]
         monkeypatch.setattr(api, "_pool", _FakeDataQualityPool(temp_rows, load_rows))
@@ -354,7 +363,8 @@ class TestDataQualitySummary:
         assert result["load"]["flag_counts"]["MISSING"] == 0
 
     def test_null_quality_flags_counts_as_clean(self, monkeypatch):
-        monkeypatch.setattr(api, "_pool", _FakeDataQualityPool([{"quality_flags": None}], []))
+        base = datetime(2026, 10, 1, tzinfo=timezone.utc)
+        monkeypatch.setattr(api, "_pool", _FakeDataQualityPool([{"timestamp": base, "quality_flags": None}], []))
         result = api.data_quality_summary(trafo=2, window=60, x_api_key=None)
         assert result["temperature"]["total_rows"] == 1
         assert all(v == 0 for v in result["temperature"]["flag_counts"].values())
@@ -364,6 +374,45 @@ class TestDataQualitySummary:
         result = api.data_quality_summary(trafo=2, window=60, x_api_key=None)
         assert result["temperature"]["total_rows"] == 0
         assert result["load"]["total_rows"] == 0
+        assert result["completeness_pct"] == 0.0
+        assert result["longest_gap_minutes"] is None
+        assert result["ambient"]["total_reports"] == 0
+
+    def test_longest_gap_computed_from_consecutive_timestamps(self, monkeypatch):
+        base = datetime(2026, 10, 1, tzinfo=timezone.utc)
+        temp_rows = [
+            {"timestamp": base, "quality_flags": 0},
+            {"timestamp": base + timedelta(minutes=5), "quality_flags": 0},
+            {"timestamp": base + timedelta(minutes=35), "quality_flags": 0},  # jeda 30 menit
+        ]
+        monkeypatch.setattr(api, "_pool", _FakeDataQualityPool(temp_rows, []))
+        result = api.data_quality_summary(trafo=2, window=1440, x_api_key=None)
+        assert result["longest_gap_minutes"] == 30.0
+
+    def test_completeness_pct_full_sampling_is_100(self, monkeypatch):
+        # nominal_sample_interval_seconds=300 (5 menit) -- window 10 menit = 2 baris penuh
+        base = datetime(2026, 10, 1, tzinfo=timezone.utc)
+        temp_rows = [
+            {"timestamp": base, "quality_flags": 0},
+            {"timestamp": base + timedelta(minutes=5), "quality_flags": 0},
+        ]
+        monkeypatch.setattr(api, "_pool", _FakeDataQualityPool(temp_rows, []))
+        result = api.data_quality_summary(trafo=2, window=10, x_api_key=None)
+        assert result["completeness_pct"] == 100.0
+
+    def test_ambient_summary_ignores_failed_reports(self, monkeypatch):
+        base = datetime(2026, 10, 1, tzinfo=timezone.utc)
+        ambient_rows = [
+            {"timestamp": base, "ok": True, "source": "open-meteo"},
+            {"timestamp": base + timedelta(minutes=10), "ok": False, "source": None},
+            {"timestamp": base + timedelta(minutes=20), "ok": True, "source": "open-meteo"},
+        ]
+        monkeypatch.setattr(api, "_pool", _FakeDataQualityPool([], [], ambient_rows))
+        result = api.data_quality_summary(trafo=2, window=1440, x_api_key=None)
+        assert result["ambient"]["total_reports"] == 3
+        assert result["ambient"]["ok_reports"] == 2
+        assert result["ambient"]["latest_source"] == "open-meteo"
+        assert result["ambient"]["longest_gap_minutes"] == 20.0
 
 
 class _FakeMaintenanceCursor:
@@ -1237,3 +1286,113 @@ class TestDegradationProjection:
         result = api.degradation_projection(trafo=2, phase="R", x_api_key=None)
         assert result["status"] == "insufficient_data"
         assert result["n_valid_weeks"] == 0
+
+
+# ── /api/lntai-vs-aging (Stage 2, Part J2) ────────────────────────────────
+
+class _FakeLvaCursor:
+    def __init__(self, scatter_lntai_row=None, scatter_aging_rows=None,
+                 daily_lntai_rows=None, daily_aging_rows=None):
+        self._scatter_lntai_row = scatter_lntai_row
+        self._scatter_aging_rows = scatter_aging_rows or []
+        self._daily_lntai_rows = daily_lntai_rows or []
+        self._daily_aging_rows = daily_aging_rows or []
+        self._last = ("none", None)
+
+    def execute(self, sql, params=None):
+        if "MAX(lntai)" in sql:
+            self._last = ("rows", self._daily_lntai_rows)
+        elif "FROM lntai_results" in sql:
+            self._last = ("row", self._scatter_lntai_row)
+        elif "AVG(f_mean)" in sql:
+            self._last = ("rows", self._daily_aging_rows)
+        elif "FROM aging_daily" in sql:
+            self._last = ("rows", self._scatter_aging_rows)
+
+    def fetchone(self):
+        return self._last[1] if self._last[0] == "row" else None
+
+    def fetchall(self):
+        return self._last[1] if self._last[0] == "rows" else []
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
+class _FakeLvaConn:
+    def __init__(self, **kwargs):
+        self._kwargs = kwargs
+
+    def cursor(self, row_factory=None):
+        return _FakeLvaCursor(**self._kwargs)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
+class _FakeLvaCtx:
+    def __init__(self, **kwargs):
+        self._kwargs = kwargs
+
+    def __enter__(self):
+        return _FakeLvaConn(**self._kwargs)
+
+    def __exit__(self, *exc):
+        return False
+
+
+class _FakeLvaPool:
+    def __init__(self, **kwargs):
+        self._kwargs = kwargs
+
+    def connection(self):
+        return _FakeLvaCtx(**self._kwargs)
+
+
+class TestLntaiVsAging:
+    def test_requires_trafo_or_all(self):
+        from fastapi import HTTPException
+        with pytest.raises(HTTPException) as exc_info:
+            api.lntai_vs_aging_endpoint(trafo=None, all_trafos=False, days=30, x_api_key=None)
+        assert exc_info.value.status_code == 400
+
+    def test_single_trafo_scatter_and_daily_shape(self, monkeypatch):
+        monkeypatch.setattr(api, "_pool", _FakeLvaPool(
+            scatter_lntai_row={"per_phase": {"R": {"z": 2.0}, "S": {"z": 0.5}, "T": {"z": 0.1}}},
+            scatter_aging_rows=[{"phase": "R", "f_mean": 2.0}, {"phase": "S", "f_mean": 0.5}],
+            daily_lntai_rows=[{"day": datetime(2026, 10, 1, tzinfo=timezone.utc), "max_lntai": 1.2}],
+            daily_aging_rows=[{"date": date(2026, 10, 1), "mean_aging_factor": 1.1}],
+        ))
+        result = api.lntai_vs_aging_endpoint(trafo=2, all_trafos=False, days=30, x_api_key=None)
+        assert result["trafos"] == [2]
+        scatter_by_phase = {p["phase"]: p for p in result["scatter"]}
+        assert scatter_by_phase["R"]["quadrant"] == "anomalous_high_stress"  # aging=2.0 (>=split), lntai=2.0 (>=split)
+        assert scatter_by_phase["S"]["quadrant"] == "healthy"
+        assert scatter_by_phase["T"]["aging_factor"] is None  # no aging_daily row for T
+        assert scatter_by_phase["T"]["quadrant"] == "unknown"
+        assert result["daily"]["2"]["lntai"] == [{"date": "2026-10-01", "max_lntai": 1.2}]
+        assert result["daily"]["2"]["aging_factor"] == [{"date": "2026-10-01", "mean_aging_factor": 1.1}]
+
+    def test_all_trafos_returns_three(self, monkeypatch):
+        monkeypatch.setattr(api, "_pool", _FakeLvaPool())
+        result = api.lntai_vs_aging_endpoint(trafo=None, all_trafos=True, days=30, x_api_key=None)
+        assert result["trafos"] == [2, 3, 4]
+        assert len(result["scatter"]) == 9  # 3 trafos x 3 phases
+        assert set(result["daily"].keys()) == {"2", "3", "4"}
+
+    def test_no_data_at_all_returns_empty_not_crash(self, monkeypatch):
+        """Persyaratan tes brief Part J2: chart harus tetap render (empty
+        state) saat data kosong, bukan crash -- di sisi API ini berarti
+        baris kosong harus menghasilkan struktur kosong yang valid, bukan
+        exception."""
+        monkeypatch.setattr(api, "_pool", _FakeLvaPool(scatter_lntai_row=None))
+        result = api.lntai_vs_aging_endpoint(trafo=3, all_trafos=False, days=30, x_api_key=None)
+        assert result["daily"]["3"] == {"lntai": [], "aging_factor": []}
+        for point in result["scatter"]:
+            assert point["quadrant"] == "unknown"
