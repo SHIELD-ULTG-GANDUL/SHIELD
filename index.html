@@ -7395,6 +7395,12 @@
 
             if (fcTemp) {
                 const h1 = fcTemp.allFc[0]; // +1 jam
+                // fcTemp.accuracy == null berarti TIDAK ADA model baseline Part B
+                // yang aktif untuk fasa ini -- t_hot_pred_c (kalau ada) datang dari
+                // fallback fisika legacy v3 di forecast_job.py (_get_baseline_params),
+                // bukan model yang sudah divalidasi R²/MAE. HARUS ditandai jelas,
+                // supaya angka ini tidak dikira sudah tervalidasi.
+                const usingFallbackPhysics = h1 != null && fcTemp.accuracy == null;
                 setText_id('fc-temp-1h', h1 != null ? h1.toFixed(1) + ' °C' : '—');
                 setText_id('fc-temp-1h-ci', bandStr(fcTemp, 0));
                 setText_id('fc-acc-temp', fcTemp.accuracy != null ? fcTemp.accuracy.toFixed(1) + '%' : '—');
@@ -7402,7 +7408,10 @@
 
                 // Trend badge dari selisih +1h vs +4h real (bukan parameter smoothing)
                 const tBadge = document.getElementById('fc-temp-trend-badge');
-                if (tBadge && fcTemp.allFc[0] != null && fcTemp.allFc[3] != null) {
+                if (tBadge && usingFallbackPhysics) {
+                    tBadge.textContent = '⚠ Belum tervalidasi (fallback fisika)';
+                    tBadge.className = 'mt-2 text-[9px] font-extrabold px-2 py-0.5 rounded-full inline-block bg-slate-200 text-slate-600';
+                } else if (tBadge && fcTemp.allFc[0] != null && fcTemp.allFc[3] != null) {
                     const dPerH = (fcTemp.allFc[3] - fcTemp.allFc[0]) / 3;
                     const lbl = dPerH > 0.1 ? '↑ Naik ' + dPerH.toFixed(2)+'°C/jam'
                              : dPerH < -0.1 ? '↓ Turun '+ Math.abs(dPerH).toFixed(2)+'°C/jam'
@@ -7440,11 +7449,16 @@
                 }
 
                 setText_id('fc-temp-interp', h1 != null
-                    ? `Baseline ΔT sehat AKTIF (Part B, fasa ${fcTemp.worstPhase}) pada beban yang diprediksi. Forecast +1 jam = ${h1.toFixed(1)}°C. R² baseline = ${fcTemp.R2 != null ? fcTemp.R2.toFixed(3) : '—'}, MAE = ${fcTemp.MAE != null ? fcTemp.MAE.toFixed(2)+'°C' : '—'} (data validasi training).`
+                    ? (usingFallbackPhysics
+                        ? `⚠ TIDAK ADA model baseline Part B AKTIF untuk fasa ${fcTemp.worstPhase} -- angka ini dari fallback fisika legacy v3 (konstanta lama, belum divalidasi R²/MAE). Forecast +1 jam = ${h1.toFixed(1)}°C. Latih & aktifkan model baseline Part B untuk fasa ini agar angka tervalidasi.`
+                        : `Baseline ΔT sehat AKTIF (Part B, fasa ${fcTemp.worstPhase}) pada beban yang diprediksi. Forecast +1 jam = ${h1.toFixed(1)}°C. R² baseline = ${fcTemp.R2 != null ? fcTemp.R2.toFixed(3) : '—'}, MAE = ${fcTemp.MAE != null ? fcTemp.MAE.toFixed(2)+'°C' : '—'} (data validasi training).`)
                     : 'Belum ada model baseline AKTIF untuk fasa manapun pada trafo ini -- forecast suhu tidak tersedia.');
 
                 const _dTemp = document.getElementById('kpi-desc-temp-1h');
-                if (_dTemp && h1 != null) {
+                if (_dTemp && h1 != null && usingFallbackPhysics) {
+                    _dTemp.textContent = `⚠ Belum tervalidasi: angka ${h1.toFixed(1)}°C ini dari fallback fisika legacy (tidak ada model baseline Part B AKTIF untuk fasa ${fcTemp.worstPhase}), bukan model yang sudah diuji R²/MAE. Jangan jadikan acuan keputusan kritis sampai model baseline dilatih & diaktifkan.`;
+                    _dTemp.className = 'text-[9px] mt-2 pt-2 border-t leading-relaxed text-slate-500 border-slate-200';
+                } else if (_dTemp && h1 != null) {
                     _dTemp.textContent = h1 > 80 ? `⚠ Kritis: diprediksi ${h1.toFixed(1)}°C — melewati batas IEC 60076-2 (80°C). Aktifkan pendingin tambahan dan kurangi beban segera.` : h1 > 70 ? `Perhatian: menuju ${h1.toFixed(1)}°C. Periksa sistem pendingin dan pantau tren beban. Ambang batas perhatian 70°C.` : `Aman: diprediksi ${h1.toFixed(1)}°C — dalam batas normal operasi (<70°C). Tidak diperlukan tindakan khusus.`;
                     _dTemp.className = `text-[9px] mt-2 pt-2 border-t leading-relaxed ${h1 > 80 ? 'text-red-600 border-red-100' : h1 > 70 ? 'text-amber-600 border-amber-100' : 'text-emerald-600 border-emerald-100'}`;
                 } else if (_dTemp) {
