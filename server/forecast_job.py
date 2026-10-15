@@ -5,7 +5,7 @@
 
 Job PER JAM (bukan service long-running): untuk tiap (trafo, phase) yang
 punya model forecasting beban AKTIF (ml_models model_type IN
-seasonal_naive/gbm_calendar, is_active=true), hasilkan forecast 168 jam
+seasonal_naive/gbm_calendar/poly_calendar, is_active=true), hasilkan forecast 168 jam
 (7 hari) ke depan dari "sekarang" -- cakupan 24h DAN 7d (task brief)
 keduanya diambil dari SATU seri yang sama (24 titik pertama = horizon
 24h, keseluruhan 168 titik = horizon 7d; lihat GET /api/forecast).
@@ -66,7 +66,7 @@ def fetch_active_forecast_model(cur, trafo: str, phase: str) -> Optional[dict[st
         SELECT id, model_type, artifact_path
         FROM ml_models
         WHERE trafo = %s AND phase = %s AND is_active = TRUE
-          AND model_type IN ('seasonal_naive', 'gbm_calendar')
+          AND model_type IN ('seasonal_naive', 'gbm_calendar', 'poly_calendar')
         ORDER BY trained_at DESC LIMIT 1
         """,
         (trafo, phase),

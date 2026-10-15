@@ -1,4 +1,5 @@
-"""ml/forecast_models.py — SHIELD Stage 2, Part F.
+"""ml/forecast_models.py — SHIELD Stage 2, Part F (+ go-live rework of the
+"Forecast Realtime" tab, 2026-10-15 — see docs/STAGE2_FINAL_REPORT.md).
 
 Model forecasting BEBAN (arus), per (trafo, phase):
 
@@ -13,6 +14,16 @@ Model forecasting BEBAN (arus), per (trafo, phase):
     model terlatih bisa forecast ke 24 jam maupun 7 hari ke depan tanpa
     butuh observasi beban terbaru sebagai input sama sekali (beda dari
     seasonal_naive).
+  - poly_calendar: regresi polinomial (least squares, numpy) atas
+    harmonik jam-siklik (hour_sin, hour_cos, pangkat sampai `degree`)
+    + hari-dalam-minggu (one-hot) -- metode klasik untuk kurva beban
+    harian/mingguan periodik (dirujuk luas di literatur short-term load
+    forecasting/STLF, mis. regresi harmonik/polinomial sebagai
+    baseline pembanding GBM). Ditambahkan saat merombak tab "Forecast
+    Realtime" (sebelumnya Holt-Winters di BROWSER tanpa validasi nyata,
+    kadang jatuh ke satu sampel sesaat -- lihat commit message) supaya
+    ada metode kalender murni KEDUA yang lebih sederhana/interpretable
+    dibanding GBM untuk dibandingkan lewat ml/train_load_forecast.py.
 
 Kuantil P10/P50/P90 KEDUANYA dari OFFSET RESIDUAL EMPIRIS hasil backtest
 (bukan tiga model quantile-loss terpisah) -- offset diurutkan naik saat
@@ -28,9 +39,27 @@ from math import cos, pi, sin
 from pathlib import Path
 from typing import Any, Optional
 
+try:
+    import numpy as np
+    _HAS_NUMPY = True
+except ImportError:
+    _HAS_NUMPY = False
+
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from models import _try_import_gbm_backend  # noqa: E402 -- reuse Part B's lightgbm/sklearn fallback
+
+
+def _require_numpy() -> None:
+    """Pola yang sama dengan server/degradation.py Part H -- hanya
+    PolynomialCalendarForecastModel.fit() yang butuh numpy (least
+    squares); seasonal_naive dan gbm_calendar sama sekali tidak
+    terpengaruh kalau numpy belum terpasang."""
+    if not _HAS_NUMPY:
+        raise RuntimeError(
+            "numpy tidak terpasang -- jalankan `pip install numpy` sebelum melatih "
+            "model_type=poly_calendar. seasonal_naive dan gbm_calendar tidak terpengaruh."
+        )
 
 _WIB_OFFSET = timedelta(hours=7)
 SEVEN_DAYS_SECONDS = 7 * 86400.0
@@ -247,9 +276,95 @@ class GBMCalendarForecastModel:
         return m
 
 
+# ════════════════════════════════════════════════════════════════════════
+# poly_calendar
+# ════════════════════════════════════════════════════════════════════════
+
+class PolynomialCalendarForecastModel:
+    """Regresi polinomial (least squares) atas fitur kalender -- metode
+    KEDUA (selain gbm_calendar) untuk tab "Forecast Realtime" yang
+    dirombak 2026-10-15, supaya ada pembanding yang lebih sederhana/
+    interpretable terhadap GBM, bukan cuma satu metode. Fitur: harmonik
+    jam-siklik (hour_sin, hour_cos, dan pangkatnya sampai `degree`) +
+    hari-dalam-minggu one-hot (6 kolom dummy, Senin=referensi) -- SAMA
+    PERSIS filosofi "kalender murni, bukan lag beban" dengan
+    gbm_calendar, cuma regressor-nya beda (linear least squares atas
+    fitur polinomial, bukan pohon boosting)."""
+
+    model_type = "poly_calendar"
+
+    def __init__(self, degree: int = 3) -> None:
+        self.degree = degree
+        self.coefficients: Optional[list[float]] = None
+        self.p10_offset = 0.0
+        self.p50_offset = 0.0
+        self.p90_offset = 0.0
+
+    def _features(self, ts_epoch: float) -> list[float]:
+        hour_sin, hour_cos, weekday = hour_sin_cos_weekday(ts_epoch)
+        feats = [1.0]
+        for d in range(1, self.degree + 1):
+            feats.append(hour_sin ** d)
+            feats.append(hour_cos ** d)
+        # One-hot hari-dalam-minggu, Senin (0) jadi referensi (dibuang,
+        # tersirat lewat intercept) -- standar dummy-variable encoding.
+        for wd in range(1, 7):
+            feats.append(1.0 if weekday == wd else 0.0)
+        return feats
+
+    def fit(self, hourly_series: list[tuple[float, float]]) -> dict[str, Any]:
+        """`hourly_series`: [(ts_epoch, mean_current_amps), ...] (data
+        TRAINING -- rentang lebih awal dari backtest holdout)."""
+        _require_numpy()
+        X = np.array([self._features(ts) for ts, _ in hourly_series], dtype=float)
+        y = np.array([current for _, current in hourly_series], dtype=float)
+        coeffs, _residuals, rank, _sv = np.linalg.lstsq(X, y, rcond=None)
+        self.coefficients = coeffs.tolist()
+        return {"degree": self.degree, "n_train": len(hourly_series), "matrix_rank": int(rank)}
+
+    def point_forecast(self, target_ts_epoch: float) -> Optional[float]:
+        if self.coefficients is None:
+            return None
+        feats = self._features(target_ts_epoch)
+        return float(sum(c * f for c, f in zip(self.coefficients, feats)))
+
+    def predict_quantiles(self, target_ts_epoch: float) -> tuple[Optional[float], Optional[float], Optional[float]]:
+        point = self.point_forecast(target_ts_epoch)
+        if point is None:
+            return None, None, None
+        return point + self.p10_offset, point + self.p50_offset, point + self.p90_offset
+
+    def calibrate(self, backtest_pairs: list[tuple[float, float]]) -> dict[str, Any]:
+        residuals, preds, actuals = [], [], []
+        for target_ts_epoch, actual in backtest_pairs:
+            pred = self.point_forecast(target_ts_epoch)
+            if pred is not None:
+                residuals.append(actual - pred)
+                preds.append(pred)
+                actuals.append(actual)
+        self.p10_offset, self.p50_offset, self.p90_offset = _sorted_quantile_offsets(residuals)
+        return {"n_backtest": len(residuals), "mape": mape(actuals, preds)}
+
+    def to_artifact(self) -> dict[str, Any]:
+        return {
+            "model_type": self.model_type, "degree": self.degree, "coefficients": self.coefficients,
+            "p10_offset": self.p10_offset, "p50_offset": self.p50_offset, "p90_offset": self.p90_offset,
+        }
+
+    @classmethod
+    def from_artifact(cls, artifact: dict[str, Any]) -> "PolynomialCalendarForecastModel":
+        m = cls(degree=artifact["degree"])
+        m.coefficients = artifact["coefficients"]
+        m.p10_offset = artifact["p10_offset"]
+        m.p50_offset = artifact["p50_offset"]
+        m.p90_offset = artifact["p90_offset"]
+        return m
+
+
 FORECAST_MODEL_CLASSES: dict[str, Any] = {
     "seasonal_naive": SeasonalNaiveForecastModel,
     "gbm_calendar": GBMCalendarForecastModel,
+    "poly_calendar": PolynomialCalendarForecastModel,
 }
 
 

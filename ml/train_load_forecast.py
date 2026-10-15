@@ -1,15 +1,18 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-"""ml/train_load_forecast.py — SHIELD Stage 2, Part F.
+"""ml/train_load_forecast.py — SHIELD Stage 2, Part F (+ poly_calendar,
+go-live 2026-10-15 rework of the "Forecast Realtime" tab).
 
-Melatih dan membandingkan 2 model forecasting BEBAN untuk SATU
-(trafo, phase): seasonal_naive (sama jam minggu lalu) vs gbm_calendar
-(gradient boosting atas fitur kalender). Split waktu-berurutan: rentang
-historis awal = "training" (gbm_calendar.fit(), seasonal_naive hanya
-butuh data mentah, tidak benar-benar "dilatih"), --backtest-days hari
-TERAKHIR = holdout untuk kalibrasi P10/P50/P90 (kuantil residual empiris)
-dan metrik (MAPE, mean pinball loss).
+Melatih dan membandingkan 3 model forecasting BEBAN untuk SATU
+(trafo, phase): seasonal_naive (sama jam minggu lalu), gbm_calendar
+(gradient boosting atas fitur kalender), poly_calendar (regresi
+polinomial atas fitur kalender yang sama -- pembanding yang lebih
+sederhana/interpretable terhadap GBM). Split waktu-berurutan: rentang
+historis awal = "training" (gbm_calendar.fit()/poly_calendar.fit(),
+seasonal_naive hanya butuh data mentah, tidak benar-benar "dilatih"),
+--backtest-days hari TERAKHIR = holdout untuk kalibrasi P10/P50/P90
+(kuantil residual empiris) dan metrik (MAPE, mean pinball loss).
 
 TIDAK PERNAH mengaktifkan model (is_active selalu FALSE saat training,
 sama seperti ml/train_baseline.py Part B) -- aktivasi manual lewat
@@ -107,6 +110,22 @@ def train_and_backtest(
         })
     except Exception as exc:  # noqa: BLE001
         results.append({"model_type": "gbm_calendar", "status": "failed", "error": str(exc), "model": None, "fit_info": None, "metrics": None})
+
+    try:
+        poly = fm.PolynomialCalendarForecastModel()
+        fit_info = poly.fit(train_pairs)
+        bt_info = poly.calibrate(backtest_pairs)
+        p10s, p50s, p90s, actuals = [], [], [], []
+        for t, actual in backtest_pairs:
+            q10, q50, q90 = poly.predict_quantiles(t)
+            p10s.append(q10); p50s.append(q50); p90s.append(q90); actuals.append(actual)
+        pinball = fm.mean_pinball_loss(actuals, p10s, p50s, p90s)
+        results.append({
+            "model_type": "poly_calendar", "status": "ok", "model": poly,
+            "fit_info": {**fit_info, **bt_info}, "metrics": {"mape": bt_info["mape"], "pinball_loss": pinball, "n_backtest": bt_info["n_backtest"]},
+        })
+    except Exception as exc:  # noqa: BLE001
+        results.append({"model_type": "poly_calendar", "status": "failed", "error": str(exc), "model": None, "fit_info": None, "metrics": None})
 
     return results
 
