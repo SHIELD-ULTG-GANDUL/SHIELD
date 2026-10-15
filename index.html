@@ -288,15 +288,9 @@
               <div onclick="goToTab('ml','lntai')" id="sub-ml-lntai" class="sidebar-sub-item">
                 <i data-lucide="thermometer-sun" class="w-3.5 h-3.5 shrink-0"></i> LNTAI
               </div>
-            </div>
-          </div>
-
-          <!-- LNTAI vs Aging Factor (Stage 2, Part J1/J2) -->
-          <div>
-            <div id="menu-aging" onclick="switchPage('aging')"
-              class="sidebar-item flex items-center gap-3 px-4 py-3.5 text-sm font-bold rounded-xl">
-              <i data-lucide="gauge" class="w-5 h-5 shrink-0"></i>
-              <span class="flex-1">LNTAI vs Aging Factor</span>
+              <div onclick="goToTab('ml','aging')" id="sub-ml-aging" class="sidebar-sub-item">
+                <i data-lucide="gauge" class="w-3.5 h-3.5 shrink-0"></i> LNTAI vs Aging Factor
+              </div>
             </div>
           </div>
 
@@ -1129,7 +1123,7 @@
                   <button onclick="switchInnerTab('ml','aex')" id="itab-ml-aex" class="inner-tab-btn active" style="color:#4f46e5;font-weight:900;">🎯 Executive Summary</button>
                   <button onclick="switchInnerTab('ml','a0')" id="itab-ml-a0" class="inner-tab-btn" style="color:#0891b2;">⚡ Forecast Realtime</button>
                   <button onclick="switchInnerTab('ml','lntai')" id="itab-ml-lntai" class="inner-tab-btn" style="color:#dc2626;">🔥 LNTAI</button>
-                  <button onclick="switchInnerTab('ml','mllab')" id="itab-ml-mllab" class="inner-tab-btn" style="color:#059669;">🧪 ML Lab (Real Data)</button>
+                  <button onclick="switchInnerTab('ml','aging')" id="itab-ml-aging" class="inner-tab-btn" style="color:#0d9488;">📉 LNTAI vs Aging Factor</button>
                 </div>
 
                 <!-- ════════════════════════════════════════════════════════
@@ -1462,137 +1456,292 @@
                   </div>
                 </div>
 
-                <!-- ════════════════════════════════════════════════════════
-                     Tab ML LAB: REGRESSION, CLASSIFICATION, CLUSTERING — Data Real TimescaleDB
-                     Mengikuti Praktikum ML Minggu 3 (Power System), diterapkan pada
-                     data beban (MW) & suhu kontak trafo yang sebenarnya.
-                     ════════════════════════════════════════════════════════ -->
-                <div id="itab-content-ml-mllab" class="hidden space-y-4">
-                  <div class="glass-card p-5 border-l-4 border-emerald-400">
-                    <div class="flex items-center justify-between flex-wrap gap-3 mb-3">
-                      <div class="flex items-center gap-3">
-                        <div class="bg-emerald-100 p-2 rounded-lg"><i data-lucide="flask-conical" class="w-5 h-5 text-emerald-600"></i></div>
-                        <div>
-                          <h5 class="text-xs font-extrabold text-emerald-700 uppercase tracking-widest">ML Lab — Regression · Classification · Clustering</h5>
-                          <p class="text-[10px] text-slate-400">Tiga algoritma dasar Machine Learning (Praktikum Minggu 3) dijalankan langsung di browser memakai data real dari TimescaleDB — bukan dataset dummy.</p>
+
+                <!-- Tab AGING: LNTAI vs AGING FACTOR (Stage 2, Part J1/J2/J3) -->
+                <div id="itab-content-ml-aging" class="hidden space-y-6">
+
+                <!-- Header row: last data time, CB type, data source -->
+                <div class="glass-card p-4 flex items-center justify-between flex-wrap gap-3">
+                    <div class="flex items-center gap-6 flex-wrap text-[11px] font-bold text-slate-500">
+                        <div>Last data: <span id="aging-last-data-time" class="font-mono text-slate-700">—</span> WIB</div>
+                        <div>CB type: <span id="aging-cb-type" class="text-slate-700">—</span></div>
+                    </div>
+                    <span id="aging-data-source-badge" class="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-slate-100 text-slate-500">Data source: —</span>
+                </div>
+
+                <!-- Status banner -->
+                <div id="aging-status-banner" class="hidden glass-card p-4 border-l-4 border-amber-400 bg-amber-50 text-amber-800 text-xs font-bold"></div>
+
+                <!-- 4 KPI cards -->
+                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
+                    <!-- KPI 1: LNTAI score -->
+                    <div class="glass-card p-5">
+                        <div class="flex items-center justify-between mb-2">
+                            <h5 class="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest">LNTAI score</h5>
+                            <span id="aging-kpi-lntai-baseline-badge" class="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-slate-100 text-slate-500">—</span>
                         </div>
-                      </div>
-                      <button onclick="runMlLabAnalysis(true)" class="flex items-center gap-1.5 bg-white border border-emerald-200 text-emerald-700 text-[11px] font-bold px-3 py-1.5 rounded-lg hover:bg-emerald-50 transition-all">
-                        <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Jalankan / Refresh Analisis
-                      </button>
+                        <div id="aging-kpi-lntai-body">
+                            <div class="flex items-baseline gap-2">
+                                <span id="aging-kpi-lntai-value" class="text-3xl font-black text-slate-800">-</span>
+                                <span id="aging-kpi-lntai-level" class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-slate-100 text-slate-500">—</span>
+                            </div>
+                            <p id="aging-kpi-lntai-insight" class="text-[10px] text-slate-500 mt-2 leading-relaxed">—</p>
+                            <div class="relative w-full h-2 bg-slate-100 rounded-full mt-3">
+                                <div id="aging-kpi-lntai-bar" class="h-2 rounded-full bg-emerald-400 transition-all" style="width:0%"></div>
+                            </div>
+                            <div class="flex justify-between text-[8px] text-slate-400 font-bold mt-1">
+                                <span>0</span><span>1.5</span><span>3.0</span><span>5.0</span>
+                            </div>
+                        </div>
+                        <div id="aging-kpi-lntai-empty" class="hidden text-[11px] text-slate-400 font-bold py-4 text-center">No LNTAI v3 data yet for this trafo.</div>
                     </div>
 
-                    <div class="flex items-center gap-2 mb-2 flex-wrap">
-                      <span class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest mr-1">Dataset:</span>
-                      <button id="mllab-btn-beban" onclick="setMlLabDataset('beban')" class="text-[11px] font-extrabold px-3 py-1.5 rounded-lg transition-all bg-emerald-600 text-white">⚡ Beban (MW)</button>
-                      <button id="mllab-btn-suhu" onclick="setMlLabDataset('suhu')" class="text-[11px] font-extrabold px-3 py-1.5 rounded-lg transition-all bg-white border border-slate-200 text-slate-600 hover:bg-slate-50">🌡️ Suhu Kontak (°C)</button>
+                    <!-- KPI 2: Thermal aging factor (today) -->
+                    <div class="glass-card p-5">
+                        <div class="flex items-center justify-between mb-2">
+                            <h5 class="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest">Thermal aging factor (today)</h5>
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-slate-200 text-slate-600">Physics · relative</span>
+                        </div>
+                        <div id="aging-kpi-factor-body">
+                            <span id="aging-kpi-factor-value" class="text-3xl font-black text-slate-800">-</span>
+                            <p id="aging-kpi-factor-insight" class="text-[10px] text-slate-500 mt-2 leading-relaxed">Arrhenius acceleration factor vs. a fixed reference temperature — 2.0× means aging twice as fast as reference today.</p>
+                        </div>
+                        <div id="aging-kpi-factor-empty" class="hidden text-[11px] text-slate-400 font-bold py-4 text-center">Activation energy not configured.</div>
                     </div>
-                    <div id="mllab-status" class="text-[10px] text-slate-400 mt-1">Klik "Jalankan / Refresh Analisis" untuk mengambil data real Trafo dari TimescaleDB.</div>
-                  </div>
 
-                  <!-- 1. Regression -->
-                  <div class="glass-card p-5">
-                    <div class="flex items-center justify-between gap-3 mb-3 flex-wrap">
-                      <h5 class="text-xs font-extrabold text-slate-700 uppercase tracking-widest">1. Regression — Load/Suhu Forecasting (Linear vs Polynomial)</h5>
-                      <span class="text-[9px] font-extrabold px-2 py-1 rounded-full bg-cyan-50 text-cyan-600">setara sklearn.linear_model.LinearRegression</span>
+                    <!-- KPI 3: Cumulative equivalent age -->
+                    <div class="glass-card p-5">
+                        <div class="flex items-center justify-between mb-2">
+                            <h5 class="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest">Cumulative equivalent age</h5>
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-slate-200 text-slate-600">Physics · relative</span>
+                        </div>
+                        <div id="aging-kpi-cumage-body">
+                            <span id="aging-kpi-cumage-value" class="text-2xl font-black text-slate-800">-</span>
+                            <p id="aging-kpi-cumage-insight" class="text-[10px] text-slate-500 mt-2 leading-relaxed">—</p>
+                        </div>
+                        <div id="aging-kpi-cumage-empty" class="hidden text-[11px] text-slate-400 font-bold py-4 text-center">Activation energy not configured.</div>
                     </div>
-                    <div class="flex items-center gap-2 mb-3 flex-wrap">
-                      <span class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest mr-1">Data:</span>
-                      <button id="mllab-reg-mode-recent" onclick="setMlLabRegMode('recent')" class="text-[10px] font-extrabold px-2.5 py-1 rounded-lg transition-all bg-cyan-600 text-white">🕐 Terbaru (rolling window)</button>
-                      <button id="mllab-reg-mode-seasonal" onclick="setMlLabRegMode('seasonal')" class="text-[10px] font-extrabold px-2.5 py-1 rounded-lg transition-all bg-white border border-slate-200 text-slate-600 hover:bg-slate-50">📅 Musiman 7 Hari (rata-rata per jam)</button>
-                      <button onclick="mllabResetZoom('mllab-regression')" class="ml-auto flex items-center gap-1 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-bold px-2.5 py-1 rounded-lg transition-all">
-                        <i data-lucide="rotate-ccw" class="w-3 h-3"></i> Reset Zoom
-                      </button>
-                    </div>
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
-                      <div class="bg-white border border-slate-200 rounded-xl p-3">
-                        <div class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest">RMSE Linear</div>
-                        <div id="mllab-reg-rmse-linear" class="font-mono font-black text-lg text-orange-600 mt-1">-</div>
-                      </div>
-                      <div class="bg-white border border-slate-200 rounded-xl p-3">
-                        <div class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest">RMSE Polynomial (deg 2)</div>
-                        <div id="mllab-reg-rmse-poly" class="font-mono font-black text-lg text-violet-600 mt-1">-</div>
-                      </div>
-                      <div class="bg-white border border-slate-200 rounded-xl p-3">
-                        <div class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest">Prediksi Linear</div>
-                        <div id="mllab-reg-forecast-linear" class="font-mono font-black text-lg text-slate-700 mt-1">-</div>
-                      </div>
-                      <div class="bg-white border border-slate-200 rounded-xl p-3">
-                        <div class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest">Prediksi Polynomial</div>
-                        <div id="mllab-reg-forecast-poly" class="font-mono font-black text-lg text-slate-700 mt-1">-</div>
-                      </div>
-                    </div>
-                    <div class="relative h-[240px]"><canvas id="mllab-regression-chart"></canvas></div>
-                    <div id="mllab-reg-analysis" class="text-[10px] text-slate-500 mt-3 leading-relaxed bg-slate-50 border border-slate-200 rounded-xl p-3">Klik "Jalankan / Refresh Analisis" untuk melihat perbandingan Linear vs Polynomial.</div>
-                    <p class="text-[9px] text-slate-400 mt-2">Chart mendukung scroll/pinch untuk zoom dan drag untuk geser (pan); klik legend untuk sembunyikan/tampilkan satu garis.</p>
-                  </div>
 
-                  <!-- 2. Classification -->
-                  <div class="glass-card p-5">
-                    <div class="flex items-center justify-between gap-3 mb-3 flex-wrap">
-                      <h5 class="text-xs font-extrabold text-slate-700 uppercase tracking-widest">2. Classification — Fault/Anomaly Detection (Decision Stump)</h5>
-                      <span class="text-[9px] font-extrabold px-2 py-1 rounded-full bg-red-50 text-red-600">setara sklearn.tree.DecisionTreeClassifier (depth=1)</span>
+                    <!-- KPI 4: Relative contact resistance -->
+                    <div class="glass-card p-5">
+                        <div class="flex items-center justify-between mb-2">
+                            <h5 class="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest">Relative contact resistance</h5>
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-orange-100 text-orange-700">Beta</span>
+                        </div>
+                        <div id="aging-kpi-resistance-body">
+                            <span id="aging-kpi-resistance-value" class="text-3xl font-black text-slate-800">-</span>
+                            <p id="aging-kpi-resistance-insight" class="text-[10px] text-slate-500 mt-2 leading-relaxed">—</p>
+                        </div>
+                        <div id="aging-kpi-resistance-empty" class="hidden text-[11px] text-slate-400 font-bold py-4 text-center">No reference / insufficient data.</div>
                     </div>
-                    <div class="flex items-center gap-2 mb-3 flex-wrap">
-                      <button onclick="mllabInjectFaultCase()" class="flex items-center gap-1.5 bg-red-50 border border-red-200 text-red-700 text-[10px] font-bold px-2.5 py-1.5 rounded-lg hover:bg-red-100 transition-all">
-                        <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i> Uji Kasus Fault Baru (kombinasi ekstrem)
-                      </button>
-                      <button id="mllab-clf-reset-btn" onclick="mllabClearFaultCase()" class="hidden flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-bold px-2.5 py-1.5 rounded-lg transition-all">
-                        <i data-lucide="x" class="w-3.5 h-3.5"></i> Hapus Kasus Uji
-                      </button>
-                      <button onclick="mllabResetZoom('mllab-classification')" class="ml-auto flex items-center gap-1 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-bold px-2.5 py-1 rounded-lg transition-all">
-                        <i data-lucide="rotate-ccw" class="w-3 h-3"></i> Reset Zoom
-                      </button>
-                    </div>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
-                      <div class="bg-white border border-slate-200 rounded-xl p-3">
-                        <div class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest">Akurasi Training</div>
-                        <div id="mllab-clf-acc" class="font-mono font-black text-xl text-slate-700 mt-1">-</div>
-                      </div>
-                      <div class="bg-white border border-slate-200 rounded-xl p-3 md:col-span-2">
-                        <div class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest">Aturan Split (Decision Boundary)</div>
-                        <div id="mllab-clf-rule" class="font-mono font-bold text-sm text-slate-700 mt-1">-</div>
-                      </div>
-                    </div>
-                    <div class="relative h-[240px]"><canvas id="mllab-classification-chart"></canvas></div>
-                    <div id="mllab-clf-analysis" class="text-[10px] text-slate-500 mt-3 leading-relaxed bg-slate-50 border border-slate-200 rounded-xl p-3">Klik "Jalankan / Refresh Analisis" untuk melatih model.</div>
-                    <p class="text-[10px] text-slate-400 mt-2 leading-relaxed">Label acuan (Normal/Anomali) dibuat otomatis dari statistik data yang sedang ditampilkan (outlier &gt; mean + 1·SD) sebagai latihan klasifikasi; untuk deteksi produksi gunakan skor <b>LNTAI</b> yang sudah divalidasi di tab sebelah.</p>
-                  </div>
+                </div>
 
-                  <!-- 3. Clustering -->
-                  <div class="glass-card p-5">
-                    <div class="flex items-center justify-between gap-3 mb-3 flex-wrap">
-                      <h5 class="text-xs font-extrabold text-slate-700 uppercase tracking-widest">3. Clustering — Load/Thermal Profiling (K-Means)</h5>
-                      <span class="text-[9px] font-extrabold px-2 py-1 rounded-full bg-indigo-50 text-indigo-600">setara sklearn.cluster.KMeans</span>
+                <!-- J2: LNTAI vs Aging Factor quadrant scatter + daily trend -->
+                <div class="glass-card p-6">
+                    <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+                        <h4 class="text-xs font-extrabold text-slate-600 uppercase tracking-widest">LNTAI vs Aging Factor — Quadrant View</h4>
+                        <select id="aging-quadrant-scope" onchange="initAgingPage()" class="text-[10px] font-bold border border-slate-200 rounded-lg px-2 py-1 outline-none">
+                            <option value="selected">Selected trafo only</option>
+                            <option value="all">All trafos</option>
+                        </select>
                     </div>
-                    <div class="flex items-center gap-2 mb-3 flex-wrap">
-                      <span class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest mr-1">Jumlah Cluster (k):</span>
-                      <button id="mllab-k-2" onclick="setMlLabK(2)" class="text-[11px] font-extrabold px-3 py-1 rounded-lg transition-all bg-white border border-slate-200 text-slate-600 hover:bg-slate-50">2</button>
-                      <button id="mllab-k-3" onclick="setMlLabK(3)" class="text-[11px] font-extrabold px-3 py-1 rounded-lg transition-all bg-indigo-600 text-white">3</button>
-                      <button id="mllab-k-4" onclick="setMlLabK(4)" class="text-[11px] font-extrabold px-3 py-1 rounded-lg transition-all bg-white border border-slate-200 text-slate-600 hover:bg-slate-50">4</button>
-                      <button id="mllab-k-5" onclick="setMlLabK(5)" class="text-[11px] font-extrabold px-3 py-1 rounded-lg transition-all bg-white border border-slate-200 text-slate-600 hover:bg-slate-50">5</button>
-                      <button onclick="mllabResetZoom('mllab-clustering')" class="ml-auto flex items-center gap-1 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-bold px-2.5 py-1 rounded-lg transition-all">
-                        <i data-lucide="rotate-ccw" class="w-3 h-3"></i> Reset Zoom
-                      </button>
+                    <p class="text-[10px] text-slate-500 mb-3 leading-relaxed" id="aging-quadrant-reading-note">Each point is one phase of one trafo: x = thermal aging factor (today), y = LNTAI (residual z-score). Top-right (high aging AND high LNTAI) is the priority case; top-left (high LNTAI at low aging) is worth investigating even though load-driven aging looks normal.</p>
+                    <div class="relative" style="height:320px;">
+                        <canvas id="aging-quadrant-chart"></canvas>
                     </div>
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                      <div class="relative h-[240px]"><canvas id="mllab-clustering-chart"></canvas></div>
-                      <div class="overflow-x-auto">
+                    <div id="aging-quadrant-empty" class="hidden text-[11px] text-slate-400 font-bold py-10 text-center">No data available to plot yet.</div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mt-6">
+                        <div>
+                            <h5 class="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-2">Daily max LNTAI (last 30 days)</h5>
+                            <div class="relative" style="height:180px;">
+                                <canvas id="aging-daily-lntai-chart"></canvas>
+                            </div>
+                            <div id="aging-daily-lntai-empty" class="hidden text-[11px] text-slate-400 font-bold py-8 text-center">No daily LNTAI data in this range.</div>
+                        </div>
+                        <div>
+                            <h5 class="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-2">Daily mean aging factor (last 30 days)</h5>
+                            <div class="relative" style="height:180px;">
+                                <canvas id="aging-daily-factor-chart"></canvas>
+                            </div>
+                            <div id="aging-daily-factor-empty" class="hidden text-[11px] text-slate-400 font-bold py-8 text-center">No daily aging-factor data in this range.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- J2: LNTAI last 7 days + 24h forecast -->
+                <div class="glass-card p-6">
+                    <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+                        <h4 class="text-xs font-extrabold text-slate-600 uppercase tracking-widest">LNTAI — Last 7 Days + 24h Forecast</h4>
+                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-blue-100 text-blue-700">ML forecast</span>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <div class="relative" style="height:300px; min-width:600px;">
+                            <canvas id="aging-forecast-chart"></canvas>
+                        </div>
+                    </div>
+                    <div id="aging-forecast-empty" class="hidden text-[11px] text-slate-400 font-bold py-10 text-center">No measured history or forecast available yet for this trafo.</div>
+                </div>
+
+                <!-- J2: Early warning card -->
+                <div class="glass-card p-6 border-l-4 border-orange-400">
+                    <div class="flex items-center justify-between mb-4">
+                        <h4 class="text-xs font-extrabold text-orange-700 uppercase tracking-widest">Early Warning</h4>
+                        <button onclick="scrollToInspectionForm()" class="text-[10px] font-extrabold px-3 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-all">Log inspection</button>
+                    </div>
+                    <div id="aging-warning-body" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 text-[11px]">
+                        <!-- populated by JS -->
+                    </div>
+                    <div id="aging-warning-empty" class="hidden text-[11px] text-slate-400 font-bold py-6 text-center">No predicted level crossing in the forecast horizon — levels look stable.</div>
+                </div>
+
+                <!-- J3: Why did the score rise? -->
+                <div class="glass-card p-6">
+                    <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+                        <h4 class="text-xs font-extrabold text-slate-600 uppercase tracking-widest">Why Did The Score Rise?</h4>
+                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-purple-100 text-purple-700">Explainability</span>
+                    </div>
+                    <div id="aging-explain-body">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5 text-[11px]">
+                            <div class="bg-slate-50 rounded-lg p-3">
+                                <div class="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Measured hotspot</div>
+                                <div id="aging-explain-measured" class="font-mono font-bold text-slate-700 text-lg">—</div>
+                            </div>
+                            <div class="bg-slate-50 rounded-lg p-3">
+                                <div class="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Predicted healthy</div>
+                                <div id="aging-explain-predicted" class="font-mono font-bold text-slate-700 text-lg">—</div>
+                            </div>
+                            <div class="bg-slate-50 rounded-lg p-3">
+                                <div class="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Unexplained residual</div>
+                                <div id="aging-explain-residual" class="font-mono font-bold text-slate-700 text-lg">—</div>
+                            </div>
+                        </div>
+                        <div class="relative" style="height:160px;">
+                            <canvas id="aging-explain-contrib-chart"></canvas>
+                        </div>
+                        <p id="aging-explain-method" class="text-[10px] text-slate-400 mt-2">—</p>
+                        <div id="aging-explain-cusum" class="hidden mt-3 text-[11px] font-bold text-orange-700 bg-orange-50 rounded-lg p-3"></div>
+                    </div>
+                    <div id="aging-explain-empty" class="hidden text-[11px] text-slate-400 font-bold py-8 text-center">No active baseline model or no data for this phase yet.</div>
+                </div>
+
+                <!-- J3: Per-phase table -->
+                <div class="glass-card p-6">
+                    <h4 class="text-xs font-extrabold text-slate-600 uppercase tracking-widest mb-4">Per-Phase Summary</h4>
+                    <div class="overflow-x-auto">
                         <table class="w-full text-[11px]">
-                          <thead>
-                            <tr class="text-slate-400 uppercase text-[9px] tracking-widest">
-                              <th class="px-3 py-1.5 text-left">Cluster</th>
-                              <th class="px-3 py-1.5 text-right" id="mllab-cluster-f1-label">Fitur 1</th>
-                              <th class="px-3 py-1.5 text-right" id="mllab-cluster-f2-label">Fitur 2</th>
-                              <th class="px-3 py-1.5 text-right">Jumlah Titik</th>
-                            </tr>
-                          </thead>
-                          <tbody id="mllab-cluster-table"></tbody>
+                            <thead>
+                                <tr class="text-left text-[9px] font-extrabold text-slate-400 uppercase tracking-widest border-b border-slate-200">
+                                    <th class="py-2 pr-4">Phase</th>
+                                    <th class="py-2 pr-4">Hotspot (°C)</th>
+                                    <th class="py-2 pr-4">Current (A)</th>
+                                    <th class="py-2 pr-4">LNTAI</th>
+                                    <th class="py-2 pr-4">R/R_ref</th>
+                                    <th class="py-2 pr-4">Aging factor</th>
+                                </tr>
+                            </thead>
+                            <tbody id="aging-phase-table-body"><!-- populated by JS --></tbody>
                         </table>
-                      </div>
                     </div>
-                    <div id="mllab-cluster-analysis" class="text-[10px] text-slate-500 mt-3 leading-relaxed bg-slate-50 border border-slate-200 rounded-xl p-3">Klik "Jalankan / Refresh Analisis" untuk melihat perbandingan jumlah cluster.</div>
-                  </div>
+                    <p id="aging-phase-relative-sentence" class="text-[10px] text-slate-500 mt-3">—</p>
+                    <div id="aging-phase-table-empty" class="hidden text-[11px] text-slate-400 font-bold py-8 text-center">No data available for any phase yet.</div>
+                </div>
+
+                <!-- J3: Relative resistance trend & degradation projection -->
+                <div class="glass-card p-6">
+                    <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+                        <h4 class="text-xs font-extrabold text-slate-600 uppercase tracking-widest">Relative Resistance Trend & Degradation Projection</h4>
+                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-orange-100 text-orange-700">Beta · Bayesian</span>
+                    </div>
+                    <div class="relative" style="height:260px;">
+                        <canvas id="aging-resistance-trend-chart"></canvas>
+                    </div>
+                    <div id="aging-resistance-trend-empty" class="hidden text-[11px] text-slate-400 font-bold py-10 text-center">No reference / insufficient weekly resistance data yet.</div>
+                    <p id="aging-projection-note" class="text-[10px] text-slate-500 mt-3">—</p>
+                </div>
+
+                <!-- J3: Data quality (7 days) -->
+                <div class="glass-card p-6">
+                    <h4 class="text-xs font-extrabold text-slate-600 uppercase tracking-widest mb-4">Data Quality (7 Days)</h4>
+                    <div id="aging-dq-body" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 text-[11px]">
+                        <!-- populated by JS -->
+                    </div>
+                    <p class="text-[10px] text-slate-400 mt-4">Flagged samples are excluded from LNTAI and aging factor.</p>
+                </div>
+
+                <!-- J3: Model performance & transparency -->
+                <div class="glass-card p-6">
+                    <h4 class="text-xs font-extrabold text-slate-600 uppercase tracking-widest mb-4">Model Performance &amp; Transparency</h4>
+                    <div id="aging-model-perf-body" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 text-[11px]">
+                        <!-- populated by JS -->
+                    </div>
+                    <div id="aging-model-perf-empty" class="hidden text-[11px] text-slate-400 font-bold py-8 text-center">No active baseline model for this phase yet.</div>
+                    <p class="text-[10px] text-slate-400 mt-4">Full model documentation: <code class="bg-slate-100 px-1.5 py-0.5 rounded">docs/MODEL_CARD.md</code> on the server.</p>
+                </div>
+
+                <!-- J3: Log inspection form -->
+                <div id="aging-inspection-form" class="glass-card p-6 border-l-4 border-emerald-400">
+                    <h4 class="text-xs font-extrabold text-emerald-700 uppercase tracking-widest mb-4">Log Inspection</h4>
+                    <form onsubmit="submitInspectionLog(event)" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 text-[11px]">
+                        <div>
+                            <label for="insp-trafo" class="block text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Trafo</label>
+                            <select id="insp-trafo" required class="w-full border border-slate-200 rounded-lg px-3 py-2 outline-none">
+                                <option value="2">Trafo 2</option>
+                                <option value="3">Trafo 3</option>
+                                <option value="4">Trafo 4</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="insp-phase" class="block text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Phase</label>
+                            <select id="insp-phase" class="w-full border border-slate-200 rounded-lg px-3 py-2 outline-none">
+                                <option value="">All phases</option>
+                                <option value="R">R</option>
+                                <option value="S">S</option>
+                                <option value="T">T</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="insp-event-type" class="block text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Event type</label>
+                            <select id="insp-event-type" required onchange="_toggleInspectionResistanceFields()" class="w-full border border-slate-200 rounded-lg px-3 py-2 outline-none">
+                                <option value="inspection">Inspection</option>
+                                <option value="cleaning">Cleaning</option>
+                                <option value="tightening">Tightening</option>
+                                <option value="replacement">Replacement</option>
+                                <option value="resistance_test">Resistance test</option>
+                                <option value="thermovision">Thermovision</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="insp-event-ts" class="block text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Event date/time</label>
+                            <input id="insp-event-ts" type="datetime-local" required class="w-full border border-slate-200 rounded-lg px-3 py-2 outline-none">
+                        </div>
+                        <div id="insp-resistance-field">
+                            <label for="insp-resistance" class="block text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Contact resistance (µΩ)</label>
+                            <input id="insp-resistance" type="number" step="0.01" min="0" class="w-full border border-slate-200 rounded-lg px-3 py-2 outline-none">
+                        </div>
+                        <div id="insp-test-current-field">
+                            <label for="insp-test-current" class="block text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Test current (A)</label>
+                            <input id="insp-test-current" type="number" step="0.1" min="0" class="w-full border border-slate-200 rounded-lg px-3 py-2 outline-none">
+                        </div>
+                        <div class="md:col-span-2 xl:col-span-3">
+                            <label for="insp-notes" class="block text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Notes</label>
+                            <textarea id="insp-notes" rows="2" class="w-full border border-slate-200 rounded-lg px-3 py-2 outline-none"></textarea>
+                        </div>
+                        <div>
+                            <label for="insp-created-by" class="block text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Logged by</label>
+                            <input id="insp-created-by" type="text" required class="w-full border border-slate-200 rounded-lg px-3 py-2 outline-none">
+                        </div>
+                        <div class="flex items-center gap-2 mt-5">
+                            <input id="insp-resets-baseline" type="checkbox" class="w-4 h-4">
+                            <label for="insp-resets-baseline" class="text-[10px] font-bold text-slate-600">This maintenance resets the baseline (flags the frozen reference model for re-calibration)</label>
+                        </div>
+                        <div class="md:col-span-2 xl:col-span-3 flex items-center justify-between mt-2">
+                            <span id="insp-form-status" class="text-[10px] font-bold"></span>
+                            <button type="submit" class="text-[11px] font-extrabold px-5 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-all">Submit</button>
+                        </div>
+                    </form>
+                </div>
+
                 </div>
 
                 <!-- ════════════════════════════════════════════════════════
@@ -1913,292 +2062,6 @@
 
             </div> <!-- end view-ml -->
 
-            <!-- HALAMAN: LNTAI vs AGING FACTOR (Stage 2, Part J1/J2) -->
-            <div id="view-aging" class="hidden space-y-6">
-
-                <!-- Header row: last data time, CB type, data source -->
-                <div class="glass-card p-4 flex items-center justify-between flex-wrap gap-3">
-                    <div class="flex items-center gap-6 flex-wrap text-[11px] font-bold text-slate-500">
-                        <div>Last data: <span id="aging-last-data-time" class="font-mono text-slate-700">—</span> WIB</div>
-                        <div>CB type: <span id="aging-cb-type" class="text-slate-700">—</span></div>
-                    </div>
-                    <span id="aging-data-source-badge" class="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-slate-100 text-slate-500">Data source: —</span>
-                </div>
-
-                <!-- Status banner -->
-                <div id="aging-status-banner" class="hidden glass-card p-4 border-l-4 border-amber-400 bg-amber-50 text-amber-800 text-xs font-bold"></div>
-
-                <!-- 4 KPI cards -->
-                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
-                    <!-- KPI 1: LNTAI score -->
-                    <div class="glass-card p-5">
-                        <div class="flex items-center justify-between mb-2">
-                            <h5 class="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest">LNTAI score</h5>
-                            <span id="aging-kpi-lntai-baseline-badge" class="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-slate-100 text-slate-500">—</span>
-                        </div>
-                        <div id="aging-kpi-lntai-body">
-                            <div class="flex items-baseline gap-2">
-                                <span id="aging-kpi-lntai-value" class="text-3xl font-black text-slate-800">-</span>
-                                <span id="aging-kpi-lntai-level" class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-slate-100 text-slate-500">—</span>
-                            </div>
-                            <p id="aging-kpi-lntai-insight" class="text-[10px] text-slate-500 mt-2 leading-relaxed">—</p>
-                            <div class="relative w-full h-2 bg-slate-100 rounded-full mt-3">
-                                <div id="aging-kpi-lntai-bar" class="h-2 rounded-full bg-emerald-400 transition-all" style="width:0%"></div>
-                            </div>
-                            <div class="flex justify-between text-[8px] text-slate-400 font-bold mt-1">
-                                <span>0</span><span>1.5</span><span>3.0</span><span>5.0</span>
-                            </div>
-                        </div>
-                        <div id="aging-kpi-lntai-empty" class="hidden text-[11px] text-slate-400 font-bold py-4 text-center">No LNTAI v3 data yet for this trafo.</div>
-                    </div>
-
-                    <!-- KPI 2: Thermal aging factor (today) -->
-                    <div class="glass-card p-5">
-                        <div class="flex items-center justify-between mb-2">
-                            <h5 class="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest">Thermal aging factor (today)</h5>
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-slate-200 text-slate-600">Physics · relative</span>
-                        </div>
-                        <div id="aging-kpi-factor-body">
-                            <span id="aging-kpi-factor-value" class="text-3xl font-black text-slate-800">-</span>
-                            <p id="aging-kpi-factor-insight" class="text-[10px] text-slate-500 mt-2 leading-relaxed">Arrhenius acceleration factor vs. a fixed reference temperature — 2.0× means aging twice as fast as reference today.</p>
-                        </div>
-                        <div id="aging-kpi-factor-empty" class="hidden text-[11px] text-slate-400 font-bold py-4 text-center">Activation energy not configured.</div>
-                    </div>
-
-                    <!-- KPI 3: Cumulative equivalent age -->
-                    <div class="glass-card p-5">
-                        <div class="flex items-center justify-between mb-2">
-                            <h5 class="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest">Cumulative equivalent age</h5>
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-slate-200 text-slate-600">Physics · relative</span>
-                        </div>
-                        <div id="aging-kpi-cumage-body">
-                            <span id="aging-kpi-cumage-value" class="text-2xl font-black text-slate-800">-</span>
-                            <p id="aging-kpi-cumage-insight" class="text-[10px] text-slate-500 mt-2 leading-relaxed">—</p>
-                        </div>
-                        <div id="aging-kpi-cumage-empty" class="hidden text-[11px] text-slate-400 font-bold py-4 text-center">Activation energy not configured.</div>
-                    </div>
-
-                    <!-- KPI 4: Relative contact resistance -->
-                    <div class="glass-card p-5">
-                        <div class="flex items-center justify-between mb-2">
-                            <h5 class="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest">Relative contact resistance</h5>
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-orange-100 text-orange-700">Beta</span>
-                        </div>
-                        <div id="aging-kpi-resistance-body">
-                            <span id="aging-kpi-resistance-value" class="text-3xl font-black text-slate-800">-</span>
-                            <p id="aging-kpi-resistance-insight" class="text-[10px] text-slate-500 mt-2 leading-relaxed">—</p>
-                        </div>
-                        <div id="aging-kpi-resistance-empty" class="hidden text-[11px] text-slate-400 font-bold py-4 text-center">No reference / insufficient data.</div>
-                    </div>
-                </div>
-
-                <!-- J2: LNTAI vs Aging Factor quadrant scatter + daily trend -->
-                <div class="glass-card p-6">
-                    <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
-                        <h4 class="text-xs font-extrabold text-slate-600 uppercase tracking-widest">LNTAI vs Aging Factor — Quadrant View</h4>
-                        <select id="aging-quadrant-scope" onchange="initAgingPage()" class="text-[10px] font-bold border border-slate-200 rounded-lg px-2 py-1 outline-none">
-                            <option value="selected">Selected trafo only</option>
-                            <option value="all">All trafos</option>
-                        </select>
-                    </div>
-                    <p class="text-[10px] text-slate-500 mb-3 leading-relaxed" id="aging-quadrant-reading-note">Each point is one phase of one trafo: x = thermal aging factor (today), y = LNTAI (residual z-score). Top-right (high aging AND high LNTAI) is the priority case; top-left (high LNTAI at low aging) is worth investigating even though load-driven aging looks normal.</p>
-                    <div class="relative" style="height:320px;">
-                        <canvas id="aging-quadrant-chart"></canvas>
-                    </div>
-                    <div id="aging-quadrant-empty" class="hidden text-[11px] text-slate-400 font-bold py-10 text-center">No data available to plot yet.</div>
-
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mt-6">
-                        <div>
-                            <h5 class="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-2">Daily max LNTAI (last 30 days)</h5>
-                            <div class="relative" style="height:180px;">
-                                <canvas id="aging-daily-lntai-chart"></canvas>
-                            </div>
-                            <div id="aging-daily-lntai-empty" class="hidden text-[11px] text-slate-400 font-bold py-8 text-center">No daily LNTAI data in this range.</div>
-                        </div>
-                        <div>
-                            <h5 class="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-2">Daily mean aging factor (last 30 days)</h5>
-                            <div class="relative" style="height:180px;">
-                                <canvas id="aging-daily-factor-chart"></canvas>
-                            </div>
-                            <div id="aging-daily-factor-empty" class="hidden text-[11px] text-slate-400 font-bold py-8 text-center">No daily aging-factor data in this range.</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- J2: LNTAI last 7 days + 24h forecast -->
-                <div class="glass-card p-6">
-                    <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
-                        <h4 class="text-xs font-extrabold text-slate-600 uppercase tracking-widest">LNTAI — Last 7 Days + 24h Forecast</h4>
-                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-blue-100 text-blue-700">ML forecast</span>
-                    </div>
-                    <div class="overflow-x-auto">
-                        <div class="relative" style="height:300px; min-width:600px;">
-                            <canvas id="aging-forecast-chart"></canvas>
-                        </div>
-                    </div>
-                    <div id="aging-forecast-empty" class="hidden text-[11px] text-slate-400 font-bold py-10 text-center">No measured history or forecast available yet for this trafo.</div>
-                </div>
-
-                <!-- J2: Early warning card -->
-                <div class="glass-card p-6 border-l-4 border-orange-400">
-                    <div class="flex items-center justify-between mb-4">
-                        <h4 class="text-xs font-extrabold text-orange-700 uppercase tracking-widest">Early Warning</h4>
-                        <button onclick="scrollToInspectionForm()" class="text-[10px] font-extrabold px-3 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-all">Log inspection</button>
-                    </div>
-                    <div id="aging-warning-body" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 text-[11px]">
-                        <!-- populated by JS -->
-                    </div>
-                    <div id="aging-warning-empty" class="hidden text-[11px] text-slate-400 font-bold py-6 text-center">No predicted level crossing in the forecast horizon — levels look stable.</div>
-                </div>
-
-                <!-- J3: Why did the score rise? -->
-                <div class="glass-card p-6">
-                    <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
-                        <h4 class="text-xs font-extrabold text-slate-600 uppercase tracking-widest">Why Did The Score Rise?</h4>
-                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-purple-100 text-purple-700">Explainability</span>
-                    </div>
-                    <div id="aging-explain-body">
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5 text-[11px]">
-                            <div class="bg-slate-50 rounded-lg p-3">
-                                <div class="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Measured hotspot</div>
-                                <div id="aging-explain-measured" class="font-mono font-bold text-slate-700 text-lg">—</div>
-                            </div>
-                            <div class="bg-slate-50 rounded-lg p-3">
-                                <div class="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Predicted healthy</div>
-                                <div id="aging-explain-predicted" class="font-mono font-bold text-slate-700 text-lg">—</div>
-                            </div>
-                            <div class="bg-slate-50 rounded-lg p-3">
-                                <div class="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Unexplained residual</div>
-                                <div id="aging-explain-residual" class="font-mono font-bold text-slate-700 text-lg">—</div>
-                            </div>
-                        </div>
-                        <div class="relative" style="height:160px;">
-                            <canvas id="aging-explain-contrib-chart"></canvas>
-                        </div>
-                        <p id="aging-explain-method" class="text-[10px] text-slate-400 mt-2">—</p>
-                        <div id="aging-explain-cusum" class="hidden mt-3 text-[11px] font-bold text-orange-700 bg-orange-50 rounded-lg p-3"></div>
-                    </div>
-                    <div id="aging-explain-empty" class="hidden text-[11px] text-slate-400 font-bold py-8 text-center">No active baseline model or no data for this phase yet.</div>
-                </div>
-
-                <!-- J3: Per-phase table -->
-                <div class="glass-card p-6">
-                    <h4 class="text-xs font-extrabold text-slate-600 uppercase tracking-widest mb-4">Per-Phase Summary</h4>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-[11px]">
-                            <thead>
-                                <tr class="text-left text-[9px] font-extrabold text-slate-400 uppercase tracking-widest border-b border-slate-200">
-                                    <th class="py-2 pr-4">Phase</th>
-                                    <th class="py-2 pr-4">Hotspot (°C)</th>
-                                    <th class="py-2 pr-4">Current (A)</th>
-                                    <th class="py-2 pr-4">LNTAI</th>
-                                    <th class="py-2 pr-4">R/R_ref</th>
-                                    <th class="py-2 pr-4">Aging factor</th>
-                                </tr>
-                            </thead>
-                            <tbody id="aging-phase-table-body"><!-- populated by JS --></tbody>
-                        </table>
-                    </div>
-                    <p id="aging-phase-relative-sentence" class="text-[10px] text-slate-500 mt-3">—</p>
-                    <div id="aging-phase-table-empty" class="hidden text-[11px] text-slate-400 font-bold py-8 text-center">No data available for any phase yet.</div>
-                </div>
-
-                <!-- J3: Relative resistance trend & degradation projection -->
-                <div class="glass-card p-6">
-                    <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
-                        <h4 class="text-xs font-extrabold text-slate-600 uppercase tracking-widest">Relative Resistance Trend & Degradation Projection</h4>
-                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-orange-100 text-orange-700">Beta · Bayesian</span>
-                    </div>
-                    <div class="relative" style="height:260px;">
-                        <canvas id="aging-resistance-trend-chart"></canvas>
-                    </div>
-                    <div id="aging-resistance-trend-empty" class="hidden text-[11px] text-slate-400 font-bold py-10 text-center">No reference / insufficient weekly resistance data yet.</div>
-                    <p id="aging-projection-note" class="text-[10px] text-slate-500 mt-3">—</p>
-                </div>
-
-                <!-- J3: Data quality (7 days) -->
-                <div class="glass-card p-6">
-                    <h4 class="text-xs font-extrabold text-slate-600 uppercase tracking-widest mb-4">Data Quality (7 Days)</h4>
-                    <div id="aging-dq-body" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 text-[11px]">
-                        <!-- populated by JS -->
-                    </div>
-                    <p class="text-[10px] text-slate-400 mt-4">Flagged samples are excluded from LNTAI and aging factor.</p>
-                </div>
-
-                <!-- J3: Model performance & transparency -->
-                <div class="glass-card p-6">
-                    <h4 class="text-xs font-extrabold text-slate-600 uppercase tracking-widest mb-4">Model Performance &amp; Transparency</h4>
-                    <div id="aging-model-perf-body" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 text-[11px]">
-                        <!-- populated by JS -->
-                    </div>
-                    <div id="aging-model-perf-empty" class="hidden text-[11px] text-slate-400 font-bold py-8 text-center">No active baseline model for this phase yet.</div>
-                    <p class="text-[10px] text-slate-400 mt-4">Full model documentation: <code class="bg-slate-100 px-1.5 py-0.5 rounded">docs/MODEL_CARD.md</code> on the server.</p>
-                </div>
-
-                <!-- J3: Log inspection form -->
-                <div id="aging-inspection-form" class="glass-card p-6 border-l-4 border-emerald-400">
-                    <h4 class="text-xs font-extrabold text-emerald-700 uppercase tracking-widest mb-4">Log Inspection</h4>
-                    <form onsubmit="submitInspectionLog(event)" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 text-[11px]">
-                        <div>
-                            <label for="insp-trafo" class="block text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Trafo</label>
-                            <select id="insp-trafo" required class="w-full border border-slate-200 rounded-lg px-3 py-2 outline-none">
-                                <option value="2">Trafo 2</option>
-                                <option value="3">Trafo 3</option>
-                                <option value="4">Trafo 4</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label for="insp-phase" class="block text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Phase</label>
-                            <select id="insp-phase" class="w-full border border-slate-200 rounded-lg px-3 py-2 outline-none">
-                                <option value="">All phases</option>
-                                <option value="R">R</option>
-                                <option value="S">S</option>
-                                <option value="T">T</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label for="insp-event-type" class="block text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Event type</label>
-                            <select id="insp-event-type" required onchange="_toggleInspectionResistanceFields()" class="w-full border border-slate-200 rounded-lg px-3 py-2 outline-none">
-                                <option value="inspection">Inspection</option>
-                                <option value="cleaning">Cleaning</option>
-                                <option value="tightening">Tightening</option>
-                                <option value="replacement">Replacement</option>
-                                <option value="resistance_test">Resistance test</option>
-                                <option value="thermovision">Thermovision</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label for="insp-event-ts" class="block text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Event date/time</label>
-                            <input id="insp-event-ts" type="datetime-local" required class="w-full border border-slate-200 rounded-lg px-3 py-2 outline-none">
-                        </div>
-                        <div id="insp-resistance-field">
-                            <label for="insp-resistance" class="block text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Contact resistance (µΩ)</label>
-                            <input id="insp-resistance" type="number" step="0.01" min="0" class="w-full border border-slate-200 rounded-lg px-3 py-2 outline-none">
-                        </div>
-                        <div id="insp-test-current-field">
-                            <label for="insp-test-current" class="block text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Test current (A)</label>
-                            <input id="insp-test-current" type="number" step="0.1" min="0" class="w-full border border-slate-200 rounded-lg px-3 py-2 outline-none">
-                        </div>
-                        <div class="md:col-span-2 xl:col-span-3">
-                            <label for="insp-notes" class="block text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Notes</label>
-                            <textarea id="insp-notes" rows="2" class="w-full border border-slate-200 rounded-lg px-3 py-2 outline-none"></textarea>
-                        </div>
-                        <div>
-                            <label for="insp-created-by" class="block text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Logged by</label>
-                            <input id="insp-created-by" type="text" required class="w-full border border-slate-200 rounded-lg px-3 py-2 outline-none">
-                        </div>
-                        <div class="flex items-center gap-2 mt-5">
-                            <input id="insp-resets-baseline" type="checkbox" class="w-4 h-4">
-                            <label for="insp-resets-baseline" class="text-[10px] font-bold text-slate-600">This maintenance resets the baseline (flags the frozen reference model for re-calibration)</label>
-                        </div>
-                        <div class="md:col-span-2 xl:col-span-3 flex items-center justify-between mt-2">
-                            <span id="insp-form-status" class="text-[10px] font-bold"></span>
-                            <button type="submit" class="text-[11px] font-extrabold px-5 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-all">Submit</button>
-                        </div>
-                    </form>
-                </div>
-
-            </div> <!-- end view-aging -->
 
         </main>
     </div>
@@ -3068,8 +2931,8 @@
             if (group === 'ml' && tabId === 'lntai' && typeof renderLNTAIPanel === 'function') {
                 renderLNTAIPanel(true);
             }
-            if (group === 'ml' && tabId === 'mllab' && typeof runMlLabAnalysis === 'function') {
-                runMlLabAnalysis();
+            if (group === 'ml' && tabId === 'aging' && typeof initAgingPage === 'function') {
+                initAgingPage();
             }
             if (group === 'logger' && tabId === 'suhu' && _loggerTempDirty && typeof renderLoggerTable === 'function') {
                 _loggerTempDirty = false;
@@ -3136,12 +2999,12 @@
             if(document.getElementById(menuId)) {
                 document.getElementById(menuId).classList.add('active');
             }
-            ['dashboard','logger','graphs','ml','aging'].forEach(g => {
+            ['dashboard','logger','graphs','ml'].forEach(g => {
                 _subMenuOpen[g] = (g === page);
                 _applySubMenuState(g);
             });
 
-            ['dashboard', 'logger', 'graphs', 'ml', 'aging'].forEach(id => {
+            ['dashboard', 'logger', 'graphs', 'ml'].forEach(id => {
                 const view = document.getElementById(`view-${id}`);
                 if(view) view.classList.add('hidden');
             });
@@ -3173,9 +3036,6 @@
                 titleEl.textContent = 'Machine Learning Analysis';
                 _mlPendingUpdate = false;
                 initMLPage();
-            } else if (page === 'aging') {
-                titleEl.textContent = 'LNTAI vs Aging Factor';
-                if (typeof initAgingPage === 'function') initAgingPage();
             }
         }
 
@@ -3226,10 +3086,10 @@
                 loadHistoricalLogs();
                 loadBebanLogs();
                 _scheduleMLRealtimeUpdate('pergantian trafo');
-            }
-
-            if (activePage === 'aging' && typeof initAgingPage === 'function') {
-                initAgingPage();
+                const agingBtn = document.getElementById('itab-ml-aging');
+                if (agingBtn && agingBtn.classList.contains('active') && typeof initAgingPage === 'function') {
+                    initAgingPage();
+                }
             }
         }
 
@@ -7720,575 +7580,6 @@
                     plugins:{ legend:{ position:'top', labels:{ font:{size:9,weight:'bold'}, usePointStyle:true, filter:l=>l.text!=='CI 95% Lower' }}},
                     scales:{ x:{ ticks:{ font:{size:8}, maxTicksLimit:tk.maxTicksLimit, maxRotation:tk.maxRotation }},
                              y:{ ticks:{ font:{size:9}, callback:v=>v.toFixed(0)+'A' }, grid:{ color:'#f1f5f9' }}}}
-            });
-        }
-
-        // ══════════════════════════════════════════════════════════════════
-        // ML LAB — Regression, Classification, Clustering pada data REAL TimescaleDB
-        // Mengikuti Praktikum ML Minggu 3 (Power System): Load Forecasting (Regression),
-        // Fault Classification, Customer/Load Clustering — diterapkan pada beban (MW)
-        // dan suhu kontak trafo yang sebenarnya, bukan dataset dummy.
-        // ══════════════════════════════════════════════════════════════════
-        let mlLabDataset = 'beban'; // 'beban' | 'suhu'
-        let mlLabBusy = false;
-        let mlLabRegMode = 'recent'; // 'recent' | 'seasonal'
-        let mlLabK = 3;              // jumlah cluster K-Means aktif
-        let mlLabInjectedPoint = null;
-        let _mllabPoints = [];
-        let _mllabSeasonalPoints = null;
-        let _mllabClfState = null;
-
-        function setMlLabDataset(ds) {
-            mlLabDataset = ds;
-            const activeCls   = 'text-[11px] font-extrabold px-3 py-1.5 rounded-lg transition-all bg-emerald-600 text-white';
-            const inactiveCls = 'text-[11px] font-extrabold px-3 py-1.5 rounded-lg transition-all bg-white border border-slate-200 text-slate-600 hover:bg-slate-50';
-            const bBtn = document.getElementById('mllab-btn-beban');
-            const sBtn = document.getElementById('mllab-btn-suhu');
-            if (bBtn) bBtn.className = ds === 'beban' ? activeCls : inactiveCls;
-            if (sBtn) sBtn.className = ds === 'suhu' ? activeCls : inactiveCls;
-            runMlLabAnalysis();
-        }
-
-        function _mllabSetStatus(msg, isError) {
-            const el = document.getElementById('mllab-status');
-            if (!el) return;
-            el.textContent = msg;
-            el.className = isError ? 'text-[10px] mt-1 text-red-500 font-bold' : 'text-[10px] mt-1 text-slate-400';
-        }
-
-        function _mllabClearCharts() {
-            ['mllab-regression', 'mllab-classification', 'mllab-clustering'].forEach(destroyChart);
-        }
-
-        // Konfigurasi zoom/pan bersama — scroll/pinch untuk zoom, drag untuk geser,
-        // dipakai di ketiga chart ML Lab supaya bisa dieksplorasi secara interaktif.
-        function _mllabZoomConfig() {
-            return {
-                pan: { enabled: true, mode: 'xy', threshold: 5 },
-                zoom: { wheel: { enabled: true, speed: 0.08 }, pinch: { enabled: true }, mode: 'xy' }
-            };
-        }
-
-        function mllabResetZoom(chartKey) {
-            if (mlCharts[chartKey]) mlCharts[chartKey].resetZoom();
-        }
-
-        function _rmse(actual, pred) {
-            return Math.sqrt(pred.reduce((s, p, i) => s + (p - actual[i]) ** 2, 0) / actual.length);
-        }
-
-        async function runMlLabAnalysis(forceRefetch) {
-            if (mlLabBusy) return;
-            const pane = document.getElementById('itab-content-ml-mllab');
-            if (!pane || pane.classList.contains('hidden')) return; // hanya jalan saat tab ML Lab aktif
-            mlLabBusy = true;
-            _mllabSetStatus('Mengambil data real dari TimescaleDB…');
-            try {
-                let points;
-                if (mlLabDataset === 'beban') {
-                    const rows = await _fetchTimescaleBebanRows(selectedTrafo, 120);
-                    points = (rows || [])
-                        .map(r => _tsNormalizeBebanRow(r, selectedTrafo))
-                        .filter(r => r.docSortTime > 0)
-                        .sort((a, b) => a.docSortTime - b.docSortTime)
-                        .map(r => ({
-                            t: r.docSortTime,
-                            y: r.kW,                                 // beban aktif (MW)
-                            f1: (r.I_R + r.I_S + r.I_T) / 3,          // arus rata-rata (A)
-                            f2: (r.V_R + r.V_S + r.V_T) / 3           // tegangan rata-rata (V)
-                        }));
-                } else {
-                    const rows = await _fetchTimescaleTempRows(selectedTrafo, 120);
-                    points = (rows || [])
-                        .map(r => _tsNormalizeTempRow(r, selectedTrafo))
-                        .filter(r => r.docSortTime > 0)
-                        .sort((a, b) => a.docSortTime - b.docSortTime)
-                        .map(r => {
-                            const vals = [r.R_Atas, r.R_Bawah, r.S_Atas, r.S_Bawah, r.T_Atas, r.T_Bawah];
-                            const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
-                            const delta = Math.max(...vals) - Math.min(...vals);
-                            return { t: r.docSortTime, y: avg, f1: avg, f2: delta };
-                        });
-                }
-
-                points = points.filter(p => Number.isFinite(p.y) && Number.isFinite(p.f1) && Number.isFinite(p.f2));
-
-                // Data baru diambil → cache musiman & kasus uji lama sudah tidak relevan
-                _mllabSeasonalPoints = null;
-                mlLabInjectedPoint = null;
-                const resetBtn = document.getElementById('mllab-clf-reset-btn');
-                if (resetBtn) resetBtn.classList.add('hidden');
-
-                if (points.length < 8) {
-                    _mllabPoints = [];
-                    _mllabSetStatus(`Data ${mlLabDataset === 'beban' ? 'beban' : 'suhu'} Trafo ${selectedTrafo} di TimescaleDB belum cukup (minimal 8 titik, tersedia ${points.length}).`, true);
-                    _mllabClearCharts();
-                    return;
-                }
-
-                _mllabPoints = points;
-                await _mllabLoadAndRenderRegression();
-                _mllabRunClassification(points);
-                _mllabRunClustering(points);
-
-                _mllabSetStatus(`✓ ${points.length} titik data real Trafo ${selectedTrafo} (${mlLabDataset === 'beban' ? 'Beban MW' : 'Suhu Kontak °C'}) — TimescaleDB ${TIMESCALE_HOST}:${TIMESCALE_PORT}. Update terakhir: ${new Date().toLocaleTimeString('id-ID')}`);
-            } catch (err) {
-                console.warn('[ML LAB] Gagal menjalankan analisis:', err);
-                _mllabSetStatus('Gagal mengambil data dari TimescaleDB: ' + err.message, true);
-                _mllabClearCharts();
-            } finally {
-                mlLabBusy = false;
-            }
-        }
-
-        // ── 1) REGRESSION — Load/Suhu Forecasting (Linear vs Polynomial) ──
-        function _linregFit(xs, ys) {
-            const n = xs.length;
-            const mx = xs.reduce((a, b) => a + b, 0) / n;
-            const my = ys.reduce((a, b) => a + b, 0) / n;
-            let num = 0, den = 0;
-            for (let i = 0; i < n; i++) { num += (xs[i] - mx) * (ys[i] - my); den += (xs[i] - mx) ** 2; }
-            const slope = den === 0 ? 0 : num / den;
-            const intercept = my - slope * mx;
-            return { slope, intercept };
-        }
-
-        // Regresi polynomial derajat-n via normal equations (least squares).
-        function _solveLinearSystem(A, b) {
-            const n = b.length;
-            const M = A.map((row, i) => [...row, b[i]]);
-            for (let i = 0; i < n; i++) {
-                let maxRow = i;
-                for (let k = i + 1; k < n; k++) if (Math.abs(M[k][i]) > Math.abs(M[maxRow][i])) maxRow = k;
-                [M[i], M[maxRow]] = [M[maxRow], M[i]];
-                if (Math.abs(M[i][i]) < 1e-10) continue;
-                for (let k = i + 1; k < n; k++) {
-                    const factor = M[k][i] / M[i][i];
-                    for (let j = i; j <= n; j++) M[k][j] -= factor * M[i][j];
-                }
-            }
-            const x = new Array(n).fill(0);
-            for (let i = n - 1; i >= 0; i--) {
-                let sum = M[i][n];
-                for (let j = i + 1; j < n; j++) sum -= M[i][j] * x[j];
-                x[i] = Math.abs(M[i][i]) < 1e-10 ? 0 : sum / M[i][i];
-            }
-            return x;
-        }
-
-        function _polyFit(xs, ys, degree) {
-            const n = xs.length, cols = degree + 1;
-            const XtX = Array.from({ length: cols }, () => new Array(cols).fill(0));
-            const Xty = new Array(cols).fill(0);
-            for (let i = 0; i < n; i++) {
-                const powers = new Array(cols);
-                let p = 1;
-                for (let c = 0; c < cols; c++) { powers[c] = p; p *= xs[i]; }
-                for (let r = 0; r < cols; r++) {
-                    Xty[r] += powers[r] * ys[i];
-                    for (let c = 0; c < cols; c++) XtX[r][c] += powers[r] * powers[c];
-                }
-            }
-            return _solveLinearSystem(XtX, Xty);
-        }
-
-        function _polyPredict(coeffs, x) {
-            let y = 0, p = 1;
-            for (let c = 0; c < coeffs.length; c++) { y += coeffs[c] * p; p *= x; }
-            return y;
-        }
-
-        // Agregat 7 hari terakhir menjadi rata-rata per jam (≈168 titik) — mengubah
-        // dataset "beban harian" tutorial menjadi dataset musiman, sesuai Tugas 1.
-        async function _mllabFetchSeasonalPoints() {
-            if (_mllabSeasonalPoints) return _mllabSeasonalPoints;
-            const fromISO = _tsCutoffISO('1W');
-            let rows;
-            if (mlLabDataset === 'beban') {
-                const raw = await _fetchTimescaleBebanRows(selectedTrafo, 5000, fromISO);
-                rows = (raw || [])
-                    .map(r => _tsNormalizeBebanRow(r, selectedTrafo))
-                    .filter(r => r.docSortTime > 0)
-                    .map(r => ({ t: r.docSortTime, y: r.kW }));
-            } else {
-                const raw = await _fetchTimescaleTempRows(selectedTrafo, 5000, fromISO);
-                rows = (raw || [])
-                    .map(r => _tsNormalizeTempRow(r, selectedTrafo))
-                    .filter(r => r.docSortTime > 0)
-                    .map(r => {
-                        const vals = [r.R_Atas, r.R_Bawah, r.S_Atas, r.S_Bawah, r.T_Atas, r.T_Bawah];
-                        return { t: r.docSortTime, y: vals.reduce((a, b) => a + b, 0) / vals.length };
-                    });
-            }
-            const buckets = new Map();
-            rows.forEach(r => {
-                const hourKey = Math.floor(r.t / 3600000);
-                if (!buckets.has(hourKey)) buckets.set(hourKey, { sum: 0, n: 0, t: hourKey * 3600000 });
-                const b = buckets.get(hourKey);
-                b.sum += r.y; b.n += 1;
-            });
-            const points = Array.from(buckets.values())
-                .sort((a, b) => a.t - b.t)
-                .map(b => ({ t: b.t, y: b.sum / b.n, f1: b.sum / b.n, f2: 0 }))
-                .filter(p => Number.isFinite(p.y));
-            _mllabSeasonalPoints = points;
-            return points;
-        }
-
-        function setMlLabRegMode(mode) {
-            mlLabRegMode = mode;
-            const activeCls   = 'text-[10px] font-extrabold px-2.5 py-1 rounded-lg transition-all bg-cyan-600 text-white';
-            const inactiveCls = 'text-[10px] font-extrabold px-2.5 py-1 rounded-lg transition-all bg-white border border-slate-200 text-slate-600 hover:bg-slate-50';
-            const rBtn = document.getElementById('mllab-reg-mode-recent');
-            const sBtn = document.getElementById('mllab-reg-mode-seasonal');
-            if (rBtn) rBtn.className = mode === 'recent' ? activeCls : inactiveCls;
-            if (sBtn) sBtn.className = mode === 'seasonal' ? activeCls : inactiveCls;
-            _mllabLoadAndRenderRegression();
-        }
-
-        async function _mllabLoadAndRenderRegression() {
-            let points;
-            if (mlLabRegMode === 'seasonal') {
-                try {
-                    points = await _mllabFetchSeasonalPoints();
-                } catch (err) {
-                    console.warn('[ML LAB] Gagal memuat data musiman:', err);
-                    points = [];
-                }
-                if (!points || points.length < 8) {
-                    const analysisEl = document.getElementById('mllab-reg-analysis');
-                    if (analysisEl) analysisEl.textContent = `Data musiman 7 hari untuk ${mlLabDataset === 'beban' ? 'beban' : 'suhu'} Trafo ${selectedTrafo} belum cukup (tersedia ${points ? points.length : 0} jam terisi).`;
-                    destroyChart('mllab-regression');
-                    return;
-                }
-            } else {
-                points = _mllabPoints;
-                if (!points || points.length < 8) return;
-            }
-            _mllabRunRegression(points);
-        }
-
-        function _mllabRunRegression(points) {
-            const xs = points.map((_, i) => i);
-            const ys = points.map(p => p.y);
-            const { slope, intercept } = _linregFit(xs, ys);
-            const linPreds = xs.map(x => slope * x + intercept);
-            const linRmse = _rmse(ys, linPreds);
-            const linForecast = slope * xs.length + intercept;
-
-            const polyCoeffs = _polyFit(xs, ys, 2);
-            const polyPreds = xs.map(x => _polyPredict(polyCoeffs, x));
-            const polyRmse = _rmse(ys, polyPreds);
-            const polyForecast = _polyPredict(polyCoeffs, xs.length);
-
-            const unit = mlLabDataset === 'beban' ? 'MW' : '°C';
-            const setText = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
-            setText('mllab-reg-rmse-linear', linRmse.toFixed(3) + ' ' + unit);
-            setText('mllab-reg-rmse-poly', polyRmse.toFixed(3) + ' ' + unit);
-            setText('mllab-reg-forecast-linear', linForecast.toFixed(2) + ' ' + unit);
-            setText('mllab-reg-forecast-poly', polyForecast.toFixed(2) + ' ' + unit);
-
-            const better = polyRmse < linRmse ? 'Polynomial (derajat 2)' : 'Linear';
-            const diffPct = Math.abs(linRmse - polyRmse) / Math.max(linRmse, 1e-9) * 100;
-            const modeLabel = mlLabRegMode === 'seasonal' ? 'musiman 7 hari (rata-rata per jam)' : 'terbaru (rolling window)';
-            const analysisEl = document.getElementById('mllab-reg-analysis');
-            if (analysisEl) {
-                analysisEl.innerHTML = `📊 <b>${points.length} titik</b> data ${modeLabel}. RMSE Linear <b>${linRmse.toFixed(3)}</b> vs Polynomial(deg2) <b>${polyRmse.toFixed(3)}</b> ${unit} — <b>${better}</b> lebih akurat pada rentang ini (selisih ${diffPct.toFixed(1)}%).` +
-                    (mlLabRegMode === 'seasonal'
-                        ? ' Pada data musiman, kurva polynomial biasanya lebih mengikuti pola naik-turun harian dibanding garis lurus — tapi keduanya tetap kalah presisi dari model musiman penuh (Holt-Winters) di tab Forecast Realtime untuk horizon jauh.'
-                        : ' Pada jendela data pendek/terbaru, perbedaan Linear vs Polynomial biasanya tipis karena trennya masih hampir lurus — coba mode "Musiman 7 Hari" untuk melihat pola naik-turun harian yang lebih jelas.');
-            }
-
-            destroyChart('mllab-regression');
-            const ctx = document.getElementById('mllab-regression-chart');
-            if (!ctx) return;
-            const labels = points.map(p => new Date(p.t).toLocaleString('id-ID', mlLabRegMode === 'seasonal'
-                ? { weekday: 'short', hour: '2-digit' }
-                : { hour: '2-digit', minute: '2-digit' }));
-            mlCharts['mllab-regression'] = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels,
-                    datasets: [
-                        { label: 'Data Aktual', data: ys, borderColor: '#0891b2', backgroundColor: '#0891b2', showLine: false, pointRadius: 2.5 },
-                        { label: 'Prediksi Linear', data: linPreds, borderColor: '#f97316', backgroundColor: '#f97316', pointRadius: 0, borderWidth: 2 },
-                        { label: 'Prediksi Polynomial (deg 2)', data: polyPreds, borderColor: '#7c3aed', backgroundColor: '#7c3aed', pointRadius: 0, borderWidth: 2, borderDash: [6, 3] }
-                    ]
-                },
-                options: {
-                    responsive: true, maintainAspectRatio: false,
-                    interaction: { mode: 'index', intersect: false },
-                    plugins: {
-                        legend: { position: 'top', labels: { font: { size: 9, weight: 'bold' }, usePointStyle: true } },
-                        zoom: _mllabZoomConfig()
-                    },
-                    scales: {
-                        x: { ticks: { font: { size: 8 }, maxTicksLimit: 10, maxRotation: 45 } },
-                        y: { ticks: { font: { size: 9 }, callback: v => v.toFixed(1) + ' ' + unit }, grid: { color: '#f1f5f9' } }
-                    }
-                }
-            });
-        }
-
-        // ── 2) CLASSIFICATION — Fault/Anomaly Detection (Decision Stump, Gini) ──
-        function _mllabBestStumpSplit(vals, labels) {
-            const sorted = [...new Set(vals)].sort((a, b) => a - b);
-            let best = { gini: Infinity, threshold: sorted[0] ?? 0 };
-            for (let i = 0; i < sorted.length - 1; i++) {
-                const thr = (sorted[i] + sorted[i + 1]) / 2;
-                const left = [], right = [];
-                vals.forEach((v, idx) => (v <= thr ? left : right).push(labels[idx]));
-                const gini = (grp) => {
-                    if (!grp.length) return 0;
-                    const p1 = grp.filter(l => l === 1).length / grp.length;
-                    return 1 - p1 * p1 - (1 - p1) * (1 - p1);
-                };
-                const w = (left.length * gini(left) + right.length * gini(right)) / labels.length;
-                if (w < best.gini) best = { gini: w, threshold: thr };
-            }
-            return best;
-        }
-
-        function _mllabRunClassification(points) {
-            const f1 = points.map(p => p.f1);
-            const f2 = points.map(p => p.f2);
-            const stat = (arr) => {
-                const m = arr.reduce((a, b) => a + b, 0) / arr.length;
-                const sd = Math.sqrt(arr.reduce((s, v) => s + (v - m) ** 2, 0) / arr.length);
-                return { m, sd };
-            };
-            const s1 = stat(f1), s2 = stat(f2);
-            // Label acuan: anomali statistik bila salah satu fitur > mean + 1·SD (ground-truth
-            // sederhana untuk latihan klasifikasi — di produksi label sebaiknya dari histori kejadian nyata).
-            const labels = points.map((_, i) => (f1[i] > s1.m + s1.sd || f2[i] > s2.m + s2.sd) ? 1 : 0);
-
-            const split1 = _mllabBestStumpSplit(f1, labels);
-            const split2 = _mllabBestStumpSplit(f2, labels);
-            const useF1 = split1.gini <= split2.gini;
-            const split = useF1 ? split1 : split2;
-            const featVals = useF1 ? f1 : f2;
-
-            const preds = featVals.map(v => v > split.threshold ? 1 : 0);
-            const correct = preds.filter((p, i) => p === labels[i]).length;
-            const acc = correct / preds.length;
-
-            _mllabClfState = { points, labels, s1, s2, split, useF1, acc };
-            _mllabRenderClfChart();
-        }
-
-        function _mllabRenderClfChart() {
-            const st = _mllabClfState;
-            if (!st) return;
-            const { points, labels, split, useF1, acc } = st;
-            const featName = mlLabDataset === 'beban'
-                ? (useF1 ? 'Arus rata-rata (A)' : 'Tegangan rata-rata (V)')
-                : (useF1 ? 'Suhu rata-rata (°C)' : 'Δ antar-fasa (°C)');
-
-            const accEl  = document.getElementById('mllab-clf-acc');
-            const ruleEl = document.getElementById('mllab-clf-rule');
-            if (accEl)  accEl.textContent  = (acc * 100).toFixed(1) + '%';
-            if (ruleEl) ruleEl.textContent = `${featName} > ${split.threshold.toFixed(2)} → Anomali`;
-
-            const normalPts  = points.filter((_, i) => labels[i] === 0).map(p => ({ x: p.f1, y: p.f2 }));
-            const anomalyPts = points.filter((_, i) => labels[i] === 1).map(p => ({ x: p.f1, y: p.f2 }));
-            const xLabel = mlLabDataset === 'beban' ? 'Arus rata-rata (A)' : 'Suhu rata-rata (°C)';
-            const yLabel = mlLabDataset === 'beban' ? 'Tegangan rata-rata (V)' : 'Δ antar-fasa (°C)';
-
-            const datasets = [
-                { label: 'Normal', data: normalPts, backgroundColor: '#22c55e' },
-                { label: 'Anomali/Fault', data: anomalyPts, backgroundColor: '#ef4444' }
-            ];
-
-            const analysisEl = document.getElementById('mllab-clf-analysis');
-            if (mlLabInjectedPoint) {
-                const ip = mlLabInjectedPoint;
-                datasets.push({
-                    label: 'Uji Kasus Baru', data: [{ x: ip.f1, y: ip.f2 }],
-                    backgroundColor: ip.predicted === 1 ? '#b91c1c' : '#f59e0b',
-                    pointStyle: 'star', radius: 11, borderColor: '#1e293b', borderWidth: 1.5
-                });
-                if (analysisEl) {
-                    analysisEl.innerHTML = ip.predicted === 1
-                        ? `✅ <b>Model tetap akurat:</b> kasus uji baru (${ip.desc}) berhasil dideteksi sebagai <b>Anomali/Fault</b> — nilainya jauh di luar pola data training saat ini (akurasi training tetap ${(acc * 100).toFixed(1)}%).`
-                        : `⚠️ <b>Model kecolongan:</b> kasus uji baru (${ip.desc}) justru diklasifikasikan <b>Normal</b> oleh decision stump ini. Artinya split satu-fitur (depth=1) belum menangkap kombinasi dua fitur ekstrem sekaligus — perlu pohon lebih dalam (depth≥2) atau fitur tambahan untuk kasus seperti ini.`;
-                }
-            } else if (analysisEl) {
-                analysisEl.innerHTML = `Model men-split data memakai satu fitur (<b>${featName}</b>) pada ambang <b>${split.threshold.toFixed(2)}</b>, akurasi training <b>${(acc * 100).toFixed(1)}%</b>. Klik "Uji Kasus Fault Baru" untuk menguji ketahanannya terhadap kombinasi ekstrem yang belum pernah dilihat model.`;
-            }
-
-            destroyChart('mllab-classification');
-            const ctx = document.getElementById('mllab-classification-chart');
-            if (!ctx) return;
-            mlCharts['mllab-classification'] = new Chart(ctx, {
-                type: 'scatter',
-                data: { datasets },
-                options: {
-                    responsive: true, maintainAspectRatio: false,
-                    plugins: {
-                        legend: { position: 'top', labels: { font: { size: 9, weight: 'bold' }, usePointStyle: true } },
-                        zoom: _mllabZoomConfig()
-                    },
-                    scales: {
-                        x: { title: { display: true, text: xLabel, font: { size: 9 } }, ticks: { font: { size: 8 } } },
-                        y: { title: { display: true, text: yLabel, font: { size: 9 } }, ticks: { font: { size: 8 } }, grid: { color: '#f1f5f9' } }
-                    }
-                }
-            });
-        }
-
-        // Menyuntikkan satu titik uji dengan kombinasi fitur ekstrem (mis. arus tinggi +
-        // tegangan rendah untuk dataset Beban) untuk menguji ketahanan model — Tugas 2.
-        function mllabInjectFaultCase() {
-            const st = _mllabClfState;
-            if (!st) return;
-            const { s1, s2, split, useF1 } = st;
-            let f1, f2, desc;
-            if (mlLabDataset === 'beban') {
-                f1 = s1.m + 2.5 * s1.sd;              // arus tinggi
-                f2 = Math.max(0, s2.m - 2.5 * s2.sd); // tegangan rendah
-                desc = `arus ${f1.toFixed(1)} A (tinggi), tegangan ${f2.toFixed(1)} V (rendah)`;
-            } else {
-                f1 = s1.m + 2.5 * s1.sd; // suhu sangat tinggi
-                f2 = s2.m + 2.5 * s2.sd; // delta antar-fasa sangat tinggi
-                desc = `suhu rata-rata ${f1.toFixed(1)}°C, Δ antar-fasa ${f2.toFixed(1)}°C (keduanya ekstrem)`;
-            }
-            const predicted = (useF1 ? f1 : f2) > split.threshold ? 1 : 0;
-            mlLabInjectedPoint = { f1, f2, predicted, desc };
-            const resetBtn = document.getElementById('mllab-clf-reset-btn');
-            if (resetBtn) resetBtn.classList.remove('hidden');
-            _mllabRenderClfChart();
-        }
-
-        function mllabClearFaultCase() {
-            mlLabInjectedPoint = null;
-            const resetBtn = document.getElementById('mllab-clf-reset-btn');
-            if (resetBtn) resetBtn.classList.add('hidden');
-            _mllabRenderClfChart();
-        }
-
-        // ── 3) CLUSTERING — Load/Thermal Profiling (K-Means, k dipilih interaktif) ──
-        function _mllabKMeans(pts, k, iterations = 50) {
-            let centroids = [];
-            for (let i = 0; i < k; i++) {
-                const idx = Math.floor(i * (pts.length - 1) / Math.max(1, k - 1));
-                centroids.push([pts[idx][0], pts[idx][1]]);
-            }
-            let labels = new Array(pts.length).fill(0);
-            for (let iter = 0; iter < iterations; iter++) {
-                labels = pts.map(p => {
-                    let best = 0, bestD = Infinity;
-                    centroids.forEach((c, ci) => {
-                        const d = (p[0] - c[0]) ** 2 + (p[1] - c[1]) ** 2;
-                        if (d < bestD) { bestD = d; best = ci; }
-                    });
-                    return best;
-                });
-                const sums = Array.from({ length: k }, () => [0, 0, 0]);
-                pts.forEach((p, i) => {
-                    const l = labels[i];
-                    sums[l][0] += p[0]; sums[l][1] += p[1]; sums[l][2] += 1;
-                });
-                const newCentroids = centroids.map((c, i) => sums[i][2] > 0
-                    ? [sums[i][0] / sums[i][2], sums[i][1] / sums[i][2]]
-                    : c);
-                const changed = JSON.stringify(newCentroids) !== JSON.stringify(centroids);
-                centroids = newCentroids;
-                if (!changed) break;
-            }
-            return { labels, centroids };
-        }
-
-        function _kmeansInertia(pts, labels, centroids) {
-            let sum = 0;
-            pts.forEach((p, i) => { const c = centroids[labels[i]]; sum += (p[0] - c[0]) ** 2 + (p[1] - c[1]) ** 2; });
-            return sum;
-        }
-
-        function setMlLabK(k) {
-            mlLabK = k;
-            [2, 3, 4, 5].forEach(kk => {
-                const btn = document.getElementById('mllab-k-' + kk);
-                if (!btn) return;
-                btn.className = kk === k
-                    ? 'text-[11px] font-extrabold px-3 py-1 rounded-lg transition-all bg-indigo-600 text-white'
-                    : 'text-[11px] font-extrabold px-3 py-1 rounded-lg transition-all bg-white border border-slate-200 text-slate-600 hover:bg-slate-50';
-            });
-            if (_mllabPoints && _mllabPoints.length) _mllabRunClustering(_mllabPoints);
-        }
-
-        function _mllabRunClustering(points) {
-            const pts = points.map(p => [p.f1, p.f2]);
-            const uniquePts = new Set(points.map(p => p.f1 + ',' + p.f2)).size;
-            const maxK = Math.max(1, Math.min(5, uniquePts));
-
-            // Hitung inertia untuk k=2..5 (kalau datanya cukup) supaya analisis
-            // "ubah cluster 3→4" bisa dibandingkan dengan angka nyata (Tugas 3).
-            const kOptions = [2, 3, 4, 5].filter(kk => kk <= maxK);
-            const inertiaByK = {};
-            let activeRun = null;
-            const k = Math.max(1, Math.min(mlLabK, maxK));
-            kOptions.forEach(kk => {
-                const run = _mllabKMeans(pts, kk);
-                inertiaByK[kk] = _kmeansInertia(pts, run.labels, run.centroids);
-                if (kk === k) activeRun = run;
-            });
-            if (!activeRun) activeRun = _mllabKMeans(pts, k);
-            const { labels, centroids } = activeRun;
-
-            const tbody = document.getElementById('mllab-cluster-table');
-            if (tbody) {
-                tbody.innerHTML = centroids.map((c, i) => `
-                    <tr class="border-t border-slate-100">
-                        <td class="px-3 py-1.5 font-bold">Cluster ${i}</td>
-                        <td class="px-3 py-1.5 text-right font-mono">${c[0].toFixed(2)}</td>
-                        <td class="px-3 py-1.5 text-right font-mono">${c[1].toFixed(2)}</td>
-                        <td class="px-3 py-1.5 text-right">${labels.filter(l => l === i).length}</td>
-                    </tr>`).join('');
-            }
-            const f1Label = document.getElementById('mllab-cluster-f1-label');
-            const f2Label = document.getElementById('mllab-cluster-f2-label');
-            if (f1Label) f1Label.textContent = mlLabDataset === 'beban' ? 'Arus (A)' : 'Suhu rata-rata (°C)';
-            if (f2Label) f2Label.textContent = mlLabDataset === 'beban' ? 'Tegangan (V)' : 'Δ antar-fasa (°C)';
-
-            const analysisEl = document.getElementById('mllab-cluster-analysis');
-            if (analysisEl) {
-                const list = kOptions.map(kk => `k=${kk}: ${inertiaByK[kk].toFixed(1)}`).join(' · ');
-                let compareText = '';
-                if (inertiaByK[3] !== undefined && inertiaByK[4] !== undefined) {
-                    const drop = (inertiaByK[3] - inertiaByK[4]) / Math.max(inertiaByK[3], 1e-9) * 100;
-                    compareText = ` Dari k=3 → k=4, inertia (total jarak kuadrat titik ke centroid) turun ${drop.toFixed(1)}% — ` +
-                        (drop > 15
-                            ? 'penurunan cukup besar, cluster ke-4 kemungkinan mewakili sub-profil beban/suhu yang berbeda secara nyata.'
-                            : 'penurunan kecil, cluster ke-4 kemungkinan hanya memecah cluster lama menjadi bagian yang mirip (k=3 sudah cukup representatif).');
-                }
-                analysisEl.innerHTML = `📊 Perbandingan inertia per jumlah cluster — ${list}.${compareText} Sedang ditampilkan: <b>k=${k}</b> dari ${points.length} titik data.`;
-            }
-
-            destroyChart('mllab-clustering');
-            const ctx = document.getElementById('mllab-clustering-chart');
-            if (!ctx) return;
-            const colors = ['#6366f1', '#f59e0b', '#14b8a6', '#ec4899', '#84cc16'];
-            const datasets = centroids.map((_, ci) => ({
-                label: 'Cluster ' + ci,
-                data: points.filter((_, i) => labels[i] === ci).map(p => ({ x: p.f1, y: p.f2 })),
-                backgroundColor: colors[ci % colors.length]
-            }));
-            const xLabel = mlLabDataset === 'beban' ? 'Arus rata-rata (A)' : 'Suhu rata-rata (°C)';
-            const yLabel = mlLabDataset === 'beban' ? 'Tegangan rata-rata (V)' : 'Δ antar-fasa (°C)';
-            mlCharts['mllab-clustering'] = new Chart(ctx, {
-                type: 'scatter',
-                data: { datasets },
-                options: {
-                    responsive: true, maintainAspectRatio: false,
-                    plugins: {
-                        legend: { position: 'top', labels: { font: { size: 9, weight: 'bold' } } },
-                        zoom: _mllabZoomConfig()
-                    },
-                    scales: {
-                        x: { title: { display: true, text: xLabel, font: { size: 9 } }, ticks: { font: { size: 8 } } },
-                        y: { title: { display: true, text: yLabel, font: { size: 9 } }, ticks: { font: { size: 8 } }, grid: { color: '#f1f5f9' } }
-                    }
-                }
             });
         }
 
