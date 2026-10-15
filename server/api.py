@@ -584,13 +584,15 @@ def ml_models_list(
         if trafo is None:
             cur.execute(
                 "SELECT id, trafo, phase, model_type, version, trained_at, healthy_from, healthy_to, "
-                "features, metrics, artifact_path, sigma, mu, is_active, is_frozen_reference, notes "
+                "features, metrics, artifact_path, sigma, mu, is_active, is_frozen_reference, notes, "
+                "recalibration_note, is_provisional, provisional_reason "
                 "FROM ml_models ORDER BY trafo, phase, model_type, trained_at DESC"
             )
         else:
             cur.execute(
                 "SELECT id, trafo, phase, model_type, version, trained_at, healthy_from, healthy_to, "
-                "features, metrics, artifact_path, sigma, mu, is_active, is_frozen_reference, notes "
+                "features, metrics, artifact_path, sigma, mu, is_active, is_frozen_reference, notes, "
+                "recalibration_note, is_provisional, provisional_reason "
                 "FROM ml_models WHERE trafo = %s ORDER BY phase, model_type, trained_at DESC",
                 (str(trafo),),
             )
@@ -665,11 +667,22 @@ def aging_latest(
 ):
     """Baris aging_daily TERBARU untuk tiap fasa (R/S/T) trafo ini.
     status='not_configured' (tanpa angka apa pun) kalau aging_config.json
-    belum punya ea_ev/t_ref_c -- lihat server/aging.py is_configured()."""
+    belum punya ea_ev/t_ref_c -- lihat server/aging.py is_configured().
+
+    `calibration_status`/`ea_source` (go-live, provisional operation):
+    INDEPENDEN dari `status` di atas -- lihat aging.get_calibration_status().
+    'provisional' berarti ea_ev/t_ref_c sudah terisi dan angka F/EqAge DI
+    BAWAH ini memang dihitung, tapi belum dikonfirmasi oleh resistance
+    test riil; UI menampilkan badge/banner "Provisional activation energy"
+    memakai `ea_source` sebagai sitasinya."""
     _check_api_key(x_api_key)
+    calibration = aging.get_calibration_status()
 
     if not aging.is_configured():
-        return {"trafo": trafo, "status": "not_configured", "scope": aging.AGING_SCOPE_TEXT, "rows": []}
+        return {
+            "trafo": trafo, "status": "not_configured", "scope": aging.AGING_SCOPE_TEXT, "rows": [],
+            "calibration_status": calibration["status"], "ea_source": calibration["ea_source"],
+        }
 
     with _pool.connection() as conn, conn.cursor(row_factory=dict_row) as cur:
         cur.execute(
@@ -688,7 +701,10 @@ def aging_latest(
         row["date"] = row["date"].isoformat()
         row["reset_date"] = row["reset_date"].isoformat()
 
-    return {"trafo": trafo, "status": "ok", "scope": aging.AGING_SCOPE_TEXT, "rows": rows}
+    return {
+        "trafo": trafo, "status": "ok", "scope": aging.AGING_SCOPE_TEXT, "rows": rows,
+        "calibration_status": calibration["status"], "ea_source": calibration["ea_source"],
+    }
 
 
 @app.get("/api/aging/daily")

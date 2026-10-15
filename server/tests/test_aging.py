@@ -35,6 +35,54 @@ class TestIsConfigured:
         assert aging.is_configured({"ea_ev": 0.5, "t_ref_c": None}) is False
 
 
+class TestGetCalibrationStatus:
+    """Go-live (provisional operation): 'status'/'ea_source' di
+    aging_config.json SELALU divalidasi ulang di sini, tidak pernah
+    dipercaya apa adanya -- lihat docstring get_calibration_status()."""
+
+    def test_default_shipped_config_is_not_configured(self):
+        result = aging.get_calibration_status()
+        assert result == {"status": "not_configured", "ea_source": None}
+
+    def test_fully_valid_provisional_is_accepted(self):
+        cfg = {"ea_ev": 0.5, "t_ref_c": 55.0, "status": "provisional", "ea_source": "IEC TR 60943 Table 2"}
+        result = aging.get_calibration_status(cfg)
+        assert result == {"status": "provisional", "ea_source": "IEC TR 60943 Table 2"}
+
+    def test_fully_valid_calibrated_is_accepted(self):
+        cfg = {"ea_ev": 0.5, "t_ref_c": 55.0, "status": "calibrated", "ea_source": "Site resistance test 2026-09-01"}
+        result = aging.get_calibration_status(cfg)
+        assert result["status"] == "calibrated"
+
+    def test_provisional_without_ea_source_downgrades_to_not_configured(self):
+        """Inti aturan go-live: TANPA sitasi sumber, status provisional
+        TIDAK dipercaya, walau ea_ev/t_ref_c sudah berupa angka asli."""
+        cfg = {"ea_ev": 0.5, "t_ref_c": 55.0, "status": "provisional", "ea_source": ""}
+        result = aging.get_calibration_status(cfg)
+        assert result == {"status": "not_configured", "ea_source": None}
+
+    def test_provisional_with_missing_ea_source_key_downgrades(self):
+        cfg = {"ea_ev": 0.5, "t_ref_c": 55.0, "status": "provisional"}
+        result = aging.get_calibration_status(cfg)
+        assert result["status"] == "not_configured"
+
+    def test_provisional_without_ea_ev_downgrades_to_not_configured(self):
+        """ea_source saja tidak cukup -- ea_ev/t_ref_c tetap wajib angka."""
+        cfg = {"ea_ev": None, "t_ref_c": 55.0, "status": "provisional", "ea_source": "IEC TR 60943"}
+        result = aging.get_calibration_status(cfg)
+        assert result == {"status": "not_configured", "ea_source": None}
+
+    def test_declared_status_not_in_allowed_set_downgrades(self):
+        cfg = {"ea_ev": 0.5, "t_ref_c": 55.0, "status": "definitely_calibrated_trust_me", "ea_source": "x"}
+        result = aging.get_calibration_status(cfg)
+        assert result["status"] == "not_configured"
+
+    def test_missing_status_field_entirely_is_not_configured(self):
+        cfg = {"ea_ev": 0.5, "t_ref_c": 55.0, "ea_source": "IEC TR 60943"}
+        result = aging.get_calibration_status(cfg)
+        assert result["status"] == "not_configured"
+
+
 class TestCelsiusKelvinConversion:
     def test_zero_celsius_is_273_15_kelvin(self):
         assert aging.celsius_to_kelvin(0.0) == 273.15

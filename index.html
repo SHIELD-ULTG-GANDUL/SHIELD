@@ -8619,19 +8619,20 @@
                 const badge = document.getElementById('aging-data-source-badge');
                 if (badge) badge.textContent = window.timescaleReady ? 'Data source: server' : 'Data source: unavailable';
 
-                const [lntaiJson, agingJson, resJson, quadJson, forecastJson, measuredJson] = await Promise.all([
+                const [lntaiJson, agingJson, resJson, quadJson, forecastJson, measuredJson, modelsJson] = await Promise.all([
                     _agingFetchJson(`/lntai-latest?trafo=${trafo}&model_version=lntai-v3`),
                     _agingFetchJson(`/aging/latest?trafo=${trafo}`),
                     _agingFetchJson(`/resistance/relative?trafo=${trafo}&from=${_agingDaysAgoISO(60)}`),
                     _agingFetchJson(`/lntai-vs-aging?${quadrantScopeQuery}&days=30`),
                     _agingFetchJson(`/forecast?trafo=${trafo}&horizon=24h`),
                     _agingFetchJson(`/lntai-logs?trafo=${trafo}&model_version=lntai-v3&from=${_agingDaysAgoISO(7)}&limit=5000`),
+                    _agingFetchJson(`/ml/models?trafo=${trafo}`),
                 ]);
 
                 const hottestPhase = (lntaiJson && lntaiJson.row && lntaiJson.row.hottest_phase) || 'R';
 
                 _renderAgingHeader(lntaiJson);
-                _renderAgingStatusBanner(lntaiJson, agingJson, resJson);
+                _renderAgingStatusBanner(lntaiJson, agingJson, resJson, modelsJson, hottestPhase);
                 _renderAgingLntaiKpi(lntaiJson);
                 _renderAgingFactorKpi(agingJson, hottestPhase);
                 _renderAgingCumAgeKpi(agingJson, hottestPhase);
@@ -8643,12 +8644,11 @@
 
                 // Part J3 -- panel tambahan, butuh fetch sendiri (fasa
                 // terpanas sudah diketahui dari lntaiJson di atas).
-                const [explainJson, bebanJson, degradationJson, dqJson, modelsJson] = await Promise.all([
+                const [explainJson, bebanJson, degradationJson, dqJson] = await Promise.all([
                     _agingFetchJson(`/explain/latest?trafo=${trafo}&phase=${hottestPhase}`),
                     _agingFetchJson(`/beban-logs?trafo=${trafo}&limit=1`),
                     _agingFetchJson(`/degradation/projection?trafo=${trafo}&phase=${hottestPhase}`),
                     _agingFetchJson(`/data-quality/summary?trafo=${trafo}&window=10080`),
-                    _agingFetchJson(`/ml/models?trafo=${trafo}`),
                 ]);
 
                 _renderAgingExplain(explainJson);
@@ -8672,7 +8672,7 @@
             if (cbEl) cbEl.textContent = '—';
         }
 
-        function _renderAgingStatusBanner(lntaiJson, agingJson, resJson) {
+        function _renderAgingStatusBanner(lntaiJson, agingJson, resJson, modelsJson, hottestPhase) {
             const banner = document.getElementById('aging-status-banner');
             if (!banner) return;
             const messages = [];
@@ -8682,10 +8682,16 @@
             }
             if (agingJson && agingJson.status === 'not_configured') {
                 messages.push('Activation energy not configured — thermal aging factor and cumulative equivalent age cannot be computed yet.');
+            } else if (agingJson && agingJson.calibration_status === 'provisional') {
+                messages.push(`Provisional activation energy — source: ${agingJson.ea_source || 'not given'}.`);
             }
             const recalRow = ((resJson && resJson.rows) || []).find(r => r.status === 'needs_recalibration' && r.reason);
             if (recalRow) {
                 messages.push(`Reference baseline ${recalRow.reason}`);
+            }
+            const activeModel = ((modelsJson && modelsJson.rows) || []).find(m => m.phase === hottestPhase && m.is_active);
+            if (activeModel && activeModel.is_provisional) {
+                messages.push(`<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-orange-200 text-orange-800 mr-1.5 align-middle">Provisional baseline</span>Baseline trained on a provisional healthy period (${activeModel.healthy_from} → ${activeModel.healthy_to}), not yet confirmed by a contact-resistance test. ${activeModel.provisional_reason || ''}`);
             }
             if (!messages.length) {
                 banner.classList.add('hidden');

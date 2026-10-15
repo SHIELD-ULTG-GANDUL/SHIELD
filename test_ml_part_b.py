@@ -197,5 +197,29 @@ class TestActivationAndFallback(unittest.TestCase):
         self.assertEqual(result_override["per_phase"]["R"]["delta_T_pred"], 12.3)
 
 
+class TestValidateProvisionalArgs(unittest.TestCase):
+    """Go-live: --provisional dan --provisional-reason WAJIB berpasangan."""
+
+    def test_neither_flag_is_valid(self):
+        import train_baseline as tb
+        self.assertIsNone(tb.validate_provisional_args(False, None))
+
+    def test_both_flags_is_valid(self):
+        import train_baseline as tb
+        self.assertIsNone(tb.validate_provisional_args(True, "Suggested by ml/suggest_healthy_period.py"))
+
+    def test_provisional_without_reason_is_invalid(self):
+        import train_baseline as tb
+        error = tb.validate_provisional_args(True, None)
+        self.assertIsNotNone(error)
+        self.assertIn("--provisional-reason", error)
+
+    def test_reason_without_provisional_flag_is_invalid(self):
+        import train_baseline as tb
+        error = tb.validate_provisional_args(False, "some reason")
+        self.assertIsNotNone(error)
+        self.assertIn("--provisional", error)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

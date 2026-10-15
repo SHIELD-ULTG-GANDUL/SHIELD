@@ -50,6 +50,25 @@ def is_configured(cfg: dict[str, Any] = AGING_CONFIG) -> bool:
     return cfg.get("ea_ev") is not None and cfg.get("t_ref_c") is not None
 
 
+def get_calibration_status(cfg: dict[str, Any] = AGING_CONFIG) -> dict[str, Any]:
+    """Status kalibrasi Ea/T_ref UNTUK UI (go-live, badge 'Provisional
+    activation energy'), INDEPENDEN dari apa yang ditulis di field
+    'status' -- field itu TIDAK PERNAH dipercaya apa adanya, divalidasi
+    ulang di sini setiap kali. 'provisional'/'calibrated' HANYA valid
+    kalau ea_ev DAN t_ref_c keduanya angka (bukan None) DAN ea_source
+    bukan string kosong -- kurang satu saja, turun diam-diam jadi
+    'not_configured' (BUKAN exception, karena ini dipanggil tiap request
+    API; caller cukup memeriksa return value).
+
+    Return: {"status": "not_configured"|"provisional"|"calibrated",
+             "ea_source": str|None}."""
+    declared = cfg.get("status")
+    ea_source = cfg.get("ea_source") or None
+    if not is_configured(cfg) or not ea_source or declared not in ("provisional", "calibrated"):
+        return {"status": "not_configured", "ea_source": None}
+    return {"status": declared, "ea_source": ea_source}
+
+
 def celsius_to_kelvin(t_c: float) -> float:
     return t_c + 273.15
 

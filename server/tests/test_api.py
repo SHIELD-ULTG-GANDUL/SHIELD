@@ -729,6 +729,45 @@ class TestAgingLatest:
         finally:
             _set_aging_configured(False)  # restore shipped default (ea_ev/t_ref_c null) for other tests
 
+    def test_not_configured_response_includes_calibration_status(self, monkeypatch):
+        _set_aging_configured(False)
+        monkeypatch.setattr(api, "_pool", _ExplodingPool())
+        result = api.aging_latest(trafo=2, x_api_key=None)
+        assert result["calibration_status"] == "not_configured"
+        assert result["ea_source"] is None
+
+    def test_configured_but_provisional_without_source_is_reported_not_configured(self, monkeypatch):
+        """Go-live rule: numbers ARE computed (status='ok') once ea_ev/
+        t_ref_c are set, but calibration_status downgrades to
+        'not_configured' without a citation -- the two are independent."""
+        _set_aging_configured(True)
+        try:
+            api.aging.AGING_CONFIG["status"] = "provisional"
+            api.aging.AGING_CONFIG["ea_source"] = ""
+            monkeypatch.setattr(api, "_pool", _FakeAgingPool([_make_aging_row()]))
+            result = api.aging_latest(trafo=2, x_api_key=None)
+            assert result["status"] == "ok"
+            assert result["calibration_status"] == "not_configured"
+            assert result["ea_source"] is None
+        finally:
+            api.aging.AGING_CONFIG["status"] = "not_configured"
+            api.aging.AGING_CONFIG["ea_source"] = ""
+            _set_aging_configured(False)
+
+    def test_configured_and_provisional_with_source_is_reported_provisional(self, monkeypatch):
+        _set_aging_configured(True)
+        try:
+            api.aging.AGING_CONFIG["status"] = "provisional"
+            api.aging.AGING_CONFIG["ea_source"] = "IEC TR 60943 Table 2"
+            monkeypatch.setattr(api, "_pool", _FakeAgingPool([_make_aging_row()]))
+            result = api.aging_latest(trafo=2, x_api_key=None)
+            assert result["calibration_status"] == "provisional"
+            assert result["ea_source"] == "IEC TR 60943 Table 2"
+        finally:
+            api.aging.AGING_CONFIG["status"] = "not_configured"
+            api.aging.AGING_CONFIG["ea_source"] = ""
+            _set_aging_configured(False)
+
 
 class TestAgingDaily:
     def test_not_configured_returns_empty_without_touching_db(self, monkeypatch):

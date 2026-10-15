@@ -3,6 +3,10 @@
   "t_ref_c": null,
   "_calibration_note": "TODO(calibration): ea_ev (energi aktivasi Arrhenius, eV) dan t_ref_c (suhu referensi, °C) HARUS berasal dari IEC TR 60943 atau literatur material kontak (perak/tembaga paduan yang dipakai di kontak finger trafo 2/3/4 ini) -- JANGAN diisi dengan nilai tebakan. Selama ea_ev ATAU t_ref_c masih null, server/aging.py mengembalikan status 'not_configured' dan TIDAK menghitung F/EqAge sama sekali (lihat aging.is_configured()).",
 
+  "status": "not_configured",
+  "ea_source": "",
+  "_status_note": "Go-live (Prompt: provisional operation). 'status' is a SELF-REPORTED label, independently RE-VALIDATED by aging.get_calibration_status() -- it is never trusted as-is. Valid values: 'not_configured' (default, safe), 'provisional' (ea_ev/t_ref_c are a best-available estimate, not yet confirmed by a real contact-resistance test), 'calibrated' (confirmed). 'provisional' or 'calibrated' REQUIRE ea_ev AND t_ref_c to both be non-null numbers AND ea_source to be a non-empty citation string (e.g. 'IEC TR 60943 Table 2, silver-plated copper contacts') -- missing any of the three silently downgrades the EFFECTIVE status back to 'not_configured' (see get_calibration_status()), it does NOT raise an error. This file alone decides calibration status; nothing else in the codebase may override it.",
+
   "max_gap_minutes_for_integration": 60,
   "_max_gap_note": "TODO(verifikasi): interval antar sampel yang lebih besar dari ini DIKECUALIKAN dari integral EqAge (bukan diintegralkan dengan F yang mungkin sudah basi selama durasi itu) -- default disamakan dengan thermal_lag.max_gap_minutes di lntai_config.json untuk konsistensi, belum diverifikasi khusus untuk integrasi penuaan.",
 

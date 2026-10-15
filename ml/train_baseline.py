@@ -161,7 +161,16 @@ def train_all_models(
 def save_artifact_and_register(
     cur, result: dict[str, Any], trafo: str, phase: str, trained_at: datetime,
     healthy_from: datetime, healthy_to: datetime, dataset_metadata: dict[str, Any],
+    is_provisional: bool = False, provisional_reason: Optional[str] = None,
 ) -> Optional[int]:
+    """`is_provisional`/`provisional_reason` (go-live, migration 017):
+    diisi saat healthy_from/healthy_to berasal dari saran
+    ml/suggest_healthy_period.py (peringkat otomatis, BUKAN keputusan
+    operator berdasarkan pengetahuan riil trafo) dan belum dikonfirmasi
+    resistance test -- lihat --provisional/--provisional-reason di main().
+    `provisional_reason` WAJIB diisi kalau is_provisional=True (lihat
+    validasi di main(), bukan di sini -- fungsi ini hanya menulis apa
+    yang diberi caller)."""
     version = _version_string(trained_at)
     artifact = result["model"].to_artifact()
     filename = f"{trafo}_{phase}_{result['model_type']}_{version}.json"
@@ -174,8 +183,9 @@ def save_artifact_and_register(
         """
         INSERT INTO ml_models (
             trafo, phase, model_type, version, trained_at, healthy_from, healthy_to,
-            features, metrics, artifact_path, sigma, mu, is_active, is_frozen_reference, notes
-        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, FALSE, FALSE, %s)
+            features, metrics, artifact_path, sigma, mu, is_active, is_frozen_reference, notes,
+            is_provisional, provisional_reason
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, FALSE, FALSE, %s, %s, %s)
         RETURNING id
         """,
         (
@@ -183,7 +193,7 @@ def save_artifact_and_register(
             json.dumps({**dataset_metadata, "fit_info": result["fit_info"]}),
             json.dumps(result["metrics"]), str(Path("ml/artifacts") / filename),
             result["metrics"]["sigma"], result["metrics"]["mu"],
-            None,
+            None, is_provisional, provisional_reason,
         ),
     )
     row = cur.fetchone()
@@ -210,6 +220,18 @@ def _parse_date(raw: str) -> datetime:
     return dt
 
 
+def validate_provisional_args(is_provisional: bool, provisional_reason: Optional[str]) -> Optional[str]:
+    """Go-live rule: --provisional dan --provisional-reason WAJIB
+    berpasangan (bukan optional independen) -- satu tanpa yang lain
+    adalah kesalahan pemakaian, bukan default yang masuk akal. Return
+    pesan error (str) kalau tidak valid, None kalau valid."""
+    if is_provisional and not provisional_reason:
+        return "--provisional requires --provisional-reason (shown verbatim in the UI banner)."
+    if provisional_reason and not is_provisional:
+        return "--provisional-reason requires --provisional (a reason with no flag set does nothing)."
+    return None
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--trafo", required=True, choices=["2", "3", "4"])
@@ -217,7 +239,20 @@ def main() -> None:
     parser.add_argument("--healthy-from", dest="healthy_from", required=True, help="ISO8601, mis. 2026-07-01")
     parser.add_argument("--healthy-to", dest="healthy_to", required=True, help="ISO8601, mis. 2026-08-01")
     parser.add_argument("--dry-run", action="store_true", help="Latih & cetak tabel, jangan simpan artefak/baris ml_models")
+    parser.add_argument(
+        "--provisional", action="store_true",
+        help="Tandai ml_models.is_provisional=TRUE -- WAJIB dipasangkan dengan --provisional-reason "
+             "(go-live: healthy period dari ml/suggest_healthy_period.py, belum dikonfirmasi resistance test).",
+    )
+    parser.add_argument(
+        "--provisional-reason", dest="provisional_reason", default=None,
+        help="Wajib diisi kalau --provisional dipakai -- kalimat yang ditampilkan di banner UI.",
+    )
     args = parser.parse_args()
+
+    error = validate_provisional_args(args.provisional, args.provisional_reason)
+    if error:
+        parser.error(error)
 
     ts_from = _parse_date(args.healthy_from)
     ts_to = _parse_date(args.healthy_to)
@@ -255,7 +290,10 @@ def main() -> None:
         for r in results:
             if r["status"] != "ok":
                 continue
-            model_id = save_artifact_and_register(cur, r, args.trafo, args.phase, trained_at, ts_from, ts_to, metadata)
+            model_id = save_artifact_and_register(
+                cur, r, args.trafo, args.phase, trained_at, ts_from, ts_to, metadata,
+                is_provisional=args.provisional, provisional_reason=args.provisional_reason,
+            )
             saved_ids.append((r["model_type"], model_id))
         conn.commit()
 
