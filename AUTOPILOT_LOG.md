@@ -29,7 +29,7 @@ perbaikan TLS `mqtt_subscriber.py` di-commit terpisah ke `main`).
 | M10 | DONE | ba0b65e | Koreksi vs brief: call site asli ada di server/api.py (GET /api/forecast), bukan forecast_job.py -- forecast_job.py cuma menghitung & menulis titik forecast, deteksi crossing jalan saat endpoint dibaca. elevated_at_start() dipasang di api.py. |
 | M11 | DONE | 22001f3 | Dibuktikan dengan noise heteroscedastic (siang 3x malam) bahwa band bucket siang lebih lebar dari malam -- bukan diasumsikan. Backward compat artefak lama diverifikasi test eksplisit. |
 | M12 | DONE | bb22ca8 | --tune hanya mencakup ml_gbm, bukan residual GBM di dalam hybrid (scoping, dicatat di commit). naive_median TIDAK ditulis ke ml_models (bukan di CHECK constraint, memang bukan model teraktivasi -- skip_save flag). |
-| U7 | TODO | | |
+| U7 | DONE | 00909b0 | suhu/beban freshness FLAT (bukan per-trafo), sesuai bentuk objek di task. Tab Forecast dibiarkan pakai indikator sendiri (fc-last-update-tab), tidak dipetakan ke 4 kategori. Tidak bisa diverifikasi visual di browser (tidak ada akses) -- cek manual disarankan. |
 | U5 | TODO | | |
 | U4 | TODO | | |
 | F1 | TODO | | |

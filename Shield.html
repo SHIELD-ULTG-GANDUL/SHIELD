@@ -394,6 +394,7 @@
                                     <span class="text-[10px] text-slate-400 font-bold uppercase">Beban vs I_nom (1780 A)</span>
                                     <span id="kpi-overcurrent-badge" class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-slate-100 text-slate-500">—</span>
                                 </div>
+                                <div id="freshness-beban" class="text-[9px] font-bold text-slate-400 mb-2">belum ada data</div>
                                 <div class="grid grid-cols-3 gap-1.5">
                                     <div class="bg-white rounded-lg p-2 text-center border border-amber-100">
                                         <div class="text-[9px] font-bold text-slate-400 mb-0.5">Phase R</div>
@@ -414,7 +415,8 @@
                             </div>
                         </div>
                         <div id="kpi-hotspot-card" class="border-2 rounded-xl p-4 transition-all duration-500 hotspot-normal">
-                            <h5 class="text-[10px] font-extrabold uppercase tracking-widest mb-3 flex items-center gap-1.5 text-slate-600"><i data-lucide="flame" class="w-3.5 h-3.5"></i> Suhu Kontak PMT Incoming</h5>
+                            <h5 class="text-[10px] font-extrabold uppercase tracking-widest mb-1 flex items-center gap-1.5 text-slate-600"><i data-lucide="flame" class="w-3.5 h-3.5"></i> Suhu Kontak PMT Incoming</h5>
+                            <div id="freshness-suhu" class="text-[9px] font-bold text-slate-400 mb-2">belum ada data</div>
                             <div class="text-center py-2 mb-3"><span id="kpi-hotspot-badge" class="inline-flex items-center px-4 py-2 rounded-full text-sm font-extrabold bg-white/70 text-slate-400 shadow-sm">— Menunggu Data —</span></div>
                             <div class="space-y-2">
                                 <div class="flex justify-between items-center text-[11px]"><span class="text-slate-500 font-bold">Suhu PMT Tertinggi</span><span id="kpi-hotspot-temp" class="font-mono font-extrabold text-slate-700">- °C</span></div>
@@ -1170,6 +1172,7 @@
                         <div class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest">KPI LNTAI</div>
                         <div id="lntai-kpi-score" class="font-mono font-black text-4xl text-red-600 mt-1">-</div>
                         <p class="text-[10px] text-slate-400 mt-1">Real-time LNTAI score (scale 0–40)</p>
+                        <div id="freshness-lntai" class="text-[9px] font-bold text-slate-400 mt-1">belum ada data</div>
                         <div class="mt-4 space-y-2">
                           <div class="flex items-center justify-between text-[11px]">
                             <span class="text-slate-500 font-bold">OT Normalized</span>
@@ -2137,6 +2140,64 @@
                 .replace(/'/g, '&#39;');
         }
 
+        // U7 (autopilot 2026-11): indikator umur data -- timestamp (ms epoch,
+        // Date.now()) sampel TERAKHIR yang benar-benar diterima per kategori
+        // (bukan "terakhir di-render", supaya badge jujur soal apakah pipeline
+        // data MASIH mengalir, bukan cuma apakah UI masih redraw). Diupdate di
+        // titik SUMBER data (listener/fetch yang benar-benar menerima data
+        // baru), dibaca oleh _refreshAllFreshnessBadges() tiap 15 detik.
+        // Catatan: suhu/beban TIDAK dipisah per-trafo (flat, sesuai task) --
+        // jadi badge mencerminkan "apakah pipeline kategori ini masih hidup
+        // untuk TRAFO MANA PUN", bukan presisi per-trafo yang sedang dipilih.
+        const dataFreshness = { suhu: null, beban: null, ambient: null, lntaiServer: null };
+
+        // TODO(verifikasi): ambang (menit) BELUM dikalibrasi dari pola kirim
+        // data riil (interval MQTT/polling TimescaleDB) -- nilai awal masuk
+        // akal berdasarkan observasi kasar siklus update dashboard ini.
+        const FRESHNESS_LIMITS_MIN = { green: 5, yellow: 30 };
+
+        function _freshnessLabel(tsMs) {
+            if (tsMs == null) return { text: 'belum ada data', cls: 'text-slate-400', stale: true };
+            const ageMin = (Date.now() - tsMs) / 60000;
+            if (ageMin < 0) return { text: 'diperbarui barusan', cls: 'text-emerald-600', stale: false };
+            if (ageMin < FRESHNESS_LIMITS_MIN.green) {
+                return { text: `diperbarui ${Math.max(0, Math.round(ageMin))} menit lalu`, cls: 'text-emerald-600', stale: false };
+            }
+            if (ageMin < FRESHNESS_LIMITS_MIN.yellow) {
+                return { text: `diperbarui ${Math.round(ageMin)} menit lalu`, cls: 'text-amber-600', stale: false };
+            }
+            const ageStr = ageMin < 120 ? `${Math.round(ageMin)} menit` : `${(ageMin / 60).toFixed(1)} jam`;
+            return { text: `data basi (${ageStr} lalu)`, cls: 'text-red-600 font-extrabold', stale: true };
+        }
+
+        // `cardEl` opsional -- kalau diisi, nilai KPI di dalamnya dipudarkan
+        // (abu-abu) begitu data melewati ambang merah (FRESHNESS_LIMITS_MIN.yellow),
+        // supaya operator tidak keliru menganggap angka basi sebagai kondisi terkini.
+        function _updateFreshnessBadge(badgeElId, category, cardElId) {
+            const el = document.getElementById(badgeElId);
+            if (!el) return;
+            const { text, cls, stale } = _freshnessLabel(dataFreshness[category]);
+            el.textContent = text;
+            el.className = el.className.replace(/\btext-(emerald|amber|red|slate)-\d+\b/g, '').trim() + ' ' + cls;
+            if (cardElId) {
+                const card = document.getElementById(cardElId);
+                if (card) card.classList.toggle('opacity-50', stale);
+            }
+        }
+
+        // Catatan scoping (U7, autopilot 2026-11): tab "Forecast Realtime"
+        // SUDAH punya indikator waktu sendiri (fc-last-update-tab, diisi
+        // runForecastAlg() tiap kali /api/forecast berhasil diambil) yang
+        // tidak cocok dipetakan ke salah satu dari 4 kategori dataFreshness
+        // di atas (bukan suhu/beban/ambient/lntaiServer mentah) -- dibiarkan
+        // seperti semula, tidak diduplikasi di sini.
+        function _refreshAllFreshnessBadges() {
+            _updateFreshnessBadge('freshness-suhu', 'suhu', 'kpi-hotspot-card');
+            _updateFreshnessBadge('freshness-beban', 'beban');
+            _updateFreshnessBadge('freshness-lntai', 'lntaiServer');
+        }
+        setInterval(_refreshAllFreshnessBadges, 15000);
+
         // Inisialisasi Ikon Lucide
         lucide.createIcons();
 
@@ -2301,6 +2362,7 @@
             };
 
             temperatureData[trafo] = payload;
+            dataFreshness.suhu = Date.now();
             if (trafo === selectedTrafo) {
                 updateDashboardUI();
                 if (activePage === 'graphs' && realtimeChart && activeTimeFilter === 'LIVE') {
@@ -2850,6 +2912,7 @@
                     if (!asc.length) continue;
 
                     latestBebanData[trafo] = asc[asc.length - 1];
+                    dataFreshness.beban = Date.now();
                     bebanLiveChartBuffer[trafo] = asc.slice(-60);
                     _syncBebanRealtimeTrainingLog(trafo, latestBebanData[trafo]);
                     _syncBebanTrainingLogs(trafo, asc);
@@ -3226,6 +3289,7 @@
 
             // Simpan paket terbaru ke memori untuk Dashboard
             temperatureData[trafoIdx] = mappedData;
+            dataFreshness.suhu = Date.now();
             _syncTempTrainingLog(trafoIdx, mappedData);
             _persistTempLogToFirestore(trafoIdx, mappedData);
 
@@ -4045,6 +4109,7 @@
                         // Auto-detect field mapping dari dokumen pertama
                         if (!window._bebanFieldOverride) _autoDetectBebanFields(data);
                         latestBebanData[trafo] = parseBebanDoc(data);
+                        dataFreshness.beban = Date.now();
                         _syncBebanRealtimeTrainingLog(trafo, latestBebanData[trafo]);
                         if (trafo === selectedTrafo) {
                             updateBebanUI();
@@ -5846,6 +5911,7 @@
             ambientWeatherState.temp = Number(parsed.toFixed(2));
             ambientWeatherState.source = source;
             ambientWeatherState.updatedAt = new Date();
+            dataFreshness.ambient = Date.now();
             ambientWeatherState.apiOk = apiOk;
             T_AMBIENT_REF = ambientWeatherState.temp;
             if (typeof _scheduleMLRealtimeUpdate === 'function') _scheduleMLRealtimeUpdate('update suhu ambient GI Gandul');
@@ -6166,6 +6232,7 @@
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const json = await res.json();
                 _serverLNTAILatestCache[trafo] = { row: json.row, fetchedAt: Date.now() };
+                dataFreshness.lntaiServer = Date.now();
             } catch (err) {
                 console.warn('[SHIELD LNTAI] Gagal mengambil /api/lntai-latest untuk trafo', trafo, ':', err.message);
             }
