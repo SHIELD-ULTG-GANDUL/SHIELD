@@ -30,7 +30,7 @@ perbaikan TLS `mqtt_subscriber.py` di-commit terpisah ke `main`).
 | M11 | DONE | 22001f3 | Dibuktikan dengan noise heteroscedastic (siang 3x malam) bahwa band bucket siang lebih lebar dari malam -- bukan diasumsikan. Backward compat artefak lama diverifikasi test eksplisit. |
 | M12 | DONE | bb22ca8 | --tune hanya mencakup ml_gbm, bukan residual GBM di dalam hybrid (scoping, dicatat di commit). naive_median TIDAK ditulis ke ml_models (bukan di CHECK constraint, memang bukan model teraktivasi -- skip_save flag). |
 | U7 | DONE | 00909b0 | suhu/beban freshness FLAT (bukan per-trafo), sesuai bentuk objek di task. Tab Forecast dibiarkan pakai indikator sendiri (fc-last-update-tab), tidak dipetakan ke 4 kategori. Tidak bisa diverifikasi visual di browser (tidak ada akses) -- cek manual disarankan. |
-| U5 | TODO | | |
+| U5 | PARTIAL | 1bfee23 | Status strip + ikon Lucide + badge skala v2/v3 selesai. "Ganti label OT Normalized/Load Factor" SENGAJA tidak dikerjakan -- tumpang tindih dengan rencana unifikasi field LNTAI v2/v3 yang belum selesai dari sesi sebelumnya (S_TLR->S_RES dst). Tidak bisa diverifikasi visual (tidak ada browser). |
 | U4 | TODO | | |
 | F1 | TODO | | |
 | F2 | TODO | | |

@@ -1101,31 +1101,36 @@
                 </div>
               </div>
 
-              <!-- Overview Status Cards -->
-              <div class="grid grid-cols-2 gap-3">
-                <!-- Alg 0 -->
-                <div class="glass-card p-3 cursor-pointer hover:border-cyan-300 transition-all border-l-2 border-cyan-400" onclick="switchInnerTab('ml','a0')">
-                  <div class="text-[9px] font-extrabold text-cyan-600 uppercase tracking-widest mb-1">Forecast Realtime</div>
-                  <div id="ml-ov-a0" class="font-mono font-black text-lg text-slate-700">-</div>
-                  <div class="text-[9px] text-slate-400 mt-0.5">Akurasi (%)</div>
-                  <div id="ml-ov-a0-badge" class="mt-1.5 text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 inline-block">—</div>
-                </div>
-                <!-- LNTAI -->
-                <div class="glass-card p-3 cursor-pointer hover:border-red-300 transition-all border-l-2 border-red-400" onclick="switchInnerTab('ml','lntai')">
-                  <div class="text-[9px] font-extrabold text-red-600 uppercase tracking-widest mb-1">🔥 LNTAI</div>
-                  <div id="ml-ov-lntai" class="font-mono font-black text-lg text-slate-700">-</div>
-                  <div class="text-[9px] text-slate-400 mt-0.5">Skor (0–40)</div>
-                  <div id="ml-ov-lntai-badge" class="mt-1.5 text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 inline-block">—</div>
+              <!-- U5 (autopilot 2026-11): status strip ringkas menggantikan 2 kartu
+                   overview terpisah -- ml-ov-a0 dihapus (akurasi forecast sudah ada
+                   di tab Forecast Realtime sendiri, tidak perlu diduplikasi di sini).
+                   ml-ov-lntai/ml-ov-lntai-badge DIPERTAHANKAN (id sama persis) supaya
+                   updateOverviewCard('lntai', ...) di JS tidak perlu diubah sama sekali. -->
+              <div class="glass-card px-4 py-2 flex items-center gap-4 flex-wrap" style="min-height:56px;">
+                <button onclick="switchInnerTab('ml','lntai')" class="flex items-center gap-2 hover:opacity-75 transition-opacity" title="Buka tab LNTAI">
+                  <span class="text-[9px] font-extrabold text-red-600 uppercase tracking-widest">🔥 LNTAI</span>
+                  <span id="ml-ov-lntai" class="font-mono font-black text-base text-slate-700">-</span>
+                  <span id="ml-ov-lntai-badge" class="text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 inline-block">—</span>
+                </button>
+                <div class="w-px h-6 bg-slate-200"></div>
+                <button onclick="switchInnerTab('ml','aex')" class="flex items-center gap-2 hover:opacity-75 transition-opacity" title="Buka tab Executive Summary">
+                  <span class="text-[9px] font-extrabold text-indigo-600 uppercase tracking-widest">CHI</span>
+                  <span id="ml-strip-chi" class="font-mono font-black text-base text-slate-700">—</span>
+                </button>
+                <div class="w-px h-6 bg-slate-200"></div>
+                <div class="flex items-center gap-2" title="Umur data tertua di antara suhu/beban/LNTAI server">
+                  <span class="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest">Umur Data</span>
+                  <span id="ml-strip-freshness" class="text-[9px] font-bold text-slate-400">belum ada data</span>
                 </div>
               </div>
 
               <!-- Inner Tabs untuk Detail Algoritma -->
               <div>
                 <div class="inner-tab-nav">
-                  <button onclick="switchInnerTab('ml','aex')" id="itab-ml-aex" class="inner-tab-btn active" style="color:#4f46e5;font-weight:900;">🎯 Executive Summary</button>
-                  <button onclick="switchInnerTab('ml','a0')" id="itab-ml-a0" class="inner-tab-btn" style="color:#0891b2;">⚡ Forecast Realtime</button>
-                  <button onclick="switchInnerTab('ml','lntai')" id="itab-ml-lntai" class="inner-tab-btn" style="color:#dc2626;">🔥 LNTAI</button>
-                  <button onclick="switchInnerTab('ml','aging')" id="itab-ml-aging" class="inner-tab-btn" style="color:#0d9488;">📉 LNTAI vs Aging Factor</button>
+                  <button onclick="switchInnerTab('ml','aex')" id="itab-ml-aex" class="inner-tab-btn active" style="color:#4f46e5;font-weight:900;"><i data-lucide="target" class="w-3.5 h-3.5 inline-block align-[-2px]"></i> Executive Summary</button>
+                  <button onclick="switchInnerTab('ml','a0')" id="itab-ml-a0" class="inner-tab-btn" style="color:#0891b2;"><i data-lucide="zap" class="w-3.5 h-3.5 inline-block align-[-2px]"></i> Forecast Realtime</button>
+                  <button onclick="switchInnerTab('ml','lntai')" id="itab-ml-lntai" class="inner-tab-btn" style="color:#dc2626;"><i data-lucide="flame" class="w-3.5 h-3.5 inline-block align-[-2px]"></i> LNTAI</button>
+                  <button onclick="switchInnerTab('ml','aging')" id="itab-ml-aging" class="inner-tab-btn" style="color:#0d9488;"><i data-lucide="trending-down" class="w-3.5 h-3.5 inline-block align-[-2px]"></i> LNTAI vs Aging Factor</button>
                 </div>
 
                 <!-- ════════════════════════════════════════════════════════
@@ -1169,7 +1174,10 @@
                     <!-- KPI LNTAI Summary + LNTAI Chart -->
                     <div class="grid grid-cols-1 xl:grid-cols-3 gap-4 mb-4">
                       <div class="glass-card p-5 border border-slate-200">
-                        <div class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest">KPI LNTAI</div>
+                        <div class="flex items-center gap-2">
+                          <div class="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest">KPI LNTAI</div>
+                          <span class="text-[8px] font-extrabold px-1.5 py-0.5 rounded bg-slate-100 text-slate-500" title="Skor komposit 0-40 (legacy v2) -- BUKAN z-score v3 yang dipakai di tab LNTAI vs Aging Factor">skala 0–40 (v2)</span>
+                        </div>
                         <div id="lntai-kpi-score" class="font-mono font-black text-4xl text-red-600 mt-1">-</div>
                         <p class="text-[10px] text-slate-400 mt-1">Real-time LNTAI score (scale 0–40)</p>
                         <div id="freshness-lntai" class="text-[9px] font-bold text-slate-400 mt-1">belum ada data</div>
@@ -1480,7 +1488,10 @@
                     <!-- KPI 1: LNTAI score -->
                     <div class="glass-card p-5">
                         <div class="flex items-center justify-between mb-2">
-                            <h5 class="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest">LNTAI score</h5>
+                            <div class="flex items-center gap-2">
+                                <h5 class="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest">LNTAI score</h5>
+                                <span class="text-[8px] font-extrabold px-1.5 py-0.5 rounded bg-slate-100 text-slate-500" title="Physics-informed residual z-score (v3) -- BUKAN skor komposit 0-40 v2 yang dipakai di tab LNTAI biasa">z-score (v3)</span>
+                            </div>
                             <span id="aging-kpi-lntai-baseline-badge" class="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-slate-100 text-slate-500">—</span>
                         </div>
                         <div id="aging-kpi-lntai-body">
@@ -2195,6 +2206,19 @@
             _updateFreshnessBadge('freshness-suhu', 'suhu', 'kpi-hotspot-card');
             _updateFreshnessBadge('freshness-beban', 'beban');
             _updateFreshnessBadge('freshness-lntai', 'lntaiServer');
+
+            // U5: strip ML Lab -- umur data TERTUA di antara suhu/beban/
+            // lntaiServer (representasi "apakah ADA bagian pipeline yang
+            // mandek", bukan rata-rata -- satu kategori basi cukup untuk
+            // memperingatkan, tidak boleh tertutupi kategori lain yang segar).
+            const stripEl = document.getElementById('ml-strip-freshness');
+            if (stripEl) {
+                const stamps = [dataFreshness.suhu, dataFreshness.beban, dataFreshness.lntaiServer].filter(t => t != null);
+                const oldest = stamps.length ? Math.min(...stamps) : null;
+                const { text, cls } = _freshnessLabel(oldest);
+                stripEl.textContent = text;
+                stripEl.className = stripEl.className.replace(/\btext-(emerald|amber|red|slate)-\d+\b/g, '').trim() + ' ' + cls;
+            }
         }
         setInterval(_refreshAllFreshnessBadges, 15000);
 
@@ -8209,6 +8233,10 @@
                 add(hi_lntai, 0.70); add(hi_forecast, 0.30);
             }
             const CHI = chiNum != null && chiDenom > 0 ? Math.round((chiNum / chiDenom) * 100) : null;
+            // U5 (autopilot 2026-11): CHI dipakai juga di status strip ML Lab
+            // (di luar tab Executive Summary) -- satu-satunya tempat CHI
+            // dihitung tetap di sini, strip cuma MEMBACA nilai terakhir.
+            setText_id('ml-strip-chi', CHI != null ? String(CHI) : '—');
 
             // ── Verdict based on CHI ──────────────────────────────────
             const verdict = CHI == null ? { label:'DATA INCOMPLETE',   color:'slate', icon:'ℹ️', border:'border-slate-300', bg:'bg-slate-50', ring:'border-slate-300', txt:'text-slate-700' }
