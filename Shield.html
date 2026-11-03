@@ -2123,6 +2123,20 @@
 
     <!-- Script Pendukung Logika Aplikasi -->
     <script>
+        // S3 (autopilot 2026-11): escape nilai dinamis dari API/Firestore/input
+        // pengguna sebelum disisipkan ke template innerHTML -- angka hasil
+        // toFixed() dan string konstan di kode tidak perlu (tidak bisa dikontrol
+        // penyerang), tapi field bebas seperti notes/reason/pesan error BISA.
+        function escapeHtml(s) {
+            if (s == null) return '';
+            return String(s)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
         // Inisialisasi Ikon Lucide
         lucide.createIcons();
 
@@ -3775,7 +3789,7 @@
                     tableBody.innerHTML = `
                         <tr>
                             <td colspan="8" class="text-center py-12 text-rose-500 font-bold">
-                                Failed to load data from ${sourceLabel}: ${err && err.message ? err.message : 'unknown error'}.
+                                Failed to load data from ${escapeHtml(sourceLabel)}: ${escapeHtml(err && err.message ? err.message : 'unknown error')}.
                                 ${window.timescaleReady ? `<div class="text-[10px] font-normal text-slate-400 mt-2">Check whether ${TIMESCALE_API_BASE_URL} is reachable from your network, and whether the server's CORS settings allow this origin (${location.origin}).</div>` : ''}
                             </td>
                         </tr>
@@ -4493,8 +4507,8 @@
                     <td colspan="13" class="text-center py-12 text-slate-400 font-bold">
                         <div class="flex flex-col items-center gap-2">
                             <i data-lucide="inbox" class="w-10 h-10 text-slate-300"></i>
-                            <span class="text-slate-600">${title}</span>
-                            <span class="text-[10px] font-mono text-slate-400">${detail}</span>
+                            <span class="text-slate-600">${escapeHtml(title)}</span>
+                            <span class="text-[10px] font-mono text-slate-400">${escapeHtml(detail)}</span>
                         </div>
                     </td>
                 </tr>
@@ -8784,15 +8798,15 @@
             if (agingJson && agingJson.status === 'not_configured') {
                 messages.push('Activation energy not configured — thermal aging factor and cumulative equivalent age cannot be computed yet.');
             } else if (agingJson && agingJson.calibration_status === 'provisional') {
-                messages.push(`Provisional activation energy — source: ${agingJson.ea_source || 'not given'}.`);
+                messages.push(`Provisional activation energy — source: ${escapeHtml(agingJson.ea_source || 'not given')}.`);
             }
             const recalRow = ((resJson && resJson.rows) || []).find(r => r.status === 'needs_recalibration' && r.reason);
             if (recalRow) {
-                messages.push(`Reference baseline ${recalRow.reason}`);
+                messages.push(`Reference baseline ${escapeHtml(recalRow.reason)}`);
             }
             const activeModel = ((modelsJson && modelsJson.rows) || []).find(m => m.phase === hottestPhase && m.is_active);
             if (activeModel && activeModel.is_provisional) {
-                messages.push(`<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-orange-200 text-orange-800 mr-1.5 align-middle">Provisional baseline</span>Baseline trained on a provisional healthy period (${activeModel.healthy_from} → ${activeModel.healthy_to}), not yet confirmed by a contact-resistance test. ${activeModel.provisional_reason || ''}`);
+                messages.push(`<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-orange-200 text-orange-800 mr-1.5 align-middle">Provisional baseline</span>Baseline trained on a provisional healthy period (${escapeHtml(activeModel.healthy_from)} → ${escapeHtml(activeModel.healthy_to)}), not yet confirmed by a contact-resistance test. ${escapeHtml(activeModel.provisional_reason || '')}`);
             }
             if (!messages.length) {
                 banner.classList.add('hidden');
@@ -9176,13 +9190,13 @@
 
             body.innerHTML = cells.map(([label, value]) => `
                 <div class="bg-slate-50 rounded-lg p-3">
-                    <div class="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">${label}</div>
-                    <div class="font-mono font-bold text-slate-700">${value}</div>
+                    <div class="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">${escapeHtml(label)}</div>
+                    <div class="font-mono font-bold text-slate-700">${escapeHtml(value)}</div>
                 </div>
             `).join('') + `
                 <div class="bg-orange-50 rounded-lg p-3 md:col-span-2 xl:col-span-3">
                     <div class="text-[9px] font-extrabold text-orange-500 uppercase tracking-widest mb-1">Suggested action</div>
-                    <div class="font-bold text-orange-800">${warning.suggested_action || '—'}</div>
+                    <div class="font-bold text-orange-800">${escapeHtml(warning.suggested_action || '—')}</div>
                 </div>
             `;
         }
@@ -9415,8 +9429,8 @@
             ];
             body.innerHTML = cells.map(([label, value]) => `
                 <div class="bg-slate-50 rounded-lg p-3">
-                    <div class="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">${label}</div>
-                    <div class="font-mono font-bold text-slate-700">${value}</div>
+                    <div class="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">${escapeHtml(label)}</div>
+                    <div class="font-mono font-bold text-slate-700">${escapeHtml(value)}</div>
                 </div>
             `).join('');
         }
@@ -9465,8 +9479,8 @@
             ];
             body.innerHTML = cells.map(([label, value]) => `
                 <div class="bg-slate-50 rounded-lg p-3">
-                    <div class="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">${label}</div>
-                    <div class="font-bold text-slate-700">${value}</div>
+                    <div class="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">${escapeHtml(label)}</div>
+                    <div class="font-bold text-slate-700">${escapeHtml(value)}</div>
                 </div>
             `).join('');
         }
