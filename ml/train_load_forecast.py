@@ -90,7 +90,7 @@ def train_and_backtest(
         pinball = fm.mean_pinball_loss(actuals, p10s, p50s, p90s)
         results.append({
             "model_type": "seasonal_naive", "status": "ok", "model": sn,
-            "fit_info": info, "metrics": {"mape": info["mape"], "pinball_loss": pinball, "n_backtest": info["n_backtest"]},
+            "fit_info": info, "metrics": {"mape": info["mape"], "pinball_loss": pinball, "n_backtest": info["n_backtest"], "coverage_p10_p90": info["coverage_p10_p90"]},
         })
     except Exception as exc:  # noqa: BLE001
         results.append({"model_type": "seasonal_naive", "status": "failed", "error": str(exc), "model": None, "fit_info": None, "metrics": None})
@@ -106,7 +106,7 @@ def train_and_backtest(
         pinball = fm.mean_pinball_loss(actuals, p10s, p50s, p90s)
         results.append({
             "model_type": "gbm_calendar", "status": "ok", "model": gbm,
-            "fit_info": {**fit_info, **bt_info}, "metrics": {"mape": bt_info["mape"], "pinball_loss": pinball, "n_backtest": bt_info["n_backtest"]},
+            "fit_info": {**fit_info, **bt_info}, "metrics": {"mape": bt_info["mape"], "pinball_loss": pinball, "n_backtest": bt_info["n_backtest"], "coverage_p10_p90": bt_info["coverage_p10_p90"]},
         })
     except Exception as exc:  # noqa: BLE001
         results.append({"model_type": "gbm_calendar", "status": "failed", "error": str(exc), "model": None, "fit_info": None, "metrics": None})
@@ -122,7 +122,7 @@ def train_and_backtest(
         pinball = fm.mean_pinball_loss(actuals, p10s, p50s, p90s)
         results.append({
             "model_type": "poly_calendar", "status": "ok", "model": poly,
-            "fit_info": {**fit_info, **bt_info}, "metrics": {"mape": bt_info["mape"], "pinball_loss": pinball, "n_backtest": bt_info["n_backtest"]},
+            "fit_info": {**fit_info, **bt_info}, "metrics": {"mape": bt_info["mape"], "pinball_loss": pinball, "n_backtest": bt_info["n_backtest"], "coverage_p10_p90": bt_info["coverage_p10_p90"]},
         })
     except Exception as exc:  # noqa: BLE001
         results.append({"model_type": "poly_calendar", "status": "failed", "error": str(exc), "model": None, "fit_info": None, "metrics": None})
@@ -131,7 +131,7 @@ def train_and_backtest(
 
 
 def print_comparison_table(results: list[dict[str, Any]]) -> None:
-    header = f"{'model_type':<18} {'status':<8} {'mape(%)':>9} {'pinball':>9} {'n_backtest':>11}"
+    header = f"{'model_type':<18} {'status':<8} {'mape(%)':>9} {'pinball':>9} {'n_backtest':>11} {'cov_p10_p90':>12}"
     print(header)
     print("-" * len(header))
     for r in results:
@@ -141,7 +141,11 @@ def print_comparison_table(results: list[dict[str, Any]]) -> None:
         m = r["metrics"]
         mape_str = f"{m['mape']:.3f}" if m["mape"] is not None else "n/a"
         pinball_str = f"{m['pinball_loss']:.3f}" if m["pinball_loss"] is not None else "n/a"
-        print(f"{r['model_type']:<18} {'ok':<8} {mape_str:>9} {pinball_str:>9} {m['n_backtest']:>11}")
+        # M11 (autopilot 2026-11): proporsi actual backtest di dalam [P10,P90]
+        # -- idealnya mendekati 0.80 (interval 10%-90%), lihat forecast_models.coverage_p10_p90().
+        cov = m.get("coverage_p10_p90")
+        cov_str = f"{cov:.3f}" if cov is not None else "n/a"
+        print(f"{r['model_type']:<18} {'ok':<8} {mape_str:>9} {pinball_str:>9} {m['n_backtest']:>11} {cov_str:>12}")
 
 
 def save_artifact_and_register(

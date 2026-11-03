@@ -99,6 +99,132 @@ def _sorted_quantile_offsets(residuals: list[float]) -> tuple[float, float, floa
     return offsets[0], offsets[1], offsets[2]
 
 
+# M11 (autopilot 2026-11): offset kuantil TERPISAH per bucket jam WIB,
+# bukan satu offset global -- beban (dan sebarannya) biasanya beda
+# signifikan siang vs malam, jadi band P10/P90 yang sama untuk kedua
+# kondisi itu cenderung terlalu lebar di jam sepi dan/atau terlalu
+# sempit di jam padat. Default bucket & ambang sampel minimum ada di
+# ml_config.json (`forecast_quantile_buckets`).
+
+_MIN_BUCKET_RESIDUALS = 20  # TODO(verifikasi): ambang minimum sampel per bucket sebelum jatuh ke offset global
+
+
+def _wib_hour_of(ts_epoch: float) -> float:
+    dt_wib = datetime.fromtimestamp(ts_epoch, tz=timezone.utc) + _WIB_OFFSET
+    return dt_wib.hour + dt_wib.minute / 60.0
+
+
+def _bucket_index(hour: float, buckets: list[tuple[int, int]]) -> Optional[int]:
+    """`buckets`: [(lo, hi), ...] jam WIB, hi EKSKLUSIF. Mendukung bucket
+    yang membungkus tengah malam (lo > hi, mis. (20, 4)). None kalau
+    `hour` tidak masuk bucket mana pun (konfigurasi bucket tidak lengkap)."""
+    for i, (lo, hi) in enumerate(buckets):
+        if lo <= hi:
+            if lo <= hour < hi:
+                return i
+        elif hour >= lo or hour < hi:
+            return i
+    return None
+
+
+def _quantile_offsets_by_bucket(
+    residual_hour_pairs: list[tuple[float, float]],
+    buckets: list[tuple[int, int]],
+    global_offsets: tuple[float, float, float],
+) -> list[tuple[float, float, float]]:
+    """`residual_hour_pairs`: [(residual, wib_hour), ...] dari backtest.
+    Return satu tuple offset (p10,p50,p90) per bucket (urutan sama dengan
+    `buckets`) -- bucket dengan residual < _MIN_BUCKET_RESIDUALS jatuh ke
+    `global_offsets` (sampel terlalu sedikit untuk kuantil per-jam yang
+    stabil secara statistik)."""
+    grouped: dict[int, list[float]] = {i: [] for i in range(len(buckets))}
+    for residual, hour in residual_hour_pairs:
+        idx = _bucket_index(hour, buckets)
+        if idx is not None:
+            grouped[idx].append(residual)
+    return [
+        _sorted_quantile_offsets(grouped[i]) if len(grouped[i]) >= _MIN_BUCKET_RESIDUALS else global_offsets
+        for i in range(len(buckets))
+    ]
+
+
+def _quantiles_for_bucket(
+    target_ts_epoch: float, point: float, buckets: list[tuple[int, int]],
+    bucket_offsets: list[tuple[float, float, float]], global_offsets: tuple[float, float, float],
+) -> tuple[float, float, float]:
+    """Pilih offset (p10,p50,p90) bucket jam WIB dari `target_ts_epoch`,
+    jatuh ke `global_offsets` kalau buckets/bucket_offsets kosong (artefak
+    lama sebelum M11) atau jamnya tidak masuk bucket mana pun."""
+    if buckets and bucket_offsets:
+        idx = _bucket_index(_wib_hour_of(target_ts_epoch), buckets)
+        if idx is not None and idx < len(bucket_offsets):
+            offs = bucket_offsets[idx]
+            return point + offs[0], point + offs[1], point + offs[2]
+    return point + global_offsets[0], point + global_offsets[1], point + global_offsets[2]
+
+
+class _QuantileBucketMixin:
+    """M11: logika offset-per-bucket-jam BERSAMA ketiga model_type -- tiap
+    class tetap punya p10/50/90_offset milik sendiri sebagai offset GLOBAL
+    (fallback & kompatibel dengan artefak lama sebelum M11), ditambah
+    `buckets`/`bucket_offsets` opsional. Disimpan di DALAM artefak (bukan
+    dibaca ulang dari ml_config.json saat load) supaya model lama tetap
+    bisa dimuat dan diprediksi persis sama walau config berubah di masa
+    depan."""
+
+    buckets: list[tuple[int, int]]
+    bucket_offsets: list[tuple[float, float, float]]
+    p10_offset: float
+    p50_offset: float
+    p90_offset: float
+
+    def _init_bucket_fields(self) -> None:
+        self.buckets = []
+        self.bucket_offsets = []
+
+    def _calibrate_bucket_offsets(self, residual_hour_pairs: list[tuple[float, float]]) -> None:
+        from models import ML_CONFIG  # lazy import, sama pola dengan GBMCalendarForecastModel.fit()
+
+        self.buckets = [tuple(b) for b in ML_CONFIG.get("forecast_quantile_buckets", [])]
+        global_offsets = (self.p10_offset, self.p50_offset, self.p90_offset)
+        self.bucket_offsets = (
+            _quantile_offsets_by_bucket(residual_hour_pairs, self.buckets, global_offsets)
+            if self.buckets else []
+        )
+
+    def _quantiles(self, target_ts_epoch: float, point: float) -> tuple[float, float, float]:
+        return _quantiles_for_bucket(
+            target_ts_epoch, point, self.buckets, self.bucket_offsets,
+            (self.p10_offset, self.p50_offset, self.p90_offset),
+        )
+
+    def _bucket_artifact_fields(self) -> dict[str, Any]:
+        return {
+            "buckets": [list(b) for b in self.buckets],
+            "bucket_offsets": [list(o) for o in self.bucket_offsets],
+        }
+
+    def _load_bucket_artifact_fields(self, artifact: dict[str, Any]) -> None:
+        # get(..., []) -- artefak dari SEBELUM M11 tidak punya key ini sama
+        # sekali; predict_quantiles() lewat _quantiles() otomatis jatuh ke
+        # offset global p10/50/90_offset kalau buckets kosong.
+        self.buckets = [tuple(b) for b in artifact.get("buckets", [])]
+        self.bucket_offsets = [tuple(o) for o in artifact.get("bucket_offsets", [])]
+
+
+def coverage_p10_p90(
+    actuals: list[float], p10s: list[Optional[float]], p90s: list[Optional[float]],
+) -> Optional[float]:
+    """M11: proporsi actual yang jatuh di DALAM [p10, p90] -- kalibrasi
+    yang baik idealnya mendekati 0.80 (interval 10%-90%). Dipakai sebagai
+    metrik ringkas di tabel perbandingan ml/train_load_forecast.py."""
+    pairs = [(a, lo, hi) for a, lo, hi in zip(actuals, p10s, p90s) if lo is not None and hi is not None]
+    if not pairs:
+        return None
+    hits = sum(1 for a, lo, hi in pairs if lo <= a <= hi)
+    return hits / len(pairs)
+
+
 def mape(actuals: list[float], preds: list[float]) -> Optional[float]:
     """Mean Absolute Percentage Error (%) -- sampel dengan actual=0
     DIBUANG (pembagian oleh nol tidak terdefinisi), bukan dipaksakan."""
@@ -133,13 +259,14 @@ def mean_pinball_loss(actuals: list[float], p10: list[float], p50: list[float], 
 # seasonal_naive
 # ════════════════════════════════════════════════════════════════════════
 
-class SeasonalNaiveForecastModel:
+class SeasonalNaiveForecastModel(_QuantileBucketMixin):
     model_type = "seasonal_naive"
 
     def __init__(self) -> None:
         self.p10_offset = 0.0
         self.p50_offset = 0.0
         self.p90_offset = 0.0
+        self._init_bucket_fields()
 
     @staticmethod
     def point_forecast(target_ts_epoch: float, lookup: dict[float, float]) -> Optional[float]:
@@ -154,29 +281,40 @@ class SeasonalNaiveForecastModel:
         point = self.point_forecast(target_ts_epoch, lookup)
         if point is None:
             return None, None, None
-        return point + self.p10_offset, point + self.p50_offset, point + self.p90_offset
+        return self._quantiles(target_ts_epoch, point)
 
     def calibrate(self, backtest_pairs: list[tuple[float, float]], lookup: dict[float, float]) -> dict[str, Any]:
         """`backtest_pairs`: [(target_ts_epoch, actual_current_amps), ...]
         dari rentang holdout (lebih baru dari data training)."""
         residuals = []
         preds = []
+        residual_hour_pairs = []
         for target_ts_epoch, actual in backtest_pairs:
             pred = self.point_forecast(target_ts_epoch, lookup)
             if pred is not None:
                 residuals.append(actual - pred)
                 preds.append(pred)
+                residual_hour_pairs.append((actual - pred, _wib_hour_of(target_ts_epoch)))
         self.p10_offset, self.p50_offset, self.p90_offset = _sorted_quantile_offsets(residuals)
+        self._calibrate_bucket_offsets(residual_hour_pairs)
         actuals = [a for _, a in backtest_pairs if self.point_forecast(_, lookup) is not None]
+        p10s, p50s, p90s = [], [], []
+        for target_ts_epoch, actual in backtest_pairs:
+            pred = self.point_forecast(target_ts_epoch, lookup)
+            if pred is not None:
+                q10, q50, q90 = self._quantiles(target_ts_epoch, pred)
+                p10s.append(q10); p50s.append(q50); p90s.append(q90)
         return {
             "n_backtest": len(residuals),
             "mape": mape(actuals, preds),
+            "coverage_p10_p90": coverage_p10_p90(actuals, p10s, p90s),
         }
 
     def to_artifact(self) -> dict[str, Any]:
         return {
             "model_type": self.model_type,
             "p10_offset": self.p10_offset, "p50_offset": self.p50_offset, "p90_offset": self.p90_offset,
+            **self._bucket_artifact_fields(),
         }
 
     @classmethod
@@ -185,6 +323,7 @@ class SeasonalNaiveForecastModel:
         m.p10_offset = artifact["p10_offset"]
         m.p50_offset = artifact["p50_offset"]
         m.p90_offset = artifact["p90_offset"]
+        m._load_bucket_artifact_fields(artifact)
         return m
 
 
@@ -192,7 +331,7 @@ class SeasonalNaiveForecastModel:
 # gbm_calendar
 # ════════════════════════════════════════════════════════════════════════
 
-class GBMCalendarForecastModel:
+class GBMCalendarForecastModel(_QuantileBucketMixin):
     model_type = "gbm_calendar"
 
     def __init__(self) -> None:
@@ -201,6 +340,7 @@ class GBMCalendarForecastModel:
         self.p10_offset = 0.0
         self.p50_offset = 0.0
         self.p90_offset = 0.0
+        self._init_bucket_fields()
 
     @staticmethod
     def _features(ts_epoch: float) -> list[float]:
@@ -239,18 +379,30 @@ class GBMCalendarForecastModel:
         point = self.point_forecast(target_ts_epoch)
         if point is None:
             return None, None, None
-        return point + self.p10_offset, point + self.p50_offset, point + self.p90_offset
+        return self._quantiles(target_ts_epoch, point)
 
     def calibrate(self, backtest_pairs: list[tuple[float, float]]) -> dict[str, Any]:
         residuals, preds, actuals = [], [], []
+        residual_hour_pairs = []
         for target_ts_epoch, actual in backtest_pairs:
             pred = self.point_forecast(target_ts_epoch)
             if pred is not None:
                 residuals.append(actual - pred)
                 preds.append(pred)
                 actuals.append(actual)
+                residual_hour_pairs.append((actual - pred, _wib_hour_of(target_ts_epoch)))
         self.p10_offset, self.p50_offset, self.p90_offset = _sorted_quantile_offsets(residuals)
-        return {"n_backtest": len(residuals), "mape": mape(actuals, preds)}
+        self._calibrate_bucket_offsets(residual_hour_pairs)
+        p10s, p50s, p90s = [], [], []
+        for target_ts_epoch, actual in backtest_pairs:
+            pred = self.point_forecast(target_ts_epoch)
+            if pred is not None:
+                q10, q50, q90 = self._quantiles(target_ts_epoch, pred)
+                p10s.append(q10); p50s.append(q50); p90s.append(q90)
+        return {
+            "n_backtest": len(residuals), "mape": mape(actuals, preds),
+            "coverage_p10_p90": coverage_p10_p90(actuals, p10s, p90s),
+        }
 
     def to_artifact(self) -> dict[str, Any]:
         import base64
@@ -260,6 +412,7 @@ class GBMCalendarForecastModel:
             "model_type": self.model_type, "backend": self.backend_name,
             "p10_offset": self.p10_offset, "p50_offset": self.p50_offset, "p90_offset": self.p90_offset,
             "regressor_pickle_b64": base64.b64encode(pickle.dumps(self._regressor)).decode("ascii"),
+            **self._bucket_artifact_fields(),
         }
 
     @classmethod
@@ -273,6 +426,7 @@ class GBMCalendarForecastModel:
         m.p50_offset = artifact["p50_offset"]
         m.p90_offset = artifact["p90_offset"]
         m._regressor = pickle.loads(base64.b64decode(artifact["regressor_pickle_b64"]))
+        m._load_bucket_artifact_fields(artifact)
         return m
 
 
@@ -280,7 +434,7 @@ class GBMCalendarForecastModel:
 # poly_calendar
 # ════════════════════════════════════════════════════════════════════════
 
-class PolynomialCalendarForecastModel:
+class PolynomialCalendarForecastModel(_QuantileBucketMixin):
     """Regresi polinomial (least squares) atas fitur kalender -- metode
     KEDUA (selain gbm_calendar) untuk tab "Forecast Realtime" yang
     dirombak 2026-10-15, supaya ada pembanding yang lebih sederhana/
@@ -299,6 +453,7 @@ class PolynomialCalendarForecastModel:
         self.p10_offset = 0.0
         self.p50_offset = 0.0
         self.p90_offset = 0.0
+        self._init_bucket_fields()
 
     def _features(self, ts_epoch: float) -> list[float]:
         hour_sin, hour_cos, weekday = hour_sin_cos_weekday(ts_epoch)
@@ -332,23 +487,36 @@ class PolynomialCalendarForecastModel:
         point = self.point_forecast(target_ts_epoch)
         if point is None:
             return None, None, None
-        return point + self.p10_offset, point + self.p50_offset, point + self.p90_offset
+        return self._quantiles(target_ts_epoch, point)
 
     def calibrate(self, backtest_pairs: list[tuple[float, float]]) -> dict[str, Any]:
         residuals, preds, actuals = [], [], []
+        residual_hour_pairs = []
         for target_ts_epoch, actual in backtest_pairs:
             pred = self.point_forecast(target_ts_epoch)
             if pred is not None:
                 residuals.append(actual - pred)
                 preds.append(pred)
                 actuals.append(actual)
+                residual_hour_pairs.append((actual - pred, _wib_hour_of(target_ts_epoch)))
         self.p10_offset, self.p50_offset, self.p90_offset = _sorted_quantile_offsets(residuals)
-        return {"n_backtest": len(residuals), "mape": mape(actuals, preds)}
+        self._calibrate_bucket_offsets(residual_hour_pairs)
+        p10s, p50s, p90s = [], [], []
+        for target_ts_epoch, actual in backtest_pairs:
+            pred = self.point_forecast(target_ts_epoch)
+            if pred is not None:
+                q10, q50, q90 = self._quantiles(target_ts_epoch, pred)
+                p10s.append(q10); p50s.append(q50); p90s.append(q90)
+        return {
+            "n_backtest": len(residuals), "mape": mape(actuals, preds),
+            "coverage_p10_p90": coverage_p10_p90(actuals, p10s, p90s),
+        }
 
     def to_artifact(self) -> dict[str, Any]:
         return {
             "model_type": self.model_type, "degree": self.degree, "coefficients": self.coefficients,
             "p10_offset": self.p10_offset, "p50_offset": self.p50_offset, "p90_offset": self.p90_offset,
+            **self._bucket_artifact_fields(),
         }
 
     @classmethod
@@ -358,6 +526,7 @@ class PolynomialCalendarForecastModel:
         m.p10_offset = artifact["p10_offset"]
         m.p50_offset = artifact["p50_offset"]
         m.p90_offset = artifact["p90_offset"]
+        m._load_bucket_artifact_fields(artifact)
         return m
 
 

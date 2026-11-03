@@ -29,5 +29,8 @@
     "max_depth": 4,
     "learning_rate": 0.05,
     "_note": "TODO(verifikasi): hyperparameter default HistGradientBoostingRegressor/LightGBM, belum di-tuning lewat cross-validation."
-  }
+  },
+
+  "forecast_quantile_buckets": [[0, 6], [6, 12], [12, 18], [18, 24]],
+  "_forecast_quantile_buckets_note": "TODO(verifikasi) -- M11 (autopilot 2026-11). Jam WIB [lo, hi) (hi eksklusif, 24 dibungkus ke 0) dipakai ml/forecast_models.py untuk menghitung offset kalibrasi P10/P50/P90 TERPISAH per rentang jam (bukan satu offset global) -- beban/variansinya biasanya beda signifikan siang vs malam. 4 bucket 6-jam dipilih sebagai pembagian awal yang masuk akal, BUKAN hasil analisis pola beban riil. Bucket dengan residual backtest < 20 titik jatuh ke offset global (lihat forecast_models._MIN_BUCKET_RESIDUALS)."
 }
