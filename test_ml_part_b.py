@@ -221,5 +221,180 @@ class TestValidateProvisionalArgs(unittest.TestCase):
         self.assertIn("--provisional", error)
 
 
+# ════════════════════════════════════════════════════════════════════════
+# M12 (autopilot 2026-11) — time_series_folds, naive_median, CV, --tune
+# ════════════════════════════════════════════════════════════════════════
+
+def _full_rows(n: int, step_seconds: float = 300.0, noise_sd: float = 0.3, seed: int = 1) -> list[dict]:
+    """Baris lengkap (skema sama dengan ml/dataset.py) -- T berpola dari
+    arus (physics_quadratic-like) supaya model non-trivial punya sesuatu
+    untuk benar-benar dipelajari, bukan cuma angka acak."""
+    import math
+    import random
+    random.seed(seed)
+    i_ref = 1000.0
+    rows = []
+    for i in range(n):
+        ts = i * step_seconds
+        current = 400.0 + 200.0 * math.sin(i / 37.0)
+        ambient = 28.0
+        delta_t = 15.0 * (current / i_ref) ** 2
+        T = ambient + delta_t + random.gauss(0, noise_sd)
+        hour_angle = 2 * math.pi * ((ts / 3600.0) % 24) / 24.0
+        rows.append({
+            "ts_epoch": ts, "T": T, "current_amps": current, "ambient_c": ambient,
+            "i2_eff_default_tau": (current / i_ref) ** 2, "load_roc_1h": 0.0,
+            "hour_sin": math.sin(hour_angle), "hour_cos": math.cos(hour_angle),
+            "weekday": int(ts // 86400) % 7, "quality_flags": [],
+        })
+    return rows
+
+
+class TestTimeSeriesFolds(unittest.TestCase):
+    def test_expanding_window_train_grows_each_fold(self):
+        rows = _full_rows(400)
+        folds = tb.time_series_folds(rows, n_folds=4, gap_minutes=0.0)
+        self.assertEqual(len(folds), 4)
+        train_sizes = [len(train) for train, _ in folds]
+        self.assertEqual(train_sizes, sorted(train_sizes))  # train makin besar tiap fold (expanding, bukan sliding)
+        for i in range(len(train_sizes) - 1):
+            self.assertLess(train_sizes[i], train_sizes[i + 1])
+
+    def test_no_overlap_within_each_fold(self):
+        rows = _full_rows(400)
+        folds = tb.time_series_folds(rows, n_folds=4, gap_minutes=10.0)
+        tb.assert_folds_no_overlap(folds)  # tidak boleh raise
+
+    def test_gap_is_respected(self):
+        rows = _full_rows(400, step_seconds=60.0)  # 1 menit/baris
+        gap_minutes = 30.0
+        folds = tb.time_series_folds(rows, n_folds=3, gap_minutes=gap_minutes)
+        for train, val in folds:
+            self.assertGreaterEqual(val[0]["ts_epoch"] - train[-1]["ts_epoch"], gap_minutes * 60.0)
+
+    def test_too_few_rows_returns_no_folds(self):
+        rows = _full_rows(3)
+        self.assertEqual(tb.time_series_folds(rows, n_folds=4), [])
+
+    def test_fold_with_all_validation_consumed_by_gap_is_dropped_not_empty(self):
+        # gap lebih besar dari seluruh rentang data -- semua kandidat val
+        # harus kena potong, fold itu TIDAK BOLEH muncul dengan val_rows=[].
+        rows = _full_rows(50, step_seconds=60.0)
+        folds = tb.time_series_folds(rows, n_folds=4, gap_minutes=10000.0)
+        for _, val in folds:
+            self.assertGreater(len(val), 0)
+
+
+class TestNaiveMedianModel(unittest.TestCase):
+    def test_predicts_constant_delta_t_regardless_of_load(self):
+        rows = [
+            {"T": 40.0, "ambient_c": 25.0, "current_amps": 100.0},
+            {"T": 50.0, "ambient_c": 25.0, "current_amps": 900.0},
+            {"T": 45.0, "ambient_c": 25.0, "current_amps": 500.0},
+        ]
+        m = tb.NaiveMedianModel()
+        info = m.fit(rows)
+        self.assertEqual(info["median_delta_t"], 20.0)  # median([15,25,20]) = 20
+
+        preds = m.predict([{"ambient_c": 30.0, "current_amps": 1.0}, {"ambient_c": 10.0, "current_amps": 999.0}])
+        self.assertAlmostEqual(preds[0], 50.0)  # 30 + 20, SAMA terlepas dari current_amps=1
+        self.assertAlmostEqual(preds[1], 30.0)  # 10 + 20, SAMA terlepas dari current_amps=999
+
+    def test_artifact_roundtrip(self):
+        rows = [{"T": 40.0, "ambient_c": 25.0}, {"T": 44.0, "ambient_c": 25.0}]
+        m = tb.NaiveMedianModel()
+        m.fit(rows)
+        restored = tb.NaiveMedianModel.from_artifact(m.to_artifact())
+        self.assertEqual(restored.median_delta_t, m.median_delta_t)
+
+    def test_predict_before_fit_raises(self):
+        m = tb.NaiveMedianModel()
+        with self.assertRaises(RuntimeError):
+            m.predict([{"ambient_c": 25.0}])
+
+
+class TestCvMetrics(unittest.TestCase):
+    def test_naive_median_cv_returns_mean_std_median(self):
+        rows = _full_rows(600)
+        cv = tb.cv_metrics("naive_median", i_ref=1000.0, rows=rows, n_folds=4, gap_minutes=0.0)
+        self.assertIsNotNone(cv)
+        self.assertGreater(cv["n_folds_ok"], 0)
+        self.assertGreaterEqual(cv["sigma_mean"], 0.0)
+        self.assertGreaterEqual(cv["mae_mean"], 0.0)
+        # median harus berada di antara/dekat sigma masing-masing fold -- cek konsistensi longgar
+        self.assertGreaterEqual(cv["sigma_median"], 0.0)
+
+    def test_physics_quadratic_beats_naive_median_on_synthetic_data(self):
+        # Data sintetis dibuat dari rumus quadratic MURNI (lihat _full_rows)
+        # -- physics_quadratic HARUS jelas lebih baik dari median konstan.
+        rows = _full_rows(600)
+        cv_naive = tb.cv_metrics("naive_median", i_ref=1000.0, rows=rows, n_folds=4, gap_minutes=0.0)
+        cv_physics = tb.cv_metrics("physics_quadratic", i_ref=1000.0, rows=rows, n_folds=4, gap_minutes=0.0)
+        self.assertIsNotNone(cv_naive)
+        self.assertIsNotNone(cv_physics)
+        self.assertLess(cv_physics["sigma_mean"], cv_naive["sigma_mean"])
+
+    def test_insufficient_data_returns_none_not_empty_dict(self):
+        rows = _full_rows(3)
+        cv = tb.cv_metrics("naive_median", i_ref=1000.0, rows=rows, n_folds=4, gap_minutes=0.0)
+        self.assertIsNone(cv)
+
+
+class TestTrainAllModelsIncludesCvAndNaiveMedian(unittest.TestCase):
+    def test_naive_median_present_and_marked_skip_save(self):
+        rows = _full_rows(500)
+        train, val = tb.time_ordered_split(rows, train_fraction=0.8)
+        results = tb.train_all_models(train, val, trafo="2", phase="R", cv_n_folds=3, cv_gap_minutes=0.0)
+        by_type = {r["model_type"]: r for r in results}
+        self.assertIn("naive_median", by_type)
+        self.assertTrue(by_type["naive_median"]["skip_save"])
+        self.assertFalse(by_type["physics_quadratic"]["skip_save"])
+
+    def test_ok_results_carry_cv_metrics_key(self):
+        rows = _full_rows(500)
+        train, val = tb.time_ordered_split(rows, train_fraction=0.8)
+        results = tb.train_all_models(train, val, trafo="2", phase="R", cv_n_folds=3, cv_gap_minutes=0.0)
+        for r in results:
+            if r["status"] == "ok":
+                self.assertIn("cv", r["metrics"])
+
+
+class TestGbmTuning(unittest.TestCase):
+    def test_tune_selects_params_from_grid(self):
+        rows = _full_rows(500)
+        result = tb.tune_gbm_hyperparameters(rows, i_ref=1000.0, n_folds=3, gap_minutes=0.0)
+        self.assertIsNotNone(result["best_params"])
+        self.assertIn(result["best_params"]["max_depth"], tb.GBM_TUNE_GRID["max_depth"])
+        self.assertIn(result["best_params"]["learning_rate"], tb.GBM_TUNE_GRID["learning_rate"])
+        self.assertIn(result["best_params"]["min_samples_leaf"], tb.GBM_TUNE_GRID["min_samples_leaf"])
+        n_expected = (
+            len(tb.GBM_TUNE_GRID["max_depth"])
+            * len(tb.GBM_TUNE_GRID["learning_rate"])
+            * len(tb.GBM_TUNE_GRID["min_samples_leaf"])
+        )
+        self.assertEqual(len(result["all_trials"]), n_expected)
+
+    def test_tune_does_not_mutate_global_ml_config(self):
+        before = json.dumps(ds.ML_CONFIG["gbm"], sort_keys=True)
+        tb.tune_gbm_hyperparameters(_full_rows(400), i_ref=1000.0, n_folds=3, gap_minutes=0.0)
+        after = json.dumps(ds.ML_CONFIG["gbm"], sort_keys=True)
+        self.assertEqual(before, after)
+
+    def test_gbm_fit_accepts_hyperparameter_overrides(self):
+        rows = _full_rows(300)
+        m = mo.MLGBMModel()
+        info = m.fit(rows, max_depth=6, learning_rate=0.1, min_samples_leaf=40)
+        self.assertEqual(info["max_depth"], 6)
+        self.assertEqual(info["learning_rate"], 0.1)
+        self.assertEqual(info["min_samples_leaf"], 40)
+
+    def test_gbm_fit_without_overrides_uses_config_defaults(self):
+        rows = _full_rows(300)
+        m = mo.MLGBMModel()
+        info = m.fit(rows)
+        self.assertEqual(info["max_depth"], ds.ML_CONFIG["gbm"]["max_depth"])
+        self.assertEqual(info["learning_rate"], ds.ML_CONFIG["gbm"]["learning_rate"])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

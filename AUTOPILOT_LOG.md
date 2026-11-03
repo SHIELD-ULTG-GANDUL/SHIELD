@@ -28,7 +28,7 @@ perbaikan TLS `mqtt_subscriber.py` di-commit terpisah ke `main`).
 | S3 | DONE | d2d1295 | Targeted pass (bukan audit menyeluruh 46 lokasi innerHTML) -- cakup field yang disebut tugas (provisional_reason, healthy_from/to, notes-equivalent cells, pesan error server). LNTAI-CORE & narasi insight di sebelahnya sengaja tidak disentuh (field di situ enum/angka, bukan teks bebas). |
 | M10 | DONE | ba0b65e | Koreksi vs brief: call site asli ada di server/api.py (GET /api/forecast), bukan forecast_job.py -- forecast_job.py cuma menghitung & menulis titik forecast, deteksi crossing jalan saat endpoint dibaca. elevated_at_start() dipasang di api.py. |
 | M11 | DONE | 22001f3 | Dibuktikan dengan noise heteroscedastic (siang 3x malam) bahwa band bucket siang lebih lebar dari malam -- bukan diasumsikan. Backward compat artefak lama diverifikasi test eksplisit. |
-| M12 | TODO | | |
+| M12 | DONE | bb22ca8 | --tune hanya mencakup ml_gbm, bukan residual GBM di dalam hybrid (scoping, dicatat di commit). naive_median TIDAK ditulis ke ml_models (bukan di CHECK constraint, memang bukan model teraktivasi -- skip_save flag). |
 | U7 | TODO | | |
 | U5 | TODO | | |
 | U4 | TODO | | |

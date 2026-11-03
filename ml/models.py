@@ -275,24 +275,41 @@ class MLGBMModel:
         self.backend_name: Optional[str] = None
         self._regressor: Any = None
 
-    def fit(self, rows: list[dict]) -> dict[str, Any]:
+    def fit(
+        self, rows: list[dict], max_depth: Optional[int] = None,
+        learning_rate: Optional[float] = None, min_samples_leaf: Optional[int] = None,
+    ) -> dict[str, Any]:
+        """M12 (autopilot 2026-11): max_depth/learning_rate/min_samples_leaf
+        opsional -- override ML_CONFIG["gbm"] per-panggilan TANPA mutasi
+        config global (dipakai oleh grid search --tune di
+        ml/train_baseline.py, satu instance per kombinasi hyperparameter).
+        None (default) = perilaku lama, baca dari ML_CONFIG seluruhnya."""
         backend_name, regressor_cls = _try_import_gbm_backend()
         self.backend_name = backend_name
         gbm_cfg = ML_CONFIG["gbm"]
+        _max_depth = gbm_cfg["max_depth"] if max_depth is None else max_depth
+        _learning_rate = gbm_cfg["learning_rate"] if learning_rate is None else learning_rate
+        # TODO(verifikasi): 20 dipakai sebagai default min_samples_leaf lama
+        # (nilai bawaan sklearn HistGradientBoostingRegressor) kalau
+        # ml_config.json belum punya key ini -- belum di-tuning.
+        _min_samples_leaf = gbm_cfg.get("min_samples_leaf", 20) if min_samples_leaf is None else min_samples_leaf
         if "lightgbm" in backend_name:
             self._regressor = regressor_cls(
-                n_estimators=gbm_cfg["max_iter"], max_depth=gbm_cfg["max_depth"],
-                learning_rate=gbm_cfg["learning_rate"],
+                n_estimators=gbm_cfg["max_iter"], max_depth=_max_depth,
+                learning_rate=_learning_rate, min_child_samples=_min_samples_leaf,
             )
         else:
             self._regressor = regressor_cls(
-                max_iter=gbm_cfg["max_iter"], max_depth=gbm_cfg["max_depth"],
-                learning_rate=gbm_cfg["learning_rate"],
+                max_iter=gbm_cfg["max_iter"], max_depth=_max_depth,
+                learning_rate=_learning_rate, min_samples_leaf=_min_samples_leaf,
             )
         X = _rows_to_feature_matrix(rows)
         y = [row["T"] for row in rows]
         self._regressor.fit(X, y)
-        return {"backend": backend_name}
+        return {
+            "backend": backend_name, "max_depth": _max_depth,
+            "learning_rate": _learning_rate, "min_samples_leaf": _min_samples_leaf,
+        }
 
     def predict(self, rows: list[dict]) -> list[float]:
         if self._regressor is None:
