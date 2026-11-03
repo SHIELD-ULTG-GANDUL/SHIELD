@@ -103,6 +103,7 @@ class TestLocalMqttSettings:
         assert result.topic == "shield/trafo/#"
         assert result.user is None
         assert result.password is None
+        assert result.use_tls is False  # broker default (127.0.0.1) -> TLS off
 
     def test_overrides_from_env(self, monkeypatch):
         monkeypatch.setenv("MQTT_BROKER", "10.0.0.5")
@@ -114,6 +115,41 @@ class TestLocalMqttSettings:
         assert result.port == 1884
         assert result.user == "shield"
         assert result.password == "pw"
+
+    def test_use_tls_defaults_true_for_non_local_broker(self, monkeypatch):
+        # Audit Okt 2026: mqtt_subscriber.py dialihkan ke broker cloud tanpa
+        # TLS -> koneksi gagal (rc=7) di luar jaringan yang kebetulan
+        # mengintersepsi TLS. Broker non-localhost HARUS default TLS on.
+        monkeypatch.setenv("MQTT_BROKER", "xxxx.s1.eu.hivemq.cloud")
+        result = settings.load_local_mqtt_settings()
+        assert result.use_tls is True
+
+    def test_use_tls_can_be_forced_explicitly(self, monkeypatch):
+        monkeypatch.setenv("MQTT_BROKER", "127.0.0.1")
+        monkeypatch.setenv("MQTT_USE_TLS", "true")
+        assert settings.load_local_mqtt_settings().use_tls is True
+
+        monkeypatch.setenv("MQTT_BROKER", "cloud.example.com")
+        monkeypatch.setenv("MQTT_USE_TLS", "false")
+        assert settings.load_local_mqtt_settings().use_tls is False
+
+    def test_user_pass_fall_back_to_mqtt_user_pass(self, monkeypatch):
+        # MQTT_LOCAL_USER/PASS kosong tapi MQTT_USER/PASS (dipakai broker
+        # cloud) terisi -- harus tetap terbaca, bukan diam-diam None.
+        monkeypatch.setenv("MQTT_USER", "webshield")
+        monkeypatch.setenv("MQTT_PASS", "secret")
+        result = settings.load_local_mqtt_settings()
+        assert result.user == "webshield"
+        assert result.password == "secret"
+
+    def test_local_user_pass_take_precedence_over_mqtt_user_pass(self, monkeypatch):
+        monkeypatch.setenv("MQTT_LOCAL_USER", "local-user")
+        monkeypatch.setenv("MQTT_LOCAL_PASS", "local-pass")
+        monkeypatch.setenv("MQTT_USER", "cloud-user")
+        monkeypatch.setenv("MQTT_PASS", "cloud-pass")
+        result = settings.load_local_mqtt_settings()
+        assert result.user == "local-user"
+        assert result.password == "local-pass"
 
 
 class TestAmbientLocationSettings:

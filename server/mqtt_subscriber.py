@@ -40,7 +40,10 @@ from __future__ import annotations
 
 import json
 import logging
+import os
+import ssl
 import sys
+import time
 from datetime import datetime, timezone
 from typing import Any, Optional
 
@@ -49,6 +52,19 @@ from psycopg_pool import ConnectionPool
 
 import data_quality as dq
 from settings import load_database_settings, load_local_mqtt_settings
+
+try:
+    import certifi  # type: ignore
+
+    _CA_CERTS = certifi.where()
+except ImportError:
+    # Opsional -- kalau tidak ada, ssl.tls_set(cert_reqs=CERT_REQUIRED) tetap
+    # jalan pakai trust store default OS (cukup di Linux server produksi;
+    # beberapa build Python di macOS tidak otomatis mewarisi system keychain,
+    # makanya certifi dipakai eksplisit kalau tersedia -- lihat audit Okt 2026,
+    # CERTIFICATE_VERIFY_FAILED saat dites dari Mac). TIDAK PERNAH melonggarkan
+    # cert_reqs jadi CERT_NONE -- dilarang oleh aturan kerja Tahap 1.
+    _CA_CERTS = None
 
 logging.basicConfig(
     level=logging.INFO,
@@ -69,7 +85,12 @@ MQTT_PORT = _mqtt_settings.port
 MQTT_TOPIC = _mqtt_settings.topic
 MQTT_LOCAL_USER = _mqtt_settings.user
 MQTT_LOCAL_PASS = _mqtt_settings.password
-MQTT_CLIENT_ID = "shield_subscriber"
+MQTT_USE_TLS = _mqtt_settings.use_tls
+# Client ID unik per-proses (bukan string tetap) -- MQTT cuma izinkan SATU
+# koneksi aktif per client ID; ID tetap bisa bikin dua proses (mis. saat
+# restart/deploy overlap, atau relay darurat di mesin lain) saling "tendang"
+# di broker. Audit Oktober 2026 menemukan ini saat diagnosa koneksi HiveMQ.
+MQTT_CLIENT_ID = f"shield_subscriber_{os.getpid()}_{int(time.time())}"
 
 _pool = ConnectionPool(conninfo=DATABASE_URL, min_size=1, max_size=5, open=True)
 
@@ -227,16 +248,21 @@ def on_message(client: mqtt.Client, userdata, msg: mqtt.MQTTMessage):
 if __name__ == "__main__":
     log.info("=" * 60)
     log.info("MQTT Subscriber - Shield Data")
-    log.info("Broker: %s:%s", MQTT_BROKER, MQTT_PORT)
+    log.info("Broker: %s:%s (TLS=%s)", MQTT_BROKER, MQTT_PORT, MQTT_USE_TLS)
     log.info("Topic:  %s", MQTT_TOPIC)
     log.info("DB:     %s", DATABASE_URL.rsplit('/', 1)[-1])
     log.info("=" * 60)
 
-    client = mqtt.Client(MQTT_CLIENT_ID)
+    # Broker cloud (HiveMQ) di port 8884 WAJIB TLS+WebSocket -- transport
+    # harus diset saat Client() dibuat, tidak bisa diubah setelahnya (API
+    # paho). Broker lokal (mosquitto, MQTT_USE_TLS=False) tetap plaintext/TCP
+    # biasa seperti semula. Lihat catatan audit di LocalMqttSettings.
+    transport = "websockets" if MQTT_USE_TLS else "tcp"
+    client = mqtt.Client(MQTT_CLIENT_ID, transport=transport)
+    if MQTT_USE_TLS:
+        client.ws_set_options(path="/mqtt")
+        client.tls_set(ca_certs=_CA_CERTS, cert_reqs=ssl.CERT_REQUIRED)
     if MQTT_LOCAL_USER and MQTT_LOCAL_PASS:
-        # Broker lokal saat ini belum pakai autentikasi (lihat audit Fase 0) --
-        # disiapkan di sini supaya tinggal jalan begitu ACL/autentikasi
-        # ditambahkan (rekomendasi keamanan T1), tanpa perlu ubah kode lagi.
         client.username_pw_set(MQTT_LOCAL_USER, MQTT_LOCAL_PASS)
     client.reconnect_delay_set(min_delay=1, max_delay=60)
     client.on_connect = on_connect

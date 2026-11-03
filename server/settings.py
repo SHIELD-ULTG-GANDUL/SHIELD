@@ -74,6 +74,13 @@ def _optional_float(name: str, default: float) -> float:
     return float(raw)
 
 
+def _optional_bool(name: str, default: bool) -> bool:
+    raw = os.environ.get(name)
+    if not raw:
+        return default
+    return raw.strip().lower() in ("1", "true", "yes", "on")
+
+
 @dataclass(frozen=True)
 class DatabaseSettings:
     url: str
@@ -104,16 +111,22 @@ class HiveMqSettings:
 
 @dataclass(frozen=True)
 class LocalMqttSettings:
-    """Broker MQTT lokal (Mosquitto di server yang sama) -- dipakai
-    mqtt_subscriber.py. user/password opsional karena broker saat ini belum
-    memakai autentikasi; sudah disiapkan di sini supaya tinggal diisi kalau
-    ACL/autentikasi ditambahkan nanti (lihat rekomendasi keamanan T1)."""
+    """Broker MQTT -- dipakai mqtt_subscriber.py. Nama "Local" historis dari
+    desain awal (broker Mosquitto di server yang sama, tanpa TLS/auth) --
+    MQTT_BROKER saat ini (Okt 2026) dialihkan langsung ke HiveMQ Cloud
+    (audit Fase 2 menemukan ini tidak sesuai desain awal: HIVEMQ_* seharusnya
+    dipakai, bukan MQTT_*), jadi `use_tls` ditambahkan supaya skrip yang SAMA
+    bisa dipakai untuk broker lokal (TLS off, default lama) maupun cloud
+    (TLS wajib -- HiveMQ Cloud menolak koneksi plaintext). user/password
+    jatuh ke MQTT_USER/MQTT_PASS kalau MQTT_LOCAL_USER/MQTT_LOCAL_PASS
+    kosong, supaya kredensial HiveMQ yang sudah ada di .env ikut terbaca."""
 
     broker: str
     port: int
     topic: str
     user: Optional[str]
     password: Optional[str]
+    use_tls: bool
 
 
 @dataclass(frozen=True)
@@ -180,12 +193,19 @@ def load_hivemq_settings() -> HiveMqSettings:
 
 
 def load_local_mqtt_settings() -> LocalMqttSettings:
+    # use_tls default True kalau broker BUKAN localhost/127.0.0.1 (broker
+    # cloud seperti HiveMQ selalu butuh TLS) -- tetap bisa dipaksa lewat
+    # MQTT_USE_TLS kalau ada broker non-cloud yang justru butuh TLS, atau
+    # broker lokal yang kebetulan dikonfigurasi TLS.
+    broker = _optional("MQTT_BROKER", "127.0.0.1")
+    is_probably_local = broker in ("127.0.0.1", "localhost", "::1")
     return LocalMqttSettings(
-        broker=_optional("MQTT_BROKER", "127.0.0.1"),
+        broker=broker,
         port=_optional_int("MQTT_PORT", 1883),
         topic=_optional("MQTT_TOPIC", "shield/trafo/#"),
-        user=_optional_or_none("MQTT_LOCAL_USER"),
-        password=_optional_or_none("MQTT_LOCAL_PASS"),
+        user=_optional_or_none("MQTT_LOCAL_USER") or _optional_or_none("MQTT_USER"),
+        password=_optional_or_none("MQTT_LOCAL_PASS") or _optional_or_none("MQTT_PASS"),
+        use_tls=_optional_bool("MQTT_USE_TLS", default=not is_probably_local),
     )
 
 
