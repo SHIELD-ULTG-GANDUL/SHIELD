@@ -1073,7 +1073,17 @@ def forecast_endpoint(
                 row["target_ts"] = row["target_ts"].isoformat()
 
             warning = None
-            crossing = fc.find_level_crossing(rows)
+            _quantile_key = "lntai_pred_" + fc.FORECAST_CONFIG.get("warning_quantile", "p50")
+            crossing = fc.find_level_crossing(
+                rows,
+                min_consecutive=fc.FORECAST_CONFIG.get("crossing_min_consecutive_points", 1),
+                quantile_key=_quantile_key,
+            )
+            if crossing is None:
+                # M10: find_level_crossing tidak pernah memicu kalau horizon
+                # SUDAH mulai dari level buruk (tidak ada titik sebelumnya
+                # untuk dibandingkan) -- cek celah itu secara eksplisit.
+                crossing = fc.elevated_at_start(rows, quantile_key=_quantile_key)
             if crossing is not None:
                 from forecast_job import fetch_aging_rates
 

@@ -146,6 +146,71 @@ class TestFindLevelCrossing:
         assert crossing is not None
         assert crossing["point"]["target_ts"] == "t2"
 
+    def test_min_consecutive_default_matches_old_behavior(self):
+        # M10 (autopilot 2026-11): default (min_consecutive=1) harus identik
+        # dengan perilaku lama -- tidak boleh jadi regresi diam-diam.
+        points = self._points([0.5, 1.0, 1.8, 2.0, 3.5, 3.2])
+        assert fc.find_level_crossing(points) == fc.find_level_crossing(points, min_consecutive=1)
+
+    def test_single_noise_point_does_not_trigger_with_min_consecutive_2(self):
+        # Naik ke Caution di t2 lalu langsung turun lagi -- 1 titik noise.
+        points = self._points([0.5, 1.0, 1.8, 0.8, 0.5])
+        assert fc.find_level_crossing(points, min_consecutive=2) is None
+
+    def test_two_consecutive_points_trigger_with_min_consecutive_2(self):
+        points = self._points([0.5, 1.0, 1.8, 2.1, 2.5])
+        crossing = fc.find_level_crossing(points, min_consecutive=2)
+        assert crossing is not None
+        assert crossing["point"]["target_ts"] == "t2"
+        assert crossing["to_level"] == "Caution"
+
+    def test_noise_then_real_crossing_still_detected(self):
+        # Blip noise di t1 (Caution, 1 titik, turun lagi), lalu crossing
+        # NYATA ke Caution lagi di t3-t4 (2 titik berturut) harus tetap
+        # terdeteksi -- prev_level tidak boleh "tertular" oleh blip.
+        points = self._points([0.5, 1.8, 0.5, 1.8, 1.9])
+        crossing = fc.find_level_crossing(points, min_consecutive=2)
+        assert crossing is not None
+        assert crossing["point"]["target_ts"] == "t3"
+
+
+class TestElevatedAtStart:
+    def _points(self, scores):
+        return [{"target_ts": f"t{i}", "lntai_pred_p50": s} for i, s in enumerate(scores)]
+
+    def test_horizon_starting_at_critical_triggers(self):
+        points = self._points([5.5, 5.6, 5.4])
+        result = fc.elevated_at_start(points)
+        assert result is not None
+        assert result["from_level"] == "(already)"
+        assert result["to_level"] == "Critical"
+        assert result["point"]["target_ts"] == "t0"
+
+    def test_horizon_starting_at_alert_triggers(self):
+        points = self._points([3.2, 3.3])
+        result = fc.elevated_at_start(points)
+        assert result is not None
+        assert result["to_level"] == "Alert"
+
+    def test_horizon_starting_normal_does_not_trigger(self):
+        points = self._points([0.5, 5.5])  # naik belakangan -- bukan "at start"
+        assert fc.elevated_at_start(points) is None
+
+    def test_leading_none_scores_skipped_to_find_first_valid_point(self):
+        points = self._points([None, None, 5.5])
+        result = fc.elevated_at_start(points)
+        assert result is not None
+        assert result["point"]["target_ts"] == "t2"
+
+    def test_all_none_returns_none(self):
+        points = self._points([None, None])
+        assert fc.elevated_at_start(points) is None
+
+    def test_min_level_is_configurable(self):
+        points = self._points([1.6])  # Caution, bukan Alert
+        assert fc.elevated_at_start(points, min_level="Alert") is None
+        assert fc.elevated_at_start(points, min_level="Caution") is not None
+
 
 class TestSuggestedAction:
     def test_returns_fixed_config_action(self):

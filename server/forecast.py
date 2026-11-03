@@ -126,23 +126,68 @@ def _level_of(score: Optional[float], thresholds: dict[str, float]) -> Optional[
 
 def find_level_crossing(
     forecast_points: list[dict[str, Any]], thresholds: dict[str, float] = config.LNTAI_V3_THRESHOLDS,
+    min_consecutive: int = 1, quantile_key: str = "lntai_pred_p50",
 ) -> Optional[dict[str, Any]]:
     """Titik PERTAMA dalam `forecast_points` (terurut waktu naik, tiap
-    dict punya key 'lntai_pred_p50') di mana level NAIK dibanding titik
+    dict punya key `quantile_key`) di mana level NAIK dibanding titik
     sebelumnya (mis. Normal->Caution, Caution->Alert) -- bukan setiap
     titik yang levelnya tinggi, HANYA crossing pertamanya. None kalau
-    tidak ada crossing (level stabil atau turun terus) dalam horizon ini."""
+    tidak ada crossing (level stabil atau turun terus) dalam horizon ini.
+
+    `min_consecutive` (M10, autopilot 2026-11): crossing kandidat hanya
+    DIKONFIRMASI kalau level >= level kandidat bertahan di `min_consecutive`
+    titik berturut-turut sejak titik kandidat (termasuk titik kandidat itu
+    sendiri) -- 1 titik noise yang langsung turun lagi TIDAK memicu warning.
+    Default 1 = perilaku lama (setiap kenaikan level langsung memicu),
+    caller (lihat api.py) secara eksplisit mengoper nilai dari
+    forecast_config.json `crossing_min_consecutive_points`."""
     prev_level: Optional[str] = None
+    n = len(forecast_points)
+    levels: list[Optional[str]] = [
+        _level_of(p.get(quantile_key), thresholds) for p in forecast_points
+    ]
     for i, point in enumerate(forecast_points):
-        cur_level = _level_of(point.get("lntai_pred_p50"), thresholds)
+        cur_level = levels[i]
         if cur_level is None:
             continue
         if prev_level is not None and LEVEL_RANK[cur_level] > LEVEL_RANK[prev_level]:
-            return {
-                "crossed_at_index": i, "from_level": prev_level, "to_level": cur_level,
-                "point": point,
-            }
+            target_rank = LEVEL_RANK[cur_level]
+            confirmed = i + min_consecutive <= n and all(
+                levels[j] is not None and LEVEL_RANK[levels[j]] >= target_rank
+                for j in range(i, i + min_consecutive)
+            )
+            if confirmed:
+                return {
+                    "crossed_at_index": i, "from_level": prev_level, "to_level": cur_level,
+                    "point": point,
+                }
+            # Kandidat tidak terkonfirmasi (noise) -- JANGAN perbarui prev_level
+            # ke level kandidat ini, supaya kenaikan berikutnya dari baseline
+            # yang sama tetap terdeteksi sebagai crossing baru.
+            continue
         prev_level = cur_level
+    return None
+
+
+def elevated_at_start(
+    forecast_points: list[dict[str, Any]], thresholds: dict[str, float] = config.LNTAI_V3_THRESHOLDS,
+    quantile_key: str = "lntai_pred_p50", min_level: str = "Alert",
+) -> Optional[dict[str, Any]]:
+    """M10 (autopilot 2026-11): find_level_crossing TIDAK PERNAH memicu
+    kalau titik VALID PERTAMA horizon forecast sudah berada di level buruk
+    sejak awal (tidak ada titik sebelumnya untuk dibandingkan, jadi tidak
+    ada "kenaikan" yang terdeteksi) -- kondisi sudah buruk diam-diam tidak
+    pernah dilaporkan. Fungsi ini menutup celah itu: kalau titik valid
+    pertama >= `min_level`, kembalikan dict warning-like dengan
+    from_level="(already)". None kalau titik pertama di bawah `min_level`
+    atau semua titik None."""
+    for point in forecast_points:
+        cur_level = _level_of(point.get(quantile_key), thresholds)
+        if cur_level is None:
+            continue
+        if LEVEL_RANK[cur_level] >= LEVEL_RANK[min_level]:
+            return {"crossed_at_index": 0, "from_level": "(already)", "to_level": cur_level, "point": point}
+        return None
     return None
 
 

@@ -1,4 +1,8 @@
 {
+  "crossing_min_consecutive_points": 2,
+  "_crossing_min_consecutive_points_note": "TODO(verifikasi) -- jumlah titik forecast berturut-turut yang harus tetap >= level baru sebelum early warning dipicu (M10, autopilot 2026-11), supaya 1 titik noise tidak langsung memicu alarm. 2 dipilih sebagai nilai awal masuk akal (tidak dikalibrasi dari data historis beban).",
+  "warning_quantile": "p50",
+  "_warning_quantile_note": "TODO(verifikasi) -- kuantil forecast LNTAI mana yang dipakai untuk deteksi crossing/elevated-at-start: 'p50' (median, default -- deteksi berbasis skenario tengah) atau 'p90' (lebih konservatif/awal, deteksi berbasis skenario terburuk 90%).",
   "suggested_actions": {
     "Caution": "Monitor more frequently and verify sensor readings; no immediate action required.",
     "Alert": "Schedule a finger-contact inspection within the week; review the loading plan for this transformer.",
