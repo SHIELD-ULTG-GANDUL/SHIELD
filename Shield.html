@@ -2177,6 +2177,12 @@
 
     <!-- Script Pendukung Logika Aplikasi -->
     <script>
+        // A5 (autopilot 2026-11): SATU ambang suhu dipakai di SELURUH dashboard
+        // -- SKDIR PLN / IEC 62271-1:2017 §7.4 untuk suhu KONTAK PMT (bukan IEC
+        // 60076-2 80°C yang untuk trafo daya/winding, salah dipakai sebelumnya
+        // di alarm forecast). Sama persis dengan kpi-hotspot-card.
+        const THERMAL_LIMITS_C = { attention: 70, critical: 90 };
+
         // S3 (autopilot 2026-11): escape nilai dinamis dari API/Firestore/input
         // pengguna sebelum disisipkan ke template innerHTML -- angka hasil
         // toFixed() dan string konstan di kode tidak perlu (tidak bisa dikontrol
@@ -7604,8 +7610,11 @@
                     _dTemp.textContent = `⚠ Belum tervalidasi: angka ${h1.toFixed(1)}°C ini dari fallback fisika legacy (tidak ada model baseline Part B AKTIF untuk fasa ${fcTemp.worstPhase}), bukan model yang sudah diuji R²/MAE. Jangan jadikan acuan keputusan kritis sampai model baseline dilatih & diaktifkan.`;
                     _dTemp.className = 'text-[9px] mt-2 pt-2 border-t leading-relaxed text-slate-500 border-slate-200';
                 } else if (_dTemp && h1 != null) {
-                    _dTemp.textContent = h1 > 80 ? `⚠ Kritis: diprediksi ${h1.toFixed(1)}°C — melewati batas IEC 60076-2 (80°C). Aktifkan pendingin tambahan dan kurangi beban segera.` : h1 > 70 ? `Perhatian: menuju ${h1.toFixed(1)}°C. Periksa sistem pendingin dan pantau tren beban. Ambang batas perhatian 70°C.` : `Aman: diprediksi ${h1.toFixed(1)}°C — dalam batas normal operasi (<70°C). Tidak diperlukan tindakan khusus.`;
-                    _dTemp.className = `text-[9px] mt-2 pt-2 border-t leading-relaxed ${h1 > 80 ? 'text-red-600 border-red-100' : h1 > 70 ? 'text-amber-600 border-amber-100' : 'text-emerald-600 border-emerald-100'}`;
+                    // A5 (autopilot 2026-11): THERMAL_LIMITS_C (70/90°C, SKDIR PLN
+                    // kontak PMT) -- sebelumnya 75/80°C & "IEC 60076-2", standar
+                    // trafo daya/winding yang salah diterapkan ke kontak CB.
+                    _dTemp.textContent = h1 > THERMAL_LIMITS_C.critical ? `⚠ Kritis: diprediksi ${h1.toFixed(1)}°C — melewati ambang kritis SKDIR PLN (${THERMAL_LIMITS_C.critical}°C). Jadwalkan inspeksi kontak segera dan pertimbangkan pengurangan beban.` : h1 > THERMAL_LIMITS_C.attention ? `Perhatian: menuju ${h1.toFixed(1)}°C. Periksa sistem pendingin dan pantau tren beban. Ambang batas perhatian ${THERMAL_LIMITS_C.attention}°C.` : `Aman: diprediksi ${h1.toFixed(1)}°C — dalam batas normal operasi (<${THERMAL_LIMITS_C.attention}°C). Tidak diperlukan tindakan khusus.`;
+                    _dTemp.className = `text-[9px] mt-2 pt-2 border-t leading-relaxed ${h1 > THERMAL_LIMITS_C.critical ? 'text-red-600 border-red-100' : h1 > THERMAL_LIMITS_C.attention ? 'text-amber-600 border-amber-100' : 'text-emerald-600 border-emerald-100'}`;
                 } else if (_dTemp) {
                     _dTemp.textContent = 'Belum ada model baseline AKTIF -- aktifkan model Part B untuk fasa ini dulu.';
                     _dTemp.className = 'text-[9px] mt-2 pt-2 border-t leading-relaxed text-slate-400 border-slate-100';
@@ -7767,13 +7776,20 @@
             if (_exSumData) {
                 if (fcTemp && fcTemp.allFc[0] != null) {
                     _exSumData.fc_temp_1h = fcTemp.allFc[0];
-                    _exSumData.fc_alarm = fcTemp.allFc[0] > 75;
+                    // A5/A6 (autopilot 2026-11): alarm & CHI pakai PUNCAK 24 titik
+                    // ke depan (bukan hanya +1 jam) -- +1 jam bisa normal padahal
+                    // forecast menunjukkan puncak jauh lebih tinggi beberapa jam
+                    // lagi, dan ambangnya THERMAL_LIMITS_C (70/90°C SKDIR), bukan
+                    // 75°C yang tidak merujuk standar apa pun.
+                    const validNext24 = fcTemp.allFc.slice(0, 24).filter(v => v != null);
+                    _exSumData.fc_temp_max24 = validNext24.length ? Math.max(...validNext24) : fcTemp.allFc[0];
+                    _exSumData.fc_alarm = _exSumData.fc_temp_max24 > THERMAL_LIMITS_C.critical;
                     _exSumData.fc_accuracy = fcTemp.accuracy;
                 }
                 if (fcLoad && fcLoad.allFc[0] != null) {
                     _exSumData.fc_load_1h = fcLoad.allFc[0];
                 }
-                _exSumData.fc_trend_ok = !(fcTemp && fcTemp.allFc[0] != null && fcTemp.allFc[0] > 75);
+                _exSumData.fc_trend_ok = !(fcTemp && _exSumData.fc_temp_max24 != null && _exSumData.fc_temp_max24 > THERMAL_LIMITS_C.critical);
             }
 
             // ─ Render charts (respects current filter period)
@@ -8259,10 +8275,29 @@
             //   1) LNTAI — anomali termal ternormalisasi beban (bobot 70%, indikator kondisi fisik)
             //   2) Forecast Part F/B — keandalan tren jangka pendek (bobot 30%)
             const lntai = d.lntai;
-            const hi_lntai    = lntai != null ? _clampNumber(1 - (lntai.lntai / LNTAI_CFG.scoreMax), 0, 1) : null; // w=0.70
-            const hi_forecast = d.fc_accuracy != null ? _clampNumber(d.fc_accuracy / 100, 0, 1)
-                               : d.fc_trend_ok != null ? (d.fc_trend_ok ? 1.0 : 0.6)
-                               : null; // w=0.30
+            const hi_lntai = lntai != null ? _clampNumber(1 - (lntai.lntai / LNTAI_CFG.scoreMax), 0, 1) : null; // w=0.70
+
+            // A6 (autopilot 2026-11): HI_Forecast TIDAK LAGI pakai akurasi model
+            // sebagai proksi kesehatan aset (akurasi tinggi pada forecast yang
+            // memprediksi suhu AMAN itu beda artinya dari akurasi tinggi pada
+            // forecast yang memprediksi KRITIS -- keduanya dulu dinilai sama).
+            // Sekarang HI_Forecast = fungsi PUNCAK suhu 24 jam ke depan
+            // (fc_temp_max24, bukan cuma +1 jam): <=70 -> 1.0 (aman penuh),
+            // 70-90 -> turun linear 1.0->0.4, >=90 -> 0.2 (kritis). Akurasi model
+            // (fc_accuracy) TETAP dipakai sebagai GERBANG -- HI_Forecast hanya
+            // ikut dihitung kalau baseline forecast tervalidasi (fc_accuracy
+            // != null); kalau belum, forecast tidak ikut CHI sama sekali
+            // (bobot 0.70/0.30 dinormalisasi ulang ke 1.0/0 lewat chiDenom).
+            let hi_forecast = null;
+            if (d.fc_accuracy != null && d.fc_temp_max24 != null) {
+                const peak = d.fc_temp_max24;
+                if (peak <= THERMAL_LIMITS_C.attention) hi_forecast = 1.0;
+                else if (peak >= THERMAL_LIMITS_C.critical) hi_forecast = 0.2;
+                else {
+                    const frac = (peak - THERMAL_LIMITS_C.attention) / (THERMAL_LIMITS_C.critical - THERMAL_LIMITS_C.attention);
+                    hi_forecast = 1.0 - frac * (1.0 - 0.4); // linear 1.0 -> 0.4 di rentang attention..critical
+                }
+            }
 
             // LNTAI adalah satu-satunya indikator kondisi fisik yang tersisa (bobot dominan 70%),
             // jadi CHI sengaja TIDAK dihitung sama sekali bila LNTAI belum tersedia — mencegah CHI
@@ -8272,7 +8307,21 @@
             if (hi_lntai != null) {
                 add(hi_lntai, 0.70); add(hi_forecast, 0.30);
             }
-            const CHI = chiNum != null && chiDenom > 0 ? Math.round((chiNum / chiDenom) * 100) : null;
+            let CHI = chiNum != null && chiDenom > 0 ? Math.round((chiNum / chiDenom) * 100) : null;
+
+            // A6: cap CHI eksplisit -- jangan sampai kombinasi bobot membuat CHI
+            // terlihat "baik" padahal salah satu indikator sudah di level buruk.
+            if (CHI != null) {
+                if (lntai != null && lntai.level === 'CRITICAL') CHI = Math.min(CHI, 39);
+                else if (lntai != null && lntai.level === 'WARNING') CHI = Math.min(CHI, 79);
+                if (d.fc_accuracy != null && d.fc_temp_max24 != null && d.fc_temp_max24 >= THERMAL_LIMITS_C.critical) {
+                    CHI = Math.min(CHI, 59);
+                }
+            }
+            // CHI confidence (A6): akurasi model forecast ditampilkan TERPISAH
+            // dari CHI itu sendiri -- CHI mengukur KONDISI, confidence mengukur
+            // seberapa bisa dipercaya komponen forecast di dalamnya.
+            const chiConfidencePct = d.fc_accuracy != null ? Math.round(d.fc_accuracy) : null;
             // U5 (autopilot 2026-11): CHI dipakai juga di status strip ML Lab
             // (di luar tab Executive Summary) -- satu-satunya tempat CHI
             // dihitung tetap di sini, strip cuma MEMBACA nilai terakhir.
@@ -8476,6 +8525,7 @@
                       <span class="text-white/80 text-[8px] font-extrabold uppercase">/100 CHI</span>
                     </div>
                     <span class="mt-2 text-[9px] font-extrabold ${verdict.txt} uppercase tracking-wider">${verdict.icon} ${verdict.label}</span>
+                    ${chiConfidencePct != null ? `<span class="mt-1 text-[8px] font-bold text-slate-400" title="Keandalan model forecast yang ikut dihitung di CHI (A6, autopilot 2026-11) -- BUKAN keandalan CHI itu sendiri">CHI confidence: ${chiConfidencePct}%</span>` : ''}
                   </div>
                 </div>
               </div>
@@ -8494,8 +8544,10 @@
                       <div class="text-[8px] text-slate-400">weight ${f.w}</div>
                     </div>`).join('')}
                 </div>
-                <div class="bg-slate-50 rounded-lg p-2 text-[9px] text-slate-500 font-mono">
-                  CHI = Σ(wᵢ · HIᵢ) × 100 | HI_LNTAI = 1 − (LNTAI score/40) · weight 70% | HI_Forecast = model accuracy · weight 30%
+                <div class="bg-slate-50 rounded-lg p-2 text-[9px] text-slate-500 font-mono leading-relaxed">
+                  CHI = Σ(wᵢ · HIᵢ) × 100, weight normalized to available components | HI_LNTAI = 1 − (LNTAI score/40) · weight 70%<br>
+                  HI_Forecast = f(24h peak hotspot temp): ≤70°C→1.0, 70–90°C→linear 1.0→0.4, ≥90°C→0.2 · weight 30% (only if forecast baseline validated; model accuracy shown separately as "CHI confidence")<br>
+                  Caps: LNTAI WARNING→CHI≤79, CRITICAL→CHI≤39, validated 24h peak≥90°C→CHI≤59
                 </div>
               </div>
 
@@ -10190,10 +10242,20 @@
             ];
 
             const exact = new Map(translations);
+            const escapeRegExp = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            // A4 (autopilot 2026-11): lookbehind/lookahead kata UTUH -- regex lama
+            // tanpa batas kata ("Histori" -> "History") merusak "Historical" jadi
+            // "Historycal" karena "Histori" adalah substring di dalamnya. Batas
+            // dicek manual (bukan \b bawaan regex, yang ASCII-only dan tidak
+            // konsisten untuk huruf beraksen À-ÿ yang juga dipakai di sini).
+            const _LETTER_CLASS = 'A-Za-zÀ-ÿ';
             const sorted = translations
                 .filter(([from]) => from.length > 2)
-                .sort((a, b) => b[0].length - a[0].length);
-            const escapeRegExp = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                .sort((a, b) => b[0].length - a[0].length)
+                .map(([from, to]) => [
+                    new RegExp(`(?<![${_LETTER_CLASS}])(${escapeRegExp(from)})(?![${_LETTER_CLASS}])`, 'g'),
+                    to,
+                ]);
 
             function translateText(value) {
                 if (!value || !/[A-Za-zÀ-ÿ]/.test(value)) return value;
@@ -10202,8 +10264,8 @@
                     return value.replace(trimmed, exact.get(trimmed));
                 }
                 let out = value;
-                sorted.forEach(([from, to]) => {
-                    out = out.replace(new RegExp(escapeRegExp(from), 'g'), to);
+                sorted.forEach(([re, to]) => {
+                    out = out.replace(re, to);
                 });
                 return out;
             }
