@@ -1255,6 +1255,23 @@ class TestExplainLatest:
             assert abs(sum(result["contributions_c"].values()) - result["predicted_healthy_c"]) < 1e-9
             assert result["contribution_method"] == "exact_physics"
             assert result["cusum_triggered"] is True
+
+            # A9 (autopilot 2026-11): physics_quadratic predicts DELTA-T, but
+            # predicted_healthy_c must now be an ABSOLUTE temperature
+            # comparable to measured T=80 -- ambient (T - dT = 80 - 30 = 50)
+            # must be folded in as its own contribution, not left out (which
+            # previously made unexplained_residual_c off by ~ambient every
+            # single time, regardless of how good the model actually was).
+            assert "Ambient temperature" in result["contributions_c"]
+            assert abs(result["contributions_c"]["Ambient temperature"] - 50.0) < 1e-9
+            non_ambient_sum = sum(
+                v for k, v in result["contributions_c"].items() if k != "Ambient temperature"
+            )
+            assert abs(result["predicted_healthy_c"] - (non_ambient_sum + 50.0)) < 1e-9
+            # Before the fix this would have been ~measured_hotspot_c - ambient
+            # (~30, dominated by ambient every time); now it should be small/
+            # plausible, not systematically close to the ambient value itself.
+            assert abs(result["unexplained_residual_c"]) < abs(50.0 - 5.0)
             assert "Consistent rise since" in result["cusum_message"]
         finally:
             artifact_path.unlink(missing_ok=True)

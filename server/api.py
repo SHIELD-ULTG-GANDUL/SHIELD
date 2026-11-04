@@ -1191,6 +1191,20 @@ def explain_latest(
             i_eff_norm_override = i_eff_amps / model.physics.i_ref
 
         contributions, method = explain_contrib.explain_model(model_type, model, feature_row, i_eff_norm_override)
+
+        # A9 (autopilot 2026-11): physics_quadratic/physics_rc/hybrid (dan
+        # ml_gbm dengan target="delta_t" sejak A7) memprediksi DELTA-T, bukan
+        # suhu absolut -- predicted_healthy_c sebelumnya cuma sum(contributions)
+        # dan DIBANDINGKAN LANGSUNG ke measured_hotspot_c (suhu absolut), jadi
+        # unexplained_residual_c SELALU meleset ~+ambient (~30 C). Ambient
+        # dihitung dari T - dT yang SUDAH tersimpan di per_phase (sama persis
+        # dengan ambient yang dipakai lntai_worker.py saat itu), fallback ke
+        # config.LNTAI_V3_AMBIENT_C kalau dT tidak ada.
+        if explain_contrib.model_output_is_delta_t(model_type, model):
+            dT = phase_data.get("dT")
+            ambient_c = (measured_hotspot_c - dT) if dT is not None else config.LNTAI_V3_AMBIENT_C
+            contributions[explain_contrib.AMBIENT_GROUP] = ambient_c
+
         predicted_healthy_c = sum(contributions.values())
 
         lookback_days = xp.EXPLAIN_CONFIG["lookback_days"]

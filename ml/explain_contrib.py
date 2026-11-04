@@ -61,6 +61,35 @@ CONTRIBUTION_GROUPS: tuple[str, ...] = (
     "Phase load (filtered)", "Evening peak hour", "Load ramp in last hour", "Baseline offset",
 )
 
+# A9 (autopilot 2026-11): kategori TERPISAH dari CONTRIBUTION_GROUPS di atas --
+# bukan kontribusi FITUR model (physics_quadratic/physics_rc/hybrid memprediksi
+# DELTA-T, bukan suhu absolut, jadi "ambient" bukan sesuatu yang model itu
+# sendiri pelajari/kontribusikan). Diisi oleh CALLER (server/api.py), bukan di
+# sini, karena nilai ambient datang dari data pengukuran (lntai_results.per_phase),
+# bukan dari fitur input model.
+AMBIENT_GROUP = "Ambient temperature"
+
+
+def model_output_is_delta_t(model_type: str, model: Any) -> bool:
+    """True kalau output model ADALAH ΔT (perlu ditambah ambient untuk jadi
+    suhu absolut sebelum dibandingkan dengan measured_hotspot_c), False kalau
+    model sudah memprediksi suhu absolut langsung.
+
+    physics_quadratic/physics_rc/hybrid: SELALU True -- formula A*(i/i_ref)^2+B
+    didefinisikan sebagai ΔT sejak awal (lihat docstring physics_contributions
+    di atas), tidak bergantung konfigurasi apa pun.
+
+    ml_gbm: BERGANTUNG pada model.target ("delta_t" vs "absolute", field yang
+    ditambahkan A7/autopilot 2026-11 -- ml/models.py MLGBMModel). Artefak LAMA
+    (sebelum A7, model TIDAK punya atribut `target` sama sekali) dilatih atas
+    y=T mentah (absolut) -- default getattr ke "absolute" meniru perilaku lama
+    itu persis, bukan menebak."""
+    if model_type in ("physics_quadratic", "physics_rc", "hybrid"):
+        return True
+    if model_type == "ml_gbm":
+        return getattr(model, "target", "absolute") == "delta_t"
+    return False
+
 _FEATURE_TO_GROUP: dict[str, str] = {
     "i2_eff_default_tau": "Phase load (filtered)",
     "load_roc_1h": "Load ramp in last hour",

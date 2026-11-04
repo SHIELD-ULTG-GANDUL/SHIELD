@@ -59,12 +59,12 @@ mendadak. Baseline test SEBELUM run ke-2: 460 passed (setelah A10).
 | A1 | DONE | 86e048f | **PERINGATAN BESAR UNTUK PEMILIK: password akun login yang sebelumnya tertanam plaintext di HTML (value= pada form) SUDAH ADA DI RIWAYAT GIT dan WAJIB DIGANTI SEGERA di Firebase Console** -- menghapus value= di commit ini TIDAK menghapusnya dari histori commit lama. Autopilot sengaja TIDAK menulis ulang password itu di commit message (diblokir classifier keamanan sendiri saat dicoba -- bukti tambahan ini sensitif). |
 | A0 | TODO | | **Temuan penting (inventaris selesai, penghapusan BELUM dikerjakan):** jalur Firestore sudah pakai pola dispatcher yang benar di setiap titik masuk (`subscribeTemperatureLogs()`, beban, dulfur: `if (window.timescaleReady) return ...Timescale(); return ...Firestore();`) -- karena `timescaleReady` SELALU true di produksi, cabang Firestore SUDAH JADI DEAD CODE yang tidak pernah tereksekusi saat ini, BUKAN bug aktif. Fungsi inti yang perlu dihapus: `_subscribeTemperatureLogsFirestore`, `_subscribeBebanDataFirestore`, `_persistTempLogToFirestore`, `_loadBebanLogsFirestore`, `parseFirestoreDoc`, `window.fs`/`window.db` Firestore SDK imports (169 baris referensi total, scope genuinely besar). Mengingat budget sesi ini terbatas dan risiko salah potong pada fungsi yang masih dipanggil dari banyak tempat, PENGHAPUSAN AKTUAL DITUNDA ke sesi berikutnya -- bukan diburu-buru sekarang. R_contact/dulfur (A0.d) juga belum dicek apakah endpoint GET lokal yang sesuai sudah ada. |
 | A3 | TODO | | |
-| A4 | TODO | | |
-| A5 | TODO | | |
-| A6 | TODO | | |
+| A4 | DONE | 41a3c0b | Diverifikasi fungsional (bukan cuma baca kode) -- "Historical Data" tidak lagi rusak jadi "Historycal Data". |
+| A5 | DONE | 41a3c0b | THERMAL_LIMITS_C={attention:70,critical:90} dipakai di alarm forecast (sebelumnya 75/80 + salah kutip IEC 60076-2 standar winding trafo daya, bukan kontak CB). |
+| A6 | DONE | 41a3c0b | HI_Forecast = f(puncak 24 jam), bukan akurasi model. Cap eksplisit CHI sesuai spesifikasi. "CHI confidence" ditampilkan terpisah. |
 | A7 | TODO | | |
 | A8 | TODO | | |
-| A9 | TODO | | |
+| A9 | DONE | (pending) | model_output_is_delta_t() sudah forward-compatible dengan A7 (cek model.target kalau ada, default "absolute" kalau belum -- A7 belum dikerjakan di sesi ini). Diverifikasi dengan test integrasi nyata (physics_quadratic asli + per_phase shape produksi), bukan cuma unit test arithmetic terisolasi. |
 | A11 | TODO | | |
 | A12 | TODO | | |
 
