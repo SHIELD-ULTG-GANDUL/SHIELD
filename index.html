@@ -8,10 +8,10 @@
     <!-- CSS & JS Assets -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js" type="text/javascript"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     
     <!-- Firebase SDK Modular -->
@@ -81,15 +81,51 @@
             });
         };
 
+        // A1 (autopilot 2026-11): toggle lihat/sembunyikan password -- aria-pressed
+        // disinkronkan manual (bukan <input type=checkbox> tersembunyi) karena cuma
+        // satu tombol sederhana, tidak perlu komponen terpisah.
+        function _toggleLoginPasswordVisibility() {
+            const input = document.getElementById('login-password');
+            const btn = document.getElementById('login-password-toggle');
+            if (!input || !btn) return;
+            const showing = input.type === 'text';
+            input.type = showing ? 'password' : 'text';
+            btn.textContent = showing ? 'Lihat' : 'Sembunyikan';
+            btn.setAttribute('aria-pressed', showing ? 'false' : 'true');
+            btn.setAttribute('aria-label', showing ? 'Tampilkan password' : 'Sembunyikan password');
+        }
+
+        function _setLoginError(message) {
+            const el = document.getElementById('login-error');
+            if (!el) return;
+            if (!message) { el.classList.add('hidden'); el.textContent = ''; return; }
+            el.textContent = message;
+            el.classList.remove('hidden');
+        }
+
         window.handleSignIn = async (email, password) => {
             const btn = document.getElementById('connect-btn-ui');
             const originalText = btn.textContent;
             btn.textContent = "Memverifikasi...";
             btn.disabled = true;
+            _setLoginError(null);
             try {
                 await signInWithEmailAndPassword(auth, email, password);
             } catch (err) {
-                alert("Akses Ditolak: Email tidak terdaftar atau password salah.");
+                // A1: pesan berbeda per jenis error (bukan satu alert() generik)
+                // -- bantu operator membedakan "salah ketik" dari "jaringan putus"
+                // dari "terlalu banyak percobaan", TANPA mengonfirmasi/menyangkal
+                // apakah email-nya terdaftar (jangan bocorkan info akun).
+                const code = err && err.code ? err.code : '';
+                let message;
+                if (code === 'auth/network-request-failed') {
+                    message = 'Gagal terhubung ke server autentikasi -- periksa koneksi internet Anda, lalu coba lagi.';
+                } else if (code === 'auth/too-many-requests') {
+                    message = 'Terlalu banyak percobaan masuk dari perangkat ini -- tunggu beberapa menit sebelum mencoba lagi.';
+                } else {
+                    message = 'Akses ditolak -- email atau password salah.';
+                }
+                _setLoginError(message);
                 btn.textContent = originalText;
                 btn.disabled = false;
             }
@@ -2121,13 +2157,17 @@
                 <p class="text-center text-[11px] text-slate-400 font-bold uppercase tracking-widest mb-6">Whitelist Access Only</p>
                 <form onsubmit="event.preventDefault(); handleSignIn(this.email.value, this.password.value)" class="space-y-4">
                     <div>
-                        <label class="block text-[11px] font-extrabold uppercase text-slate-400 mb-2">Kredensial Email</label>
-                        <input type="email" name="email" value="shieldgandul@gmail.com" required class="w-full border border-slate-300 p-4 rounded-xl text-sm outline-none focus:border-[#4caf50]" placeholder="Email Terdaftar">
+                        <label for="login-email" class="block text-[11px] font-extrabold uppercase text-slate-400 mb-2">Kredensial Email</label>
+                        <input id="login-email" type="email" name="email" autocomplete="username" required class="w-full border border-slate-300 p-4 rounded-xl text-sm outline-none focus:border-[#4caf50]" placeholder="Email Terdaftar">
                     </div>
                     <div>
-                        <label class="block text-[11px] font-extrabold uppercase text-slate-400 mb-2">Password Akses</label>
-                        <input type="password" name="password" value="shieldgandul123" required class="w-full border border-slate-300 p-4 rounded-xl text-sm outline-none focus:border-[#4caf50]" placeholder="Password">
+                        <label for="login-password" class="block text-[11px] font-extrabold uppercase text-slate-400 mb-2">Password Akses</label>
+                        <div class="relative">
+                            <input id="login-password" type="password" name="password" autocomplete="current-password" required class="w-full border border-slate-300 p-4 pr-12 rounded-xl text-sm outline-none focus:border-[#4caf50]" placeholder="Password">
+                            <button type="button" onclick="_toggleLoginPasswordVisibility()" id="login-password-toggle" aria-pressed="false" aria-label="Tampilkan password" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-[11px] font-extrabold uppercase">Lihat</button>
+                        </div>
                     </div>
+                    <p id="login-error" role="alert" class="hidden text-[11px] font-bold text-red-600 bg-red-50 border border-red-200 rounded-xl p-3"></p>
                     <button type="submit" id="connect-btn-ui" class="btn-action w-full p-4 mt-2 shadow-lg active:scale-[0.98]">Masuk Sistem</button>
                 </form>
             </div>
