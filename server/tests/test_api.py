@@ -164,6 +164,14 @@ class TestApiKeyAuth:
         monkeypatch.setattr(api, "API_KEY", "rahasia")
         api._check_api_key("rahasia")  # tidak raise = lolos
 
+    def test_check_api_key_rejects_none_when_enabled(self, monkeypatch):
+        # A10 (autopilot 2026-11): hmac.compare_digest butuh dua string --
+        # pastikan x_api_key=None (header tidak dikirim) tetap ditolak
+        # dengan benar, bukan TypeError dari compare_digest(None, ...).
+        monkeypatch.setattr(api, "API_KEY", "rahasia")
+        with pytest.raises(Exception):
+            api._check_api_key(None)
+
 
 # ── /api/ambient-logs (T3, Cabang B) ─────────────────────────────────────
 

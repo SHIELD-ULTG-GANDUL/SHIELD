@@ -14,6 +14,7 @@ belakang reverse proxy nginx dengan HTTPS — lihat README.md.
 
 from __future__ import annotations
 
+import hmac
 import json
 import sys
 from datetime import datetime, timedelta, timezone
@@ -70,7 +71,11 @@ _pool = ConnectionPool(conninfo=_db_settings.url, min_size=1, max_size=5, open=T
 
 
 def _check_api_key(x_api_key: Optional[str]) -> None:
-    if API_KEY and x_api_key != API_KEY:
+    # A10 (autopilot 2026-11): hmac.compare_digest -- waktu perbandingan
+    # TIDAK bergantung pada panjang prefix yang cocok (!= biasa bisa
+    # membocorkan API key lewat timing attack, walau praktiknya butuh
+    # ribuan request terukur presisi untuk dieksploitasi).
+    if API_KEY and not hmac.compare_digest(x_api_key or "", API_KEY):
         raise HTTPException(status_code=401, detail="API key tidak valid")
 
 
