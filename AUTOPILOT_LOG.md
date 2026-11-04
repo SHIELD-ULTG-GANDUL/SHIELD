@@ -41,11 +41,39 @@ perbaikan TLS `mqtt_subscriber.py` di-commit terpisah ke `main`).
 | F7 | TODO | | |
 | U6 | TODO | | |
 
+## RUN KE-2 (2026-11-04) — prompt autopilot baru, Fase A (audit) ditambahkan
+
+Prompt baru dari pemilik menambah Fase A (A0-A12, audit keamanan/UI/ML)
+di ATAS Fase B yang sudah berjalan di atas (S3/M10-12/U7/U5/U4 = Fase B
+run pertama, statusnya tetap seperti di atas). Pemilik eksplisit bilang
+limit/budget hampir habis saat memberi prompt ini -- autopilot MENGUBAH
+URUTAN pengerjaan (bukan urutan di prompt) jadi tugas kecil-bernilai-
+tinggi dulu (A2, A10, A1) sebelum tugas besar (A0), supaya progres tidak
+terhenti di tengah perubahan besar yang belum lengkap kalau limit habis
+mendadak. Baseline test SEBELUM run ke-2: 460 passed (setelah A10).
+
+| ID | Status | Commit | Catatan & yang belum diverifikasi |
+|---|---|---|---|
+| A2 | DONE | 86e048f | chart.js@4.4.1 (umd build) + lucide@0.460.0. |
+| A10 | DONE | 0803ad2 | hmac.compare_digest. Verifikasi token login di endpoint tulis TETAP belum dikerjakan (butuh service account Firebase -- di luar wewenang autopilot, lihat daftar "Tidak dikerjakan"). |
+| A1 | DONE | 86e048f | **PERINGATAN BESAR UNTUK PEMILIK: password akun login yang sebelumnya tertanam plaintext di HTML (value= pada form) SUDAH ADA DI RIWAYAT GIT dan WAJIB DIGANTI SEGERA di Firebase Console** -- menghapus value= di commit ini TIDAK menghapusnya dari histori commit lama. Autopilot sengaja TIDAK menulis ulang password itu di commit message (diblokir classifier keamanan sendiri saat dicoba -- bukti tambahan ini sensitif). |
+| A0 | TODO | | Belum dikerjakan -- tugas terbesar & paling berisiko (hapus seluruh jalur Firestore), disisakan untuk setelah tugas kecil di atas aman ter-commit. |
+| A3 | TODO | | |
+| A4 | TODO | | |
+| A5 | TODO | | |
+| A6 | TODO | | |
+| A7 | TODO | | |
+| A8 | TODO | | |
+| A9 | TODO | | |
+| A11 | TODO | | |
+| A12 | TODO | | |
+
 ## Tidak dikerjakan (butuh manusia, sesuai instruksi)
 
-- Ganti password Firebase yang tertanam di HTML
-- Firestore Security Rules & verifikasi Firebase ID token server (S2)
+- Ganti password Firebase yang tertanam di HTML -- **LIHAT PERINGATAN A1 DI ATAS, INI PRIORITAS TERTINGGI**
+- Firestore Security Rules & verifikasi Firebase ID token server (S2 / A10)
 - Fitur ringkasan alarm berbasis LLM
 - Retraining model dengan data produksi & aktivasi model
+- Menonaktifkan/mengosongkan database Firestore lama di Firebase Console
 - Push ke remote bila kredensial tidak tersedia (di sini kredensial GitHub
   ADA dan sudah terbukti jalan di sesi ini -- push akan dicoba di akhir)
