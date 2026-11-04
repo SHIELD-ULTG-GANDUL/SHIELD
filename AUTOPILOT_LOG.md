@@ -31,7 +31,7 @@ perbaikan TLS `mqtt_subscriber.py` di-commit terpisah ke `main`).
 | M12 | DONE | bb22ca8 | --tune hanya mencakup ml_gbm, bukan residual GBM di dalam hybrid (scoping, dicatat di commit). naive_median TIDAK ditulis ke ml_models (bukan di CHECK constraint, memang bukan model teraktivasi -- skip_save flag). |
 | U7 | DONE | 00909b0 | suhu/beban freshness FLAT (bukan per-trafo), sesuai bentuk objek di task. Tab Forecast dibiarkan pakai indikator sendiri (fc-last-update-tab), tidak dipetakan ke 4 kategori. Tidak bisa diverifikasi visual di browser (tidak ada akses) -- cek manual disarankan. |
 | U5 | PARTIAL | 1bfee23 | Status strip + ikon Lucide + badge skala v2/v3 selesai. "Ganti label OT Normalized/Load Factor" SENGAJA tidak dikerjakan -- tumpang tindih dengan rencana unifikasi field LNTAI v2/v3 yang belum selesai dari sesi sebelumnya (S_TLR->S_RES dst). Tidak bisa diverifikasi visual (tidak ada browser). |
-| U4 | TODO | | |
+| U4 | SKIPPED | - | **Konflik instruksi, bukan masalah teknis.** Task ini minta ubah SEMUA UI jadi Bahasa Indonesia + hapus layer terjemahan Inggris. Ini bertentangan LANGSUNG dengan aturan proyek yang sudah ditetapkan eksplisit di sesi SEBELUMNYA ("semua teks UI-facing harus Bahasa Inggris, Indonesia hanya di komentar kode") -- bahkan pernah ada pelanggaran (ea_source) yang diperbaiki karena ini. Mengubah arah bahasa UI adalah keputusan produk/konten yang perlu dikonfirmasi manusia secara eksplisit, bukan sesuatu yang aman diputuskan otomatis oleh autopilot. Tidak dikerjakan sama sekali (bukan partial) -- menunggu klarifikasi: apakah aturan lama dicabut, atau task ini yang keliru.
 | F1 | TODO | | |
 | F2 | TODO | | |
 | F3 | TODO | | |
